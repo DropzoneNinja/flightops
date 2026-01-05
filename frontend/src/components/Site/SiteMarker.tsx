@@ -1,0 +1,238 @@
+import { Marker, Popup, Polyline } from 'react-leaflet';
+import { FlightSite } from '../../services/sites.service';
+import { useSites } from '../../hooks/useSites';
+import { useAuth } from '../../hooks/useAuth';
+import { useWeather } from '../../hooks/useWeather';
+import { useState } from 'react';
+import L from 'leaflet';
+import HeatBar from '../Weather/HeatBar';
+
+// Custom marker icons for takeoff and parking
+const takeoffIcon = new L.Icon({
+  iconUrl: '/icon-ppg.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [64, 64],
+  iconAnchor: [32, 64],
+  popupAnchor: [0, -64],
+  shadowSize: [82, 82],
+});
+
+const parkingIcon = new L.Icon({
+  iconUrl: '/icon-park.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [64, 64],
+  iconAnchor: [32, 64],
+  popupAnchor: [0, -64],
+  shadowSize: [82, 82],
+});
+
+interface SiteMarkerProps {
+  site: FlightSite;
+  currentZoom: number;
+  parkingIconZoomOn: number;
+  parkingIconZoomOff: number;
+}
+
+export default function SiteMarker({ site, currentZoom, parkingIconZoomOn, parkingIconZoomOff }: SiteMarkerProps) {
+  const { deleteSiteMutation, toggleSiteEnabledMutation } = useSites();
+  const { user } = useAuth();
+  const { forecasts, isLoading: isLoadingWeather } = useWeather(site.id);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Convert coordinates to numbers (they come as strings from PostgreSQL decimal type)
+  const takeoffLat = parseFloat(site.takeoff_lat.toString());
+  const takeoffLon = parseFloat(site.takeoff_lon.toString());
+  const parkingLat = parseFloat(site.parking_lat.toString());
+  const parkingLon = parseFloat(site.parking_lon.toString());
+
+  const handleDelete = async () => {
+    if (window.confirm(`Are you sure you want to delete "${site.name}"?`)) {
+      setIsDeleting(true);
+      try {
+        await deleteSiteMutation.mutateAsync(site.id);
+      } catch (error) {
+        console.error('Failed to delete site:', error);
+        alert('Failed to delete site. Please try again.');
+        setIsDeleting(false);
+      }
+    }
+  };
+
+  const handleToggleEnabled = async () => {
+    try {
+      await toggleSiteEnabledMutation.mutateAsync(site.id);
+    } catch (error) {
+      console.error('Failed to toggle site status:', error);
+      alert('Failed to update site status. Please try again.');
+    }
+  };
+
+  // Line connecting takeoff and parking
+  const positions: [number, number][] = [
+    [takeoffLat, takeoffLon],
+    [parkingLat, parkingLon],
+  ];
+
+  // Determine if parking marker should be visible based on zoom level
+  const shouldShowParkingMarker = currentZoom >= parkingIconZoomOn;
+  const shouldHideParkingMarker = currentZoom <= parkingIconZoomOff;
+
+  // Calculate opacity for fade effect (between off and on levels)
+  let parkingOpacity = 1;
+  if (shouldHideParkingMarker) {
+    parkingOpacity = 0;
+  } else if (currentZoom < parkingIconZoomOn) {
+    // Fade in between parkingIconZoomOff and parkingIconZoomOn
+    const zoomRange = parkingIconZoomOn - parkingIconZoomOff;
+    const currentProgress = currentZoom - parkingIconZoomOff;
+    parkingOpacity = Math.max(0, Math.min(1, currentProgress / zoomRange));
+  }
+
+  return (
+    <>
+      {/* Line connecting takeoff to parking */}
+      <Polyline
+        positions={positions}
+        pathOptions={{
+          color: site.enabled ? '#22c55e' : '#9ca3af',
+          weight: 2,
+          opacity: 0.6,
+          dashArray: '5, 5',
+        }}
+      />
+
+      {/* Takeoff marker */}
+      <Marker
+        position={[takeoffLat, takeoffLon]}
+        icon={takeoffIcon}
+      >
+        <Popup>
+          <div className="min-w-[350px] max-w-[400px]">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-bold text-gray-900">{site.name}</h3>
+              <span
+                className={`px-2 py-1 text-xs font-medium rounded ${
+                  site.enabled
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                {site.enabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+
+            <div className="space-y-2 mb-3">
+              <div>
+                <p className="text-xs font-medium text-gray-500">Takeoff</p>
+                <p className="text-sm text-gray-700">
+                  {takeoffLat.toFixed(6)}, {takeoffLon.toFixed(6)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500">Parking</p>
+                <p className="text-sm text-gray-700">
+                  {parkingLat.toFixed(6)}, {parkingLon.toFixed(6)}
+                </p>
+              </div>
+            </div>
+
+            {/* Weather Forecast Section */}
+            <div className="border-t pt-3 mb-3">
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                3-Day Forecast
+              </h4>
+              {isLoadingWeather ? (
+                <div className="text-center py-4">
+                  <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  <p className="mt-2 text-xs text-gray-600">Loading weather...</p>
+                </div>
+              ) : forecasts.length > 0 ? (
+                <div className="space-y-3">
+                  {forecasts.map((forecast) => (
+                    <div key={forecast.id} className="bg-gray-50 p-2 rounded">
+                      <p className="text-xs font-medium text-gray-700 mb-2">
+                        {new Date(forecast.date).toLocaleDateString([], {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </p>
+                      <HeatBar
+                        hourlyData={forecast.hourlyData}
+                        type="wind"
+                        label="Wind"
+                      />
+                      <HeatBar
+                        hourlyData={forecast.hourlyData}
+                        type="gust"
+                        label="Gusts"
+                      />
+                      <HeatBar
+                        hourlyData={forecast.hourlyData}
+                        type="rain"
+                        label="Rain"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 text-center py-2">
+                  No forecast data available
+                </p>
+              )}
+            </div>
+
+            {user?.is_admin && (
+              <div className="flex gap-2 border-t pt-3">
+                <button
+                  onClick={handleToggleEnabled}
+                  disabled={toggleSiteEnabledMutation.isPending}
+                  className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
+                    site.enabled
+                      ? 'bg-yellow-600 text-white hover:bg-yellow-700'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {toggleSiteEnabledMutation.isPending
+                    ? 'Updating...'
+                    : site.enabled
+                    ? 'Disable'
+                    : 'Enable'}
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting || deleteSiteMutation.isPending}
+                  className="flex-1 px-3 py-2 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isDeleting || deleteSiteMutation.isPending
+                    ? 'Deleting...'
+                    : 'Delete'}
+                </button>
+              </div>
+            )}
+          </div>
+        </Popup>
+      </Marker>
+
+      {/* Parking marker - only visible when zoomed in */}
+      {parkingOpacity > 0 && (
+        <Marker
+          position={[parkingLat, parkingLon]}
+          icon={parkingIcon}
+          opacity={parkingOpacity}
+        >
+          <Popup>
+            <div className="min-w-[200px]">
+              <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                Parking - {site.name}
+              </h4>
+              <p className="text-xs text-gray-700">
+                {parkingLat.toFixed(6)}, {parkingLon.toFixed(6)}
+              </p>
+            </div>
+          </Popup>
+        </Marker>
+      )}
+    </>
+  );
+}

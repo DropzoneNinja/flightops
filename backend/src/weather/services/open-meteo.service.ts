@@ -1,0 +1,103 @@
+import { Injectable, Logger } from '@nestjs/common';
+import axios, { AxiosInstance } from 'axios';
+import { OpenMeteoResponse } from '../interfaces/open-meteo-response.interface';
+
+@Injectable()
+export class OpenMeteoService {
+  private readonly logger = new Logger(OpenMeteoService.name);
+  private readonly axiosInstance: AxiosInstance;
+  private readonly BASE_URL = 'https://api.open-meteo.com/v1/forecast';
+
+  constructor() {
+    this.axiosInstance = axios.create({
+      baseURL: this.BASE_URL,
+      timeout: 10000, // 10 second timeout
+    });
+  }
+
+  /**
+   * Fetch weather forecast for a specific location
+   * @param latitude Site latitude
+   * @param longitude Site longitude
+   * @param forecastDays Number of forecast days (default: 3)
+   * @returns Open-Meteo API response with hourly data
+   */
+  async fetchForecast(
+    latitude: number,
+    longitude: number,
+    forecastDays = 3,
+  ): Promise<OpenMeteoResponse> {
+    try {
+      this.logger.log(
+        `Fetching ${forecastDays}-day forecast for (${latitude}, ${longitude})`,
+      );
+
+      const response = await this.axiosInstance.get<OpenMeteoResponse>('', {
+        params: {
+          latitude,
+          longitude,
+          hourly: [
+            'temperature_2m',
+            'wind_speed_10m',
+            'wind_gusts_10m',
+            'precipitation',
+          ].join(','),
+          timezone: 'auto',
+          forecast_days: forecastDays,
+        },
+      });
+
+      this.logger.log(
+        `Successfully fetched forecast for (${latitude}, ${longitude})`,
+      );
+
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch forecast for (${latitude}, ${longitude}): ${error.message}`,
+      );
+      throw new Error(
+        `Open-Meteo API error: ${error.response?.data?.reason || error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Fetch forecast with retry logic
+   * @param latitude Site latitude
+   * @param longitude Site longitude
+   * @param forecastDays Number of forecast days
+   * @param maxRetries Maximum number of retry attempts
+   * @returns Open-Meteo API response
+   */
+  async fetchForecastWithRetry(
+    latitude: number,
+    longitude: number,
+    forecastDays = 3,
+    maxRetries = 3,
+  ): Promise<OpenMeteoResponse> {
+    let lastError: Error;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.fetchForecast(latitude, longitude, forecastDays);
+      } catch (error) {
+        lastError = error;
+        this.logger.warn(
+          `Attempt ${attempt}/${maxRetries} failed for (${latitude}, ${longitude})`,
+        );
+
+        if (attempt < maxRetries) {
+          // Exponential backoff: 1s, 2s, 4s
+          const delay = Math.pow(2, attempt - 1) * 1000;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    this.logger.error(
+      `All ${maxRetries} attempts failed for (${latitude}, ${longitude})`,
+    );
+    throw lastError;
+  }
+}

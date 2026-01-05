@@ -1,0 +1,54 @@
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { AuthService } from './auth.service';
+import { RegisterDto, LoginDto } from './dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { LocalAuthGuard } from './guards/local-auth.guard';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { User } from '../database/entities/user.entity';
+
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
+  /**
+   * POST /auth/register
+   * Register a new user
+   */
+  @Post('register')
+  async register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
+  }
+
+  /**
+   * POST /auth/login
+   * Login with email and password
+   */
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(LocalAuthGuard)
+  async login(@CurrentUser() user: User) {
+    return this.authService.login(user);
+  }
+
+  /**
+   * GET /auth/me
+   * Get current user profile
+   */
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async getMe(@CurrentUser() user: User) {
+    return {
+      id: user.id,
+      email: user.email,
+      created_at: user.created_at,
+    };
+  }
+}
