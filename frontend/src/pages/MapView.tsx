@@ -74,8 +74,7 @@ export default function MapView() {
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(6);
   const [showZoomIndicator, setShowZoomIndicator] = useState(true);
-  const [parkingIconZoomOn, setParkingIconZoomOn] = useState(10);
-  const [parkingIconZoomOff, setParkingIconZoomOff] = useState(8);
+  const [parkingIconZoomLevel, setParkingIconZoomLevel] = useState(10);
 
   // Update state when settings are loaded
   useEffect(() => {
@@ -83,11 +82,8 @@ export default function MapView() {
       if (settingsMap['map.show_zoom_indicator'] !== undefined) {
         setShowZoomIndicator(settingsMap['map.show_zoom_indicator']);
       }
-      if (settingsMap['map.parking_icon_zoom_on'] !== undefined) {
-        setParkingIconZoomOn(settingsMap['map.parking_icon_zoom_on']);
-      }
-      if (settingsMap['map.parking_icon_zoom_off'] !== undefined) {
-        setParkingIconZoomOff(settingsMap['map.parking_icon_zoom_off']);
+      if (settingsMap['map.parking_icon_zoom_level'] !== undefined) {
+        setParkingIconZoomLevel(settingsMap['map.parking_icon_zoom_level']);
       }
     }
   }, [settingsMap, isLoadingMap]);
@@ -243,8 +239,7 @@ export default function MapView() {
                 key={site.id}
                 site={site}
                 currentZoom={currentZoom}
-                parkingIconZoomOn={parkingIconZoomOn}
-                parkingIconZoomOff={parkingIconZoomOff}
+                parkingIconZoomLevel={parkingIconZoomLevel}
               />
             ))}
 
@@ -272,7 +267,7 @@ export default function MapView() {
               Zoom Level: {currentZoom}
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              Parking icons: {currentZoom >= parkingIconZoomOn ? 'ON' : currentZoom <= parkingIconZoomOff ? 'OFF' : 'FADING'}
+              Parking icons: {currentZoom >= parkingIconZoomLevel ? 'ON' : 'OFF'}
             </div>
           </div>
         )}

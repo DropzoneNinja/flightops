@@ -29,11 +29,10 @@ const parkingIcon = new L.Icon({
 interface SiteMarkerProps {
   site: FlightSite;
   currentZoom: number;
-  parkingIconZoomOn: number;
-  parkingIconZoomOff: number;
+  parkingIconZoomLevel: number;
 }
 
-export default function SiteMarker({ site, currentZoom, parkingIconZoomOn, parkingIconZoomOff }: SiteMarkerProps) {
+export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: SiteMarkerProps) {
   const { deleteSiteMutation, toggleSiteEnabledMutation } = useSites();
   const { user } = useAuth();
   const { forecasts, isLoading: isLoadingWeather } = useWeather(site.id);
@@ -74,19 +73,7 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomOn, parki
   ];
 
   // Determine if parking marker should be visible based on zoom level
-  const shouldShowParkingMarker = currentZoom >= parkingIconZoomOn;
-  const shouldHideParkingMarker = currentZoom <= parkingIconZoomOff;
-
-  // Calculate opacity for fade effect (between off and on levels)
-  let parkingOpacity = 1;
-  if (shouldHideParkingMarker) {
-    parkingOpacity = 0;
-  } else if (currentZoom < parkingIconZoomOn) {
-    // Fade in between parkingIconZoomOff and parkingIconZoomOn
-    const zoomRange = parkingIconZoomOn - parkingIconZoomOff;
-    const currentProgress = currentZoom - parkingIconZoomOff;
-    parkingOpacity = Math.max(0, Math.min(1, currentProgress / zoomRange));
-  }
+  const shouldShowParkingMarker = currentZoom >= parkingIconZoomLevel;
 
   return (
     <>
@@ -215,11 +202,10 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomOn, parki
       </Marker>
 
       {/* Parking marker - only visible when zoomed in */}
-      {parkingOpacity > 0 && (
+      {shouldShowParkingMarker && (
         <Marker
           position={[parkingLat, parkingLon]}
           icon={parkingIcon}
-          opacity={parkingOpacity}
         >
           <Popup>
             <div className="min-w-[200px]">

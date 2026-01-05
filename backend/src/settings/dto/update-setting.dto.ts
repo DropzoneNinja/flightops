@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty, IsIn, ValidateIf } from 'class-validator';
+import { IsString, IsNotEmpty, IsIn, ValidateNested, IsArray } from 'class-validator';
+import { Type } from 'class-transformer';
 import { SettingType } from '../constants/default-settings';
 
 export class UpdateSettingDto {
@@ -7,7 +8,6 @@ export class UpdateSettingDto {
   setting_key: string;
 
   @IsNotEmpty()
-  @ValidateIf((o) => o.setting_type === SettingType.NUMBER)
   setting_value: string | number | boolean;
 
   @IsString()
@@ -16,5 +16,8 @@ export class UpdateSettingDto {
 }
 
 export class UpdateSettingsDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpdateSettingDto)
   settings: UpdateSettingDto[];
 }

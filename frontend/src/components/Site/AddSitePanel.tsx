@@ -21,7 +21,7 @@ export default function AddSitePanel({
   activeLocationSelection,
   pendingLocation,
   pendingLocationType,
-  onLocationUsed,
+  onLocationUsed: _onLocationUsed,
 }: AddSitePanelProps) {
   const { createSiteMutation } = useSites();
   const [formData, setFormData] = useState({

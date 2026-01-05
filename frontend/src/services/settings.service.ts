@@ -28,8 +28,7 @@ export enum SettingKey {
 
   // Map Display Settings
   SHOW_ZOOM_INDICATOR = 'map.show_zoom_indicator',
-  PARKING_ICON_ZOOM_ON = 'map.parking_icon_zoom_on',
-  PARKING_ICON_ZOOM_OFF = 'map.parking_icon_zoom_off',
+  PARKING_ICON_ZOOM_LEVEL = 'map.parking_icon_zoom_level',
 }
 
 export enum SettingType {
