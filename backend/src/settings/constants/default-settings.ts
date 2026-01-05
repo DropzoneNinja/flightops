@@ -21,6 +21,11 @@ export enum SettingKey {
   GUST_MODERATE_MAX = 'thresholds.gust.moderate_max',
   GUST_STRONG_MAX = 'thresholds.gust.strong_max',
 
+  // Gust Spread Thresholds (km/h)
+  GUST_SPREAD_EXCELLENT_MAX = 'thresholds.gust_spread.excellent_max',
+  GUST_SPREAD_GOOD_MAX = 'thresholds.gust_spread.good_max',
+  GUST_SPREAD_MARGINAL_MAX = 'thresholds.gust_spread.marginal_max',
+
   // Rain Thresholds (mm/hr)
   RAIN_DRY = 'thresholds.rain.dry',
   RAIN_DRIZZLE_MAX = 'thresholds.rain.drizzle_max',
@@ -120,6 +125,29 @@ export const DEFAULT_SETTINGS: DefaultSetting[] = [
     type: SettingType.NUMBER,
     description: 'Maximum gust speed before dangerous conditions (km/h)',
     category: 'Gust Thresholds',
+  },
+
+  // Gust Spread Thresholds
+  {
+    key: SettingKey.GUST_SPREAD_EXCELLENT_MAX,
+    value: 3,
+    type: SettingType.NUMBER,
+    description: 'Maximum gust spread for excellent conditions (km/h)',
+    category: 'Gust Spread Thresholds',
+  },
+  {
+    key: SettingKey.GUST_SPREAD_GOOD_MAX,
+    value: 7,
+    type: SettingType.NUMBER,
+    description: 'Maximum gust spread for good conditions (km/h)',
+    category: 'Gust Spread Thresholds',
+  },
+  {
+    key: SettingKey.GUST_SPREAD_MARGINAL_MAX,
+    value: 11,
+    type: SettingType.NUMBER,
+    description: 'Maximum gust spread before unsafe conditions (km/h)',
+    category: 'Gust Spread Thresholds',
   },
 
   // Rain Thresholds

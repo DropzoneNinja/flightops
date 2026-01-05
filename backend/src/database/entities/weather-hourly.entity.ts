@@ -45,6 +45,9 @@ export class WeatherHourly {
   gust_score: number;
 
   @Column({ type: 'integer' })
+  gust_spread_score: number;
+
+  @Column({ type: 'integer' })
   rain_score: number;
 
   @Column({ type: 'integer' })

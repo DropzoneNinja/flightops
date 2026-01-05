@@ -9,6 +9,7 @@ export interface HourlyWeatherData {
   rain: number;
   windScore: number;
   gustScore: number;
+  gustSpreadScore: number;
   rainScore: number;
   overallScore: number;
 }

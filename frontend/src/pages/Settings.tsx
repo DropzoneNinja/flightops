@@ -105,9 +105,16 @@ export default function Settings() {
       <div className="bg-white shadow-sm border-b-2 border-gray-200 z-10">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <div className="border-r-2 border-gray-300 pr-6">
-              <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-              <p className="text-sm text-gray-600">Configure PPG thresholds and preferences</p>
+            <div className="border-r-2 border-gray-300 pr-6 flex items-center gap-4">
+              <img
+                src="/logo.png"
+                alt="Throttle Junkies"
+                className="h-16 w-auto"
+              />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+                <p className="text-sm text-gray-600">Configure PPG thresholds and preferences</p>
+              </div>
             </div>
             <div className="flex items-center justify-end space-x-4 ml-auto">
               <span className="text-sm text-gray-600">{user?.email}</span>

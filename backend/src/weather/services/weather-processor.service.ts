@@ -192,6 +192,7 @@ export class WeatherProcessorService {
           rain,
           wind_score: scores.wind_score,
           gust_score: scores.gust_score,
+          gust_spread_score: scores.gust_spread_score,
           rain_score: scores.rain_score,
           overall_score: scores.overall_score,
         });

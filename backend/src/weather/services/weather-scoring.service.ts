@@ -5,6 +5,7 @@ import { SettingKey } from '../../settings/constants/default-settings';
 export interface WeatherScores {
   wind_score: number;
   gust_score: number;
+  gust_spread_score: number;
   rain_score: number;
   overall_score: number;
 }
@@ -14,6 +15,26 @@ export class WeatherScoringService {
   private readonly logger = new Logger(WeatherScoringService.name);
 
   constructor(private readonly settingsService: SettingsService) {}
+
+  /**
+   * Helper function for linear interpolation between two points
+   * @param x Current value
+   * @param x1 Lower bound x value
+   * @param x2 Upper bound x value
+   * @param y1 Lower bound y value
+   * @param y2 Upper bound y value
+   * @returns Interpolated y value
+   */
+  private linearInterpolate(
+    x: number,
+    x1: number,
+    x2: number,
+    y1: number,
+    y2: number,
+  ): number {
+    if (x2 === x1) return y1;
+    return y1 + ((y2 - y1) * (x - x1)) / (x2 - x1);
+  }
 
   /**
    * Calculate PPG safety scores for weather conditions
@@ -54,26 +75,48 @@ export class WeatherScoringService {
       Number(thresholds[SettingKey.RAIN_DRIZZLE_MAX]),
     );
 
-    // Overall score is the minimum (most conservative)
-    const overall_score = Math.min(wind_score, gust_score, rain_score);
+    // Calculate gust spread score
+    const gustSpread = gustSpeed - windSpeed;
+    const gust_spread_score = this.calculateGustSpreadScore(
+      gustSpread,
+      Number(thresholds[SettingKey.GUST_SPREAD_EXCELLENT_MAX]),
+      Number(thresholds[SettingKey.GUST_SPREAD_GOOD_MAX]),
+      Number(thresholds[SettingKey.GUST_SPREAD_MARGINAL_MAX]),
+    );
+
+    // Weighted sum formula: wind (40%) + gust (30%) + spread (20%) + rain (10%)
+    const overall_score = Math.round(
+      Math.max(
+        0,
+        Math.min(
+          100,
+          wind_score * 0.4 +
+            gust_score * 0.3 +
+            gust_spread_score * 0.2 +
+            rain_score * 0.1,
+        ),
+      ),
+    );
 
     return {
-      wind_score,
-      gust_score,
-      rain_score,
+      wind_score: Math.round(wind_score),
+      gust_score: Math.round(gust_score),
+      gust_spread_score: Math.round(gust_spread_score),
+      rain_score: Math.round(rain_score),
       overall_score,
     };
   }
 
   /**
-   * Calculate wind speed score based on PPG thresholds
+   * Calculate wind speed score using piecewise linear interpolation
    *
-   * Wind Speed Scoring:
-   * - 0-3 km/h: Too calm (50) - amber (thermal activity concern)
-   * - 4-12 km/h: Optimal (100) - green (ideal flying conditions)
-   * - 13-18 km/h: Marginal (70) - yellow (experienced pilots only)
-   * - 19-24 km/h: High risk (40) - orange (dangerous conditions)
-   * - 25+ km/h: Unsafe (0) - red (do not fly)
+   * Wind Speed Scoring (Piecewise Linear):
+   * - 0-3 km/h: Too calm (20-50) - linear interpolation
+   * - 3-4 km/h: Transition (50-100) - linear interpolation
+   * - 4-12 km/h: Optimal (100) - ideal flying conditions
+   * - 13-18 km/h: Marginal (70-30) - linear interpolation
+   * - 19-24 km/h: High risk (30-0) - linear interpolation
+   * - 25+ km/h: Unsafe (0) - do not fly
    */
   private calculateWindScore(
     windSpeed: number,
@@ -83,29 +126,42 @@ export class WeatherScoringService {
     marginalMax: number,
     highRiskMax: number,
   ): number {
-    if (windSpeed <= tooCalmMax) {
-      return 50; // Too calm (amber)
+    // Hard safety rule: wind >= 25 km/h
+    if (windSpeed >= 25) return 0;
+
+    // High risk zone: 19-24 km/h (linear 30 → 0)
+    if (windSpeed >= 19) {
+      return this.linearInterpolate(windSpeed, 19, 24.99, 30, 0);
     }
+
+    // Marginal zone: 13-18 km/h (linear 70 → 30)
+    if (windSpeed >= 13) {
+      return this.linearInterpolate(windSpeed, 13, 18.99, 70, 30);
+    }
+
+    // Optimal zone: 4-12 km/h
     if (windSpeed >= optimalMin && windSpeed <= optimalMax) {
-      return 100; // Optimal (green)
+      return 100;
     }
-    if (windSpeed <= marginalMax) {
-      return 70; // Marginal (yellow)
+
+    // Transition from too calm to optimal: 3-4 km/h (linear 50 → 100)
+    if (windSpeed > tooCalmMax) {
+      return this.linearInterpolate(windSpeed, 3.01, optimalMin, 50, 100);
     }
-    if (windSpeed <= highRiskMax) {
-      return 40; // High risk (orange)
-    }
-    return 0; // Unsafe (red)
+
+    // Too calm zone: 0-3 km/h (linear 20 → 50)
+    return this.linearInterpolate(windSpeed, 0, tooCalmMax, 20, 50);
   }
 
   /**
-   * Calculate gust speed score based on PPG thresholds
+   * Calculate gust speed score using piecewise linear interpolation
    *
-   * Gust Speed Scoring:
-   * - ≤15 km/h: Smooth (100) - green
-   * - 16-22 km/h: Moderate (70) - yellow
-   * - 23-28 km/h: Strong (40) - orange
-   * - 29+ km/h: Dangerous (0) - red
+   * Gust Speed Scoring (Piecewise Linear):
+   * - 0-15 km/h: Smooth (100) - ideal conditions
+   * - 15-16 km/h: Smooth to moderate (100-70) - linear interpolation
+   * - 16-22 km/h: Moderate (70-40) - linear interpolation
+   * - 23-28 km/h: Strong (40-0) - linear interpolation
+   * - 29+ km/h: Dangerous (0) - do not fly
    */
   private calculateGustScore(
     gustSpeed: number,
@@ -113,38 +169,83 @@ export class WeatherScoringService {
     moderateMax: number,
     strongMax: number,
   ): number {
-    if (gustSpeed <= smoothMax) {
-      return 100; // Smooth (green)
+    // Hard safety rule: gust >= 29 km/h
+    if (gustSpeed >= 29) return 0;
+
+    // Strong zone: 23-28 km/h (linear 40 → 0)
+    if (gustSpeed >= 23) {
+      return this.linearInterpolate(gustSpeed, 23, 28.99, 40, 0);
     }
-    if (gustSpeed <= moderateMax) {
-      return 70; // Moderate (yellow)
+
+    // Moderate zone: 16-22 km/h (linear 70 → 40)
+    if (gustSpeed >= 16) {
+      return this.linearInterpolate(gustSpeed, 16, 22.99, 70, 40);
     }
-    if (gustSpeed <= strongMax) {
-      return 40; // Strong (orange)
+
+    // Smooth to moderate transition: 15-16 km/h (linear 100 → 70)
+    if (gustSpeed > smoothMax) {
+      return this.linearInterpolate(gustSpeed, 15.01, 16, 100, 70);
     }
-    return 0; // Dangerous (red)
+
+    // Smooth zone: 0-15 km/h
+    return 100;
   }
 
   /**
-   * Calculate rain score based on PPG thresholds
+   * Calculate gust spread score using piecewise linear interpolation
    *
-   * Rain Scoring:
-   * - 0 mm/hr: Dry (100) - green
-   * - 0.1-0.5 mm/hr: Drizzle (70) - yellow
-   * - >0.5 mm/hr: Unsafe (0) - red
+   * Gust Spread Scoring (Piecewise Linear - Conservative):
+   * - 0-3 km/h: Excellent (100-60) - minimal turbulence
+   * - 3-7 km/h: Good (60-20) - moderate turbulence
+   * - 7-11 km/h: Marginal (20-0) - significant turbulence
+   * - 11+ km/h: Unsafe (0) - dangerous turbulence
+   */
+  private calculateGustSpreadScore(
+    gustSpread: number,
+    excellentMax: number,
+    goodMax: number,
+    marginalMax: number,
+  ): number {
+    // Hard safety rule: gust spread >= 11 km/h
+    if (gustSpread >= marginalMax) return 0;
+
+    // Marginal zone: 7-11 km/h (linear 20 → 0)
+    if (gustSpread > goodMax) {
+      return this.linearInterpolate(gustSpread, 7.01, marginalMax - 0.01, 20, 0);
+    }
+
+    // Good zone: 3-7 km/h (linear 60 → 20)
+    if (gustSpread > excellentMax) {
+      return this.linearInterpolate(gustSpread, 3.01, goodMax, 60, 20);
+    }
+
+    // Excellent zone: 0-3 km/h (linear 100 → 60)
+    return this.linearInterpolate(gustSpread, 0, excellentMax, 100, 60);
+  }
+
+  /**
+   * Calculate rain score using piecewise linear interpolation
+   *
+   * Rain Scoring (Piecewise Linear):
+   * - 0 mm/hr: Dry (100) - perfect conditions
+   * - 0-0.5 mm/hr: Light rain (100-0) - linear interpolation
+   * - >0.5 mm/hr: Unsafe (0) - do not fly
    */
   private calculateRainScore(
     rain: number,
     dryThreshold: number,
     drizzleMax: number,
   ): number {
-    if (rain <= dryThreshold) {
-      return 100; // Dry (green)
+    // Hard safety rule: rain > 0.5 mm/hr
+    if (rain > drizzleMax) return 0;
+
+    // Drizzle zone: 0-0.5 mm/hr (linear 100 → 0)
+    if (rain > dryThreshold) {
+      return this.linearInterpolate(rain, 0.01, drizzleMax, 100, 0);
     }
-    if (rain <= drizzleMax) {
-      return 70; // Drizzle (yellow)
-    }
-    return 0; // Unsafe (red)
+
+    // Dry: 0 mm/hr
+    return 100;
   }
 
   /**
