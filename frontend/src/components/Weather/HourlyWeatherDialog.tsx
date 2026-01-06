@@ -106,16 +106,16 @@ export default function HourlyWeatherDialog({ forecast, onClose }: HourlyWeather
                       </span>
                     </td>
                     <td className="py-2 text-right text-sm text-gray-700">
-                      {data.temperature.toFixed(1)}°C
+                      {Number(data.temperature).toFixed(1)}°C
                     </td>
                     <td className="py-2 text-right text-sm text-gray-700">
-                      {data.windSpeed.toFixed(1)} km/h
+                      {Number(data.windSpeed).toFixed(1)} km/h
                     </td>
                     <td className="py-2 text-right text-sm text-gray-700">
-                      {data.gustSpeed.toFixed(1)} km/h
+                      {Number(data.gustSpeed).toFixed(1)} km/h
                     </td>
                     <td className="py-2 text-right text-sm text-gray-700">
-                      {data.rain.toFixed(1)} mm
+                      {Number(data.rain).toFixed(1)} mm
                     </td>
                   </tr>
                 );

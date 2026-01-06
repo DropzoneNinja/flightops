@@ -106,26 +106,30 @@ export class WeatherProcessorService {
     const sunset = this.sunCalcService.formatTime(sunTimes.sunset);
 
     // Filter to daylight hours only
+    // Include an hour if any part of it overlaps with daylight period
     const daylightIndices = hourIndices.filter((index) => {
       const timestamp = new Date(hourlyData.time[index]);
-      const isDaylight = this.sunCalcService.isDaylight(
-        timestamp,
-        sunTimes.sunrise,
-        sunTimes.sunset,
-      );
+
+      // An hour overlaps with daylight if:
+      // - The hour ends after sunrise (timestamp + 1 hour > sunrise), AND
+      // - The hour starts before sunset (timestamp < sunset)
+      const hourEnd = new Date(timestamp.getTime() + 60 * 60 * 1000); // Add 1 hour
+      const overlapsWithDaylight =
+        hourEnd > sunTimes.sunrise && timestamp < sunTimes.sunset;
 
       // Debug logging
       if (index === hourIndices[0]) {
         this.logger.debug(
           `First hour check - Time: ${hourlyData.time[index]}, ` +
           `Parsed: ${timestamp.toISOString()}, ` +
+          `Hour end: ${hourEnd.toISOString()}, ` +
           `Sunrise: ${sunTimes.sunrise.toISOString()}, ` +
           `Sunset: ${sunTimes.sunset.toISOString()}, ` +
-          `IsDaylight: ${isDaylight}`,
+          `Overlaps: ${overlapsWithDaylight}`,
         );
       }
 
-      return isDaylight;
+      return overlapsWithDaylight;
     });
 
     if (daylightIndices.length === 0) {

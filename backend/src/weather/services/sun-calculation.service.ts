@@ -34,13 +34,24 @@ export class SunCalculationService {
   }
 
   /**
-   * Format time as HH:MM string
+   * Format time as HH:MM string in the configured timezone
    * @param date The date to format
    * @returns Time string in HH:MM format
    */
   formatTime(date: Date): string {
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const timezone = process.env.TZ || 'UTC';
+
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+
+    const parts = formatter.formatToParts(date);
+    const hours = parts.find(p => p.type === 'hour')?.value || '00';
+    const minutes = parts.find(p => p.type === 'minute')?.value || '00';
+
     return `${hours}:${minutes}`;
   }
 

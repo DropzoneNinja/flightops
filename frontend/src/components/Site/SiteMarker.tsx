@@ -7,7 +7,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import L from 'leaflet';
 import HeatBar from '../Weather/HeatBar';
-import MarkerWithWeather from '../Weather/MarkerWithWeather';
+import WeatherForecastBars from '../Weather/WeatherForecastBars';
 import HourlyWeatherDialog from '../Weather/HourlyWeatherDialog';
 import { WeatherForecast } from '../../services/weather.service';
 
@@ -51,48 +51,32 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
   const parkingLat = parseFloat(site.parking_lat.toString());
   const parkingLon = parseFloat(site.parking_lon.toString());
 
-  // Create DivIcon for custom marker with weather bars
-  // Below parkingIconZoomLevel: Show only weather bars (centered)
-  // At parkingIconZoomLevel+: Show icon + weather bars (icon centered, bars to the right)
-  const takeoffDivIcon = useMemo(() => {
+  // Create DivIcon for weather bars marker
+  // Below parkingIconZoomLevel: Centered on takeoff location
+  // At parkingIconZoomLevel+: Positioned to the right of takeoff icon
+  const weatherBarsDivIcon = useMemo(() => {
     const showIcon = currentZoom >= parkingIconZoomLevel;
-    const iconSize: [number, number] = showIcon
-      ? [208, 64]  // Icon (64px) + spacing (24px) + bars (120px)
-      : [120, 60]; // Just bars (120px wide, 60px tall)
+    const iconSize: [number, number] = [120, 60]; // Weather bars size
     const iconAnchor: [number, number] = showIcon
-      ? [32, 32]   // Center of the takeoff icon (64x64)
-      : [60, 30];  // Center of the weather bars
-    const popupAnchor: [number, number] = showIcon
-      ? [0, -32]   // Above icon
-      : [0, -30];  // Above bars
+      ? [-56, 30]  // Position to the right of takeoff icon (32px icon half + 24px spacing = -56)
+      : [60, 30];  // Center of the weather bars when icon not visible
+    const popupAnchor: [number, number] = [60, -30]; // Above bars
 
     return new L.DivIcon({
       className: 'custom-marker-with-weather',
-      html: '<div class="marker-container"></div>',
+      html: '<div class="weather-bars-container"></div>',
       iconSize,
       iconAnchor,
       popupAnchor,
     });
   }, [currentZoom, parkingIconZoomLevel]);
 
-  // Render React content into the DivIcon (only when showing weather bars)
+  // Render React content into the weather bars DivIcon
   useEffect(() => {
-    const shouldShowIcon = currentZoom >= parkingIconZoomLevel;
-
-    // Only use React Portal when showing weather bars (low zoom)
-    if (shouldShowIcon) {
-      // Clean up the root if it exists
-      if (rootRef.current) {
-        rootRef.current.unmount();
-        rootRef.current = null;
-      }
-      return;
-    }
-
     const markerElement = markerRef.current?.getElement();
     if (!markerElement) return;
 
-    const container = markerElement.querySelector('.marker-container');
+    const container = markerElement.querySelector('.weather-bars-container');
     if (!container) return;
 
     // Create root only once
@@ -100,13 +84,12 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
       rootRef.current = createRoot(container);
     }
 
-    // Render weather bars only
+    // Always render weather bars
     rootRef.current.render(
-      <MarkerWithWeather
+      <WeatherForecastBars
         forecasts={forecasts}
         isLoading={isLoadingWeather}
         onDayClick={setSelectedForecast}
-        shouldShowIcon={false}
       />
     );
 
@@ -169,26 +152,33 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
         }}
       />
 
-      {/* Takeoff marker */}
+      {/* Weather bars marker - always visible, position changes based on zoom */}
       <Marker
-        ref={currentZoom >= parkingIconZoomLevel ? undefined : markerRef}
+        ref={markerRef}
         position={[takeoffLat, takeoffLon]}
-        icon={currentZoom >= parkingIconZoomLevel ? takeoffIcon : takeoffDivIcon}
-      >
-        <Popup>
-          <div className="min-w-[350px] max-w-[400px]">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-bold text-gray-900">{site.name}</h3>
-              <span
-                className={`px-2 py-1 text-xs font-medium rounded ${
-                  site.enabled
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}
-              >
-                {site.enabled ? 'Enabled' : 'Disabled'}
-              </span>
-            </div>
+        icon={weatherBarsDivIcon}
+      />
+
+      {/* Takeoff icon marker - only visible at high zoom */}
+      {currentZoom >= parkingIconZoomLevel && (
+        <Marker
+          position={[takeoffLat, takeoffLon]}
+          icon={takeoffIcon}
+        >
+          <Popup>
+            <div className="min-w-[350px] max-w-[400px]">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-bold text-gray-900">{site.name}</h3>
+                <span
+                  className={`px-2 py-1 text-xs font-medium rounded ${
+                    site.enabled
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  {site.enabled ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
 
             <div className="space-y-2 mb-3">
               <div>
@@ -281,7 +271,8 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
             )}
           </div>
         </Popup>
-      </Marker>
+        </Marker>
+      )}
 
       {/* Parking marker - only visible when zoomed in */}
       {shouldShowParkingMarker && (

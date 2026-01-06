@@ -8,6 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-flightops}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password}
       POSTGRES_DB: ${POSTGRES_DB:-flightops_dev}
+      TZ: ${TIMEZONE}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -31,6 +32,7 @@ services:
       DATABASE_NAME: ${POSTGRES_DB:-flightops_dev}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-7d}
+      TZ: ${TIMEZONE}
       PORT: 3000
       NODE_ENV: development
     ports:
@@ -51,6 +53,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: flightops-frontend-dev
     environment:
+      TZ: ${TIMEZONE}
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000}
     ports:
       - "5173:5173"

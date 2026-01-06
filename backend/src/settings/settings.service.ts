@@ -37,10 +37,17 @@ export class SettingsService {
 
   /**
    * Get all settings as a key-value map
+   * Merges user settings with defaults to ensure all settings have values
    */
   async getSettingsMap(userId: string): Promise<Record<string, any>> {
+    // Start with default settings
+    const defaultsMap = getDefaultSettingsMap();
+
+    // Get user settings
     const settings = await this.findAllByUser(userId);
-    return settings.reduce(
+
+    // Merge user settings over defaults
+    const userSettingsMap = settings.reduce(
       (acc, setting) => {
         acc[setting.setting_key] = this.parseSettingValue(
           setting.setting_value,
@@ -50,6 +57,9 @@ export class SettingsService {
       },
       {} as Record<string, any>,
     );
+
+    // Return merged map (user settings override defaults)
+    return { ...defaultsMap, ...userSettingsMap };
   }
 
   /**
