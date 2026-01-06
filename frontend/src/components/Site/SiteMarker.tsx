@@ -3,17 +3,21 @@ import { FlightSite } from '../../services/sites.service';
 import { useSites } from '../../hooks/useSites';
 import { useAuth } from '../../hooks/useAuth';
 import { useWeather } from '../../hooks/useWeather';
-import { useState } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { createRoot, Root } from 'react-dom/client';
 import L from 'leaflet';
 import HeatBar from '../Weather/HeatBar';
+import MarkerWithWeather from '../Weather/MarkerWithWeather';
+import HourlyWeatherDialog from '../Weather/HourlyWeatherDialog';
+import { WeatherForecast } from '../../services/weather.service';
 
 // Custom marker icons for takeoff and parking
 const takeoffIcon = new L.Icon({
   iconUrl: '/icon-ppg.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
   iconSize: [64, 64],
-  iconAnchor: [32, 64],
-  popupAnchor: [0, -64],
+  iconAnchor: [32, 32],  // Center of the takeoff icon (64x64)
+  popupAnchor: [0, -32],
   shadowSize: [82, 82],
 });
 
@@ -21,8 +25,8 @@ const parkingIcon = new L.Icon({
   iconUrl: '/icon-park.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
   iconSize: [64, 64],
-  iconAnchor: [32, 64],
-  popupAnchor: [0, -64],
+  iconAnchor: [32, 32],  // Center of the parking icon (64x64)
+  popupAnchor: [0, -32],
   shadowSize: [82, 82],
 });
 
@@ -37,12 +41,83 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
   const { user } = useAuth();
   const { forecasts, isLoading: isLoadingWeather } = useWeather(site.id);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedForecast, setSelectedForecast] = useState<WeatherForecast | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+  const rootRef = useRef<Root | null>(null);
 
   // Convert coordinates to numbers (they come as strings from PostgreSQL decimal type)
   const takeoffLat = parseFloat(site.takeoff_lat.toString());
   const takeoffLon = parseFloat(site.takeoff_lon.toString());
   const parkingLat = parseFloat(site.parking_lat.toString());
   const parkingLon = parseFloat(site.parking_lon.toString());
+
+  // Create DivIcon for custom marker with weather bars
+  // Below parkingIconZoomLevel: Show only weather bars (centered)
+  // At parkingIconZoomLevel+: Show icon + weather bars (icon centered, bars to the right)
+  const takeoffDivIcon = useMemo(() => {
+    const showIcon = currentZoom >= parkingIconZoomLevel;
+    const iconSize: [number, number] = showIcon
+      ? [208, 64]  // Icon (64px) + spacing (24px) + bars (120px)
+      : [120, 60]; // Just bars (120px wide, 60px tall)
+    const iconAnchor: [number, number] = showIcon
+      ? [32, 32]   // Center of the takeoff icon (64x64)
+      : [60, 30];  // Center of the weather bars
+    const popupAnchor: [number, number] = showIcon
+      ? [0, -32]   // Above icon
+      : [0, -30];  // Above bars
+
+    return new L.DivIcon({
+      className: 'custom-marker-with-weather',
+      html: '<div class="marker-container"></div>',
+      iconSize,
+      iconAnchor,
+      popupAnchor,
+    });
+  }, [currentZoom, parkingIconZoomLevel]);
+
+  // Render React content into the DivIcon (only when showing weather bars)
+  useEffect(() => {
+    const shouldShowIcon = currentZoom >= parkingIconZoomLevel;
+
+    // Only use React Portal when showing weather bars (low zoom)
+    if (shouldShowIcon) {
+      // Clean up the root if it exists
+      if (rootRef.current) {
+        rootRef.current.unmount();
+        rootRef.current = null;
+      }
+      return;
+    }
+
+    const markerElement = markerRef.current?.getElement();
+    if (!markerElement) return;
+
+    const container = markerElement.querySelector('.marker-container');
+    if (!container) return;
+
+    // Create root only once
+    if (!rootRef.current) {
+      rootRef.current = createRoot(container);
+    }
+
+    // Render weather bars only
+    rootRef.current.render(
+      <MarkerWithWeather
+        forecasts={forecasts}
+        isLoading={isLoadingWeather}
+        onDayClick={setSelectedForecast}
+        shouldShowIcon={false}
+      />
+    );
+
+    // Cleanup on unmount only
+    return () => {
+      if (rootRef.current) {
+        rootRef.current.unmount();
+        rootRef.current = null;
+      }
+    };
+  }, [forecasts, isLoadingWeather, currentZoom, parkingIconZoomLevel]);
 
   const handleDelete = async () => {
     if (window.confirm(`Are you sure you want to delete "${site.name}"?`)) {
@@ -77,6 +152,12 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
 
   return (
     <>
+      {/* Weather Dialog */}
+      <HourlyWeatherDialog
+        forecast={selectedForecast}
+        onClose={() => setSelectedForecast(null)}
+      />
+
       {/* Line connecting takeoff to parking */}
       <Polyline
         positions={positions}
@@ -90,8 +171,9 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
 
       {/* Takeoff marker */}
       <Marker
+        ref={currentZoom >= parkingIconZoomLevel ? undefined : markerRef}
         position={[takeoffLat, takeoffLon]}
-        icon={takeoffIcon}
+        icon={currentZoom >= parkingIconZoomLevel ? takeoffIcon : takeoffDivIcon}
       >
         <Popup>
           <div className="min-w-[350px] max-w-[400px]">

@@ -36,3 +36,14 @@
     @apply bg-weather-amber;
   }
 }
+
+/* Custom marker with weather bars */
+.custom-marker-with-weather {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-marker-with-weather .leaflet-div-icon {
+  background: transparent;
+  border: none;
+}
