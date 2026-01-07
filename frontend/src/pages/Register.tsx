@@ -90,8 +90,19 @@ export default function Register() {
     }
 
     // Validate password length
-    if (formData.password.length < 8) {
-      setValidationError('Password must be at least 8 characters long');
+    if (formData.password.length < 9) {
+      setValidationError('Password must be at least 9 characters long');
+      return;
+    }
+
+    // Validate password complexity
+    if (!/(?=.*[A-Z])/.test(formData.password)) {
+      setValidationError('Password must contain at least 1 uppercase letter');
+      return;
+    }
+
+    if (!/(?=.*\d)/.test(formData.password)) {
+      setValidationError('Password must contain at least 1 number');
       return;
     }
 

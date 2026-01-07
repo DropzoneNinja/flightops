@@ -13,7 +13,10 @@ export class RegisterDto {
   username: string;
 
   @IsString()
-  @MinLength(8, { message: 'Password must be at least 8 characters long' })
+  @MinLength(9, { message: 'Password must be at least 9 characters long' })
   @MaxLength(100, { message: 'Password must not exceed 100 characters' })
+  @Matches(/^(?=.*[A-Z])(?=.*\d).+$/, {
+    message: 'Password must contain at least 1 uppercase letter and 1 number',
+  })
   password: string;
 }

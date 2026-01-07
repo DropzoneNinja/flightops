@@ -203,6 +203,19 @@ export default function Settings() {
     }
   };
 
+  const handleUnlockAccount = async (userId: string, username: string) => {
+    if (window.confirm(`Unlock account for ${username}? This will reset failed login attempts and allow them to login again.`)) {
+      try {
+        await usersService.unlockAccount(userId);
+        await loadUsers();
+        alert('Account unlocked successfully.');
+      } catch (error) {
+        console.error('Failed to unlock account:', error);
+        alert('Failed to unlock account. Please try again.');
+      }
+    }
+  };
+
   // Load weather stats (admin only)
   useEffect(() => {
     if (user?.is_admin) {
@@ -564,6 +577,9 @@ export default function Settings() {
                           Admin
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Last Login
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -591,6 +607,17 @@ export default function Settings() {
                               </span>
                             )}
                           </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {userData.is_locked ? (
+                              <span className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded font-semibold" title={`Locked after ${userData.failed_login_attempts} failed attempts`}>
+                                Locked
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
+                                Active
+                              </span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                             {userData.last_login
                               ? new Date(userData.last_login).toLocaleString()
@@ -598,13 +625,23 @@ export default function Settings() {
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
                             <div className="flex justify-end gap-2">
-                              <button
-                                onClick={() => handleResetPassword(userData.id, userData.username)}
-                                className="px-3 py-1 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
-                                title="Require password reset on next login"
-                              >
-                                Reset Password
-                              </button>
+                              {userData.is_locked ? (
+                                <button
+                                  onClick={() => handleUnlockAccount(userData.id, userData.username)}
+                                  className="px-3 py-1 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
+                                  title="Unlock account and reset failed login attempts"
+                                >
+                                  Unlock Account
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleResetPassword(userData.id, userData.username)}
+                                  className="px-3 py-1 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
+                                  title="Require password reset on next login"
+                                >
+                                  Reset Password
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleDeleteUser(userData.id, userData.username)}
                                 disabled={userData.id === user.id}

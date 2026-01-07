@@ -35,6 +35,18 @@ export class User {
   @Column({ default: false })
   needs_password_reset: boolean;
 
+  @Column({ default: false })
+  is_locked: boolean;
+
+  @Column({ default: 0 })
+  failed_login_attempts: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  last_failed_login: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  locked_at: Date;
+
   @CreateDateColumn()
   created_at: Date;
 

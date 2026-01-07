@@ -1,16 +1,20 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { LoginAttemptService } from './login-attempt.service';
 import { UsersModule } from '../users/users.module';
 import { PreAuthorizedEmailsModule } from '../pre-authorized-emails/pre-authorized-emails.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
+import { LoginAttempt } from '../database/entities/login-attempt.entity';
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([LoginAttempt]),
     UsersModule,
     PreAuthorizedEmailsModule,
     PassportModule,
@@ -26,7 +30,7 @@ import { LocalStrategy } from './strategies/local.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LocalStrategy],
+  providers: [AuthService, LoginAttemptService, JwtStrategy, LocalStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

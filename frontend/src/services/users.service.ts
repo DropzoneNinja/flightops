@@ -7,6 +7,10 @@ export interface UserData {
   is_admin: boolean;
   last_login: string | null;
   needs_password_reset: boolean;
+  is_locked: boolean;
+  failed_login_attempts: number;
+  last_failed_login: string | null;
+  locked_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,5 +36,12 @@ export const usersService = {
    */
   async flagPasswordReset(id: string): Promise<void> {
     await api.patch(`/users/${id}/reset-password`);
+  },
+
+  /**
+   * Unlock a locked user account (admin only)
+   */
+  async unlockAccount(id: string): Promise<void> {
+    await api.patch(`/users/${id}/unlock`);
   },
 };

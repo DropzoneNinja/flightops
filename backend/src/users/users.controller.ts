@@ -75,4 +75,24 @@ export class UsersController {
       },
     };
   }
+
+  /**
+   * PATCH /users/:id/unlock
+   * Unlock a locked user account (admin only)
+   */
+  @Patch(':id/unlock')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async unlockAccount(@Param('id') id: string) {
+    const user = await this.usersService.unlockAccount(id);
+    return {
+      message: 'User account unlocked successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        is_locked: user.is_locked,
+        failed_login_attempts: user.failed_login_attempts,
+      },
+    };
+  }
 }

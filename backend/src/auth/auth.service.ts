@@ -1,7 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, HttpException, HttpStatus } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { PreAuthorizedEmailsService } from '../pre-authorized-emails/pre-authorized-emails.service';
+import { LoginAttemptService } from './login-attempt.service';
 import { RegisterDto, LoginDto, SetupUsernameDto } from './dto';
 import { User } from '../database/entities/user.entity';
 import { JwtPayload } from './strategies/jwt.strategy';
@@ -12,6 +13,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly preAuthEmailsService: PreAuthorizedEmailsService,
     private readonly jwtService: JwtService,
+    private readonly loginAttemptService: LoginAttemptService,
   ) {}
 
   /**
@@ -81,18 +83,87 @@ export class AuthService {
    * Validate user credentials
    * Used by LocalStrategy
    */
-  async validateUser(email: string, password: string): Promise<User | null> {
+  async validateUser(
+    email: string,
+    password: string,
+  ): Promise<User | null> {
     const user = await this.usersService.findByEmailWithPassword(email);
 
     if (!user) {
+      await this.loginAttemptService.logAttempt(
+        email,
+        false,
+        'User not found',
+      );
       return null;
     }
 
+    // Check email-based rate limit AFTER user lookup
+    const rateLimitExceeded = await this.loginAttemptService.checkEmailRateLimit(email);
+    if (rateLimitExceeded) {
+      await this.loginAttemptService.logAttempt(
+        email,
+        false,
+        `Rate limit exceeded (${this.loginAttemptService.maxFailedAttempts} failed attempts in ${this.loginAttemptService.rateLimitWindowHours} hours)`,
+      );
+      throw new HttpException(
+        'Too many failed login attempts. Please try again later.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // Check if failed attempts should be reset (older than 1 hour)
+    if (user.last_failed_login) {
+      const oneHourAgo = new Date();
+      oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+
+      if (user.last_failed_login < oneHourAgo) {
+        // Reset failed attempts if last failure was more than 1 hour ago
+        await this.usersService.resetFailedAttempts(user.id);
+        user.failed_login_attempts = 0;
+        user.is_locked = false;
+      }
+    }
+
+    // Check if account is locked
+    if (user.is_locked) {
+      await this.loginAttemptService.logAttempt(
+        email,
+        false,
+        'Account locked',
+      );
+      throw new UnauthorizedException(
+        'Account is locked. Please contact an administrator.',
+      );
+    }
+
+    // If user needs password reset, skip password validation
+    if (user.needs_password_reset) {
+      // Don't check password, just let them through to reset page
+      delete user.password_hash;
+      return user;
+    }
+
+    // Validate password
     const isPasswordValid = await user.validatePassword(password);
 
     if (!isPasswordValid) {
+      // Increment failed attempts and potentially lock account
+      await this.usersService.incrementFailedAttempts(user.id);
+
+      await this.loginAttemptService.logAttempt(
+        email,
+        false,
+        'Invalid password',
+      );
       return null;
     }
+
+    // Successful login
+    await this.loginAttemptService.logAttempt(email, true, null);
+
+    // Reset failed attempts on successful login
+    await this.usersService.resetFailedAttempts(user.id);
 
     // Remove password_hash before returning
     delete user.password_hash;

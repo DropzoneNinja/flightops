@@ -191,4 +191,54 @@ export class UsersService {
     user.needs_password_reset = needsReset;
     return this.userRepository.save(user);
   }
+
+  /**
+   * Increment failed login attempts and lock if needed
+   */
+  async incrementFailedAttempts(userId: string): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) {
+      return;
+    }
+
+    user.failed_login_attempts += 1;
+    user.last_failed_login = new Date();
+
+    // Lock account after 3 failed attempts
+    if (user.failed_login_attempts >= 3) {
+      user.is_locked = true;
+      user.locked_at = new Date();
+    }
+
+    await this.userRepository.save(user);
+  }
+
+  /**
+   * Reset failed login attempts
+   */
+  async resetFailedAttempts(userId: string): Promise<void> {
+    await this.userRepository.update(userId, {
+      failed_login_attempts: 0,
+      last_failed_login: null,
+      is_locked: false,
+      locked_at: null,
+    });
+  }
+
+  /**
+   * Unlock a user account
+   */
+  async unlockAccount(userId: string): Promise<User> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.is_locked = false;
+    user.locked_at = null;
+    user.failed_login_attempts = 0;
+    user.last_failed_login = null;
+
+    return this.userRepository.save(user);
+  }
 }
