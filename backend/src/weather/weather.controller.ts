@@ -2,12 +2,14 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Param,
   UseGuards,
   NotFoundException,
 } from '@nestjs/common';
 import { WeatherService } from './weather.service';
 import { WeatherFetchJob } from './jobs/weather-fetch.job';
+import { WeatherStatsService } from './services/weather-stats.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -18,6 +20,7 @@ export class WeatherController {
   constructor(
     private readonly weatherService: WeatherService,
     private readonly weatherFetchJob: WeatherFetchJob,
+    private readonly weatherStatsService: WeatherStatsService,
   ) {}
 
   /**
@@ -56,6 +59,33 @@ export class WeatherController {
   }
 
   /**
+   * GET /sites/:siteId/forecast/:date/multi-height
+   * Get multi-height wind data for a specific date (debug mode)
+   * IMPORTANT: This route must come BEFORE the generic /:date route
+   */
+  @Get('sites/:siteId/forecast/:date/multi-height')
+  @UseGuards(JwtAuthGuard)
+  async getMultiHeightData(
+    @CurrentUser() user: User,
+    @Param('siteId') siteId: string,
+    @Param('date') date: string,
+  ) {
+    const data = await this.weatherService.getMultiHeightData(
+      siteId,
+      user.id,
+      date,
+    );
+
+    if (!data) {
+      throw new NotFoundException(
+        `No multi-height data available for ${date}.`,
+      );
+    }
+
+    return data;
+  }
+
+  /**
    * GET /sites/:siteId/forecast/:date
    * Get forecast for a specific date (YYYY-MM-DD format)
    */
@@ -79,5 +109,26 @@ export class WeatherController {
     }
 
     return forecast;
+  }
+
+  /**
+   * GET /weather/stats
+   * Get API call statistics (admin only)
+   */
+  @Get('weather/stats')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async getStats() {
+    return await this.weatherStatsService.getStats();
+  }
+
+  /**
+   * DELETE /weather/stats
+   * Reset API call statistics (admin only)
+   */
+  @Delete('weather/stats')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async resetStats() {
+    await this.weatherStatsService.resetStats();
+    return { message: 'Statistics reset successfully' };
   }
 }

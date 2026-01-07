@@ -3,12 +3,14 @@ import { FlightSite } from '../../services/sites.service';
 import { useSites } from '../../hooks/useSites';
 import { useAuth } from '../../hooks/useAuth';
 import { useWeather } from '../../hooks/useWeather';
+import { useSettings } from '../../hooks/useSettings';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import L from 'leaflet';
 import HeatBar from '../Weather/HeatBar';
 import WeatherForecastBars from '../Weather/WeatherForecastBars';
 import HourlyWeatherDialog from '../Weather/HourlyWeatherDialog';
+import HeatbarDebugDialog from '../Weather/HeatbarDebugDialog';
 import { WeatherForecast } from '../../services/weather.service';
 
 // Custom marker icons for takeoff and parking
@@ -40,10 +42,14 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
   const { deleteSiteMutation, toggleSiteEnabledMutation } = useSites();
   const { user } = useAuth();
   const { forecasts, isLoading: isLoadingWeather } = useWeather(site.id);
+  const { settingsMap } = useSettings();
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedForecast, setSelectedForecast] = useState<WeatherForecast | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const rootRef = useRef<Root | null>(null);
+
+  // Check if heatbar debug mode is enabled
+  const isDebugMode = settingsMap['debug.heatbar_debug_mode'] === true;
 
   // Convert coordinates to numbers (they come as strings from PostgreSQL decimal type)
   const takeoffLat = parseFloat(site.takeoff_lat.toString());
@@ -136,10 +142,18 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
   return (
     <>
       {/* Weather Dialog */}
-      <HourlyWeatherDialog
-        forecast={selectedForecast}
-        onClose={() => setSelectedForecast(null)}
-      />
+      {isDebugMode ? (
+        <HeatbarDebugDialog
+          forecast={selectedForecast}
+          siteId={site.id}
+          onClose={() => setSelectedForecast(null)}
+        />
+      ) : (
+        <HourlyWeatherDialog
+          forecast={selectedForecast}
+          onClose={() => setSelectedForecast(null)}
+        />
+      )}
 
       {/* Line connecting takeoff to parking */}
       <Polyline

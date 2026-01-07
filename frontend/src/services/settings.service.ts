@@ -29,6 +29,9 @@ export enum SettingKey {
   // Map Display Settings
   SHOW_ZOOM_INDICATOR = 'map.show_zoom_indicator',
   PARKING_ICON_ZOOM_LEVEL = 'map.parking_icon_zoom_level',
+
+  // Debug Settings
+  HEATBAR_DEBUG_MODE = 'debug.heatbar_debug_mode',
 }
 
 export enum SettingType {

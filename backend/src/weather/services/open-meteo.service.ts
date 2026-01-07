@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
-import { OpenMeteoResponse } from '../interfaces/open-meteo-response.interface';
+import {
+  OpenMeteoResponse,
+  OpenMeteoMultiHeightResponse,
+} from '../interfaces/open-meteo-response.interface';
 
 @Injectable()
 export class OpenMeteoService {
@@ -100,5 +103,59 @@ export class OpenMeteoService {
       `All ${maxRetries} attempts failed for (${latitude}, ${longitude})`,
     );
     throw lastError;
+  }
+
+  /**
+   * Fetch multi-height wind forecast for a specific date and location
+   * Used for debug visualization of wind data at different altitudes
+   * @param latitude Site latitude
+   * @param longitude Site longitude
+   * @param dateString Date in YYYY-MM-DD format
+   * @returns Open-Meteo API response with multi-height wind data
+   */
+  async fetchMultiHeightForecast(
+    latitude: number,
+    longitude: number,
+    dateString: string,
+  ): Promise<OpenMeteoMultiHeightResponse> {
+    try {
+      this.logger.log(
+        `Fetching multi-height forecast for (${latitude}, ${longitude}) on ${dateString}`,
+      );
+
+      const response = await this.axiosInstance.get<OpenMeteoMultiHeightResponse>(
+        '',
+        {
+          params: {
+            latitude,
+            longitude,
+            hourly: [
+              'wind_speed_10m',
+              'wind_direction_10m',
+              'wind_speed_80m',
+              'wind_direction_80m',
+              'wind_speed_120m',
+              'wind_direction_120m',
+            ].join(','),
+            timezone: 'auto',
+            start_date: dateString,
+            end_date: dateString,
+          },
+        },
+      );
+
+      this.logger.log(
+        `Successfully fetched multi-height forecast for (${latitude}, ${longitude})`,
+      );
+
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch multi-height forecast: ${error.message}`,
+      );
+      throw new Error(
+        `Open-Meteo API error: ${error.response?.data?.reason || error.message}`,
+      );
+    }
   }
 }

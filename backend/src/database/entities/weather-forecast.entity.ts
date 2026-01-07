@@ -12,6 +12,7 @@ import {
 } from 'typeorm';
 import { FlightSite } from './flight-site.entity';
 import { WeatherHourly } from './weather-hourly.entity';
+import { WeatherMultiHeight } from './weather-multi-height.entity';
 
 @Entity('weather_forecasts')
 @Unique(['site_id', 'forecast_date'])
@@ -47,4 +48,7 @@ export class WeatherForecast {
 
   @OneToMany(() => WeatherHourly, (hourly) => hourly.forecast)
   hourly_data: WeatherHourly[];
+
+  @OneToMany(() => WeatherMultiHeight, (multiHeight) => multiHeight.forecast)
+  multi_height_data: WeatherMultiHeight[];
 }

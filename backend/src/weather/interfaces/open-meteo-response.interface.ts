@@ -18,3 +18,24 @@ export interface OpenMeteoResponse {
   timezone: string;
   hourly: OpenMeteoHourlyData;
 }
+
+/**
+ * Open-Meteo Multi-Height Wind Data Interface
+ * For fetching wind data at multiple heights for debug visualization
+ */
+export interface OpenMeteoMultiHeightHourlyData {
+  time: string[]; // ISO 8601 timestamps
+  wind_speed_10m: number[]; // Wind speed at 10 meters (km/h)
+  wind_direction_10m: number[]; // Wind direction at 10 meters (degrees)
+  wind_speed_80m: number[]; // Wind speed at 80 meters (km/h)
+  wind_direction_80m: number[]; // Wind direction at 80 meters (degrees)
+  wind_speed_120m: number[]; // Wind speed at 120 meters (km/h)
+  wind_direction_120m: number[]; // Wind direction at 120 meters (degrees)
+}
+
+export interface OpenMeteoMultiHeightResponse {
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  hourly: OpenMeteoMultiHeightHourlyData;
+}

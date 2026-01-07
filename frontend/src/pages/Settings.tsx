@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { SettingType, UpdateSettingData } from '../services/settings.service';
 import { preAuthorizedEmailsService, PreAuthorizedEmail } from '../services/pre-authorized-emails.service';
 import { usersService, UserData } from '../services/users.service';
+import { weatherService, WeatherApiStats } from '../services/weather.service';
 
 export default function Settings() {
   const { settings, defaults, isLoading, updateManyMutation, resetToDefaultsMutation } =
@@ -24,6 +25,10 @@ export default function Settings() {
   // Current users state (admin only)
   const [users, setUsers] = useState<UserData[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+
+  // Weather API stats state (admin only)
+  const [weatherStats, setWeatherStats] = useState<WeatherApiStats | null>(null);
+  const [loadingWeatherStats, setLoadingWeatherStats] = useState(false);
 
   // Group settings by category
   const settingsByCategory = useMemo(() => {
@@ -194,6 +199,38 @@ export default function Settings() {
       } catch (error) {
         console.error('Failed to set password reset flag:', error);
         alert('Failed to set password reset. Please try again.');
+      }
+    }
+  };
+
+  // Load weather stats (admin only)
+  useEffect(() => {
+    if (user?.is_admin) {
+      loadWeatherStats();
+    }
+  }, [user?.is_admin]);
+
+  const loadWeatherStats = async () => {
+    try {
+      setLoadingWeatherStats(true);
+      const stats = await weatherService.getStats();
+      setWeatherStats(stats);
+    } catch (error) {
+      console.error('Failed to load weather stats:', error);
+    } finally {
+      setLoadingWeatherStats(false);
+    }
+  };
+
+  const handleResetWeatherStats = async () => {
+    if (window.confirm('Are you sure you want to reset all weather API statistics? This cannot be undone.')) {
+      try {
+        await weatherService.resetStats();
+        await loadWeatherStats();
+        alert('Weather API statistics reset successfully!');
+      } catch (error) {
+        console.error('Failed to reset weather stats:', error);
+        alert('Failed to reset statistics. Please try again.');
       }
     }
   };
@@ -582,6 +619,99 @@ export default function Settings() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Weather API Statistics (Admin Only) */}
+        {user?.is_admin && (
+          <div className="mb-8 bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Weather API Statistics
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Track usage of weather forecast endpoints
+                  </p>
+                </div>
+                <button
+                  onClick={handleResetWeatherStats}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
+                >
+                  Reset Stats
+                </button>
+              </div>
+            </div>
+
+            <div className="px-6 py-4">
+              {loadingWeatherStats ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="mt-2 text-gray-600">Loading statistics...</p>
+                </div>
+              ) : !weatherStats ? (
+                <p className="text-gray-500 text-center py-8">
+                  No statistics available.
+                </p>
+              ) : (
+                <div className="space-y-6">
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="text-sm font-medium text-blue-900">Max Calls Per Day</div>
+                      <div className="mt-2 text-2xl font-bold text-blue-700">
+                        {weatherStats.maxPerDay.count}
+                      </div>
+                      <div className="mt-1 text-xs text-blue-600">
+                        on {new Date(weatherStats.maxPerDay.date).toLocaleDateString()}
+                      </div>
+                    </div>
+
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="text-sm font-medium text-green-900">Max Calls Per Hour</div>
+                      <div className="mt-2 text-2xl font-bold text-green-700">
+                        {weatherStats.maxPerHour.count}
+                      </div>
+                      <div className="mt-1 text-xs text-green-600">
+                        at {new Date(weatherStats.maxPerHour.hour).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Endpoint Counts Table */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Calls by Endpoint</h3>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Endpoint
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Total Calls
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {weatherStats.endpointCounts.map((stat) => (
+                            <tr key={stat.endpoint} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm font-mono text-gray-900">
+                                {stat.endpoint}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-900 text-right font-semibold">
+                                {stat.count.toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
