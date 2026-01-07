@@ -10,13 +10,12 @@ import {
 import { SettingsService } from './settings.service';
 import { UpdateSettingDto, UpdateSettingsDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { AdminGuard } from '../auth/guards/admin.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../database/entities/user.entity';
 import { DEFAULT_SETTINGS } from './constants/default-settings';
 
 @Controller('settings')
-@UseGuards(JwtAuthGuard, AdminGuard)
+@UseGuards(JwtAuthGuard)
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 

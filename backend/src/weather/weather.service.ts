@@ -1,7 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -33,14 +32,14 @@ export class WeatherService {
    * Get forecast data for a site (next 3 days from today)
    * Returns forecast with hourly data included
    */
-  async getForecastBySite(siteId: string, userId: string) {
-    // Verify the site exists and user has access
+  async getForecastBySite(siteId: string, _userId: string) {
+    // Verify the site exists (all authenticated users can view weather data)
     const site = await this.siteRepository.findOne({
-      where: { id: siteId, user_id: userId },
+      where: { id: siteId },
     });
 
     if (!site) {
-      throw new NotFoundException('Site not found or access denied');
+      throw new NotFoundException('Site not found');
     }
 
     // Get today's date at midnight
@@ -72,14 +71,14 @@ export class WeatherService {
   /**
    * Get forecast for a specific date
    */
-  async getForecastByDate(siteId: string, userId: string, dateString: string) {
-    // Verify the site exists and user has access
+  async getForecastByDate(siteId: string, _userId: string, dateString: string) {
+    // Verify the site exists (all authenticated users can view weather data)
     const site = await this.siteRepository.findOne({
-      where: { id: siteId, user_id: userId },
+      where: { id: siteId },
     });
 
     if (!site) {
-      throw new NotFoundException('Site not found or access denied');
+      throw new NotFoundException('Site not found');
     }
 
     // Parse the date string (YYYY-MM-DD)
@@ -144,16 +143,16 @@ export class WeatherService {
    */
   async getMultiHeightData(
     siteId: string,
-    userId: string,
+    _userId: string,
     dateString: string,
   ) {
-    // 1. Verify site access
+    // 1. Verify site exists (all authenticated users can view weather data)
     const site = await this.siteRepository.findOne({
-      where: { id: siteId, user_id: userId },
+      where: { id: siteId },
     });
 
     if (!site) {
-      throw new NotFoundException('Site not found or access denied');
+      throw new NotFoundException('Site not found');
     }
 
     // 2. Get forecast for this date

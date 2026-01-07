@@ -1,7 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -28,19 +27,21 @@ export class SitesService {
   }
 
   /**
-   * Get all flight sites for a user
+   * Get all flight sites (visible to all authenticated users)
    */
-  async findAllByUser(userId: string): Promise<FlightSite[]> {
+  async findAllByUser(_userId: string): Promise<FlightSite[]> {
+    // Return all sites since weather data is centrally cached
+    // and should be visible to all users
     return this.siteRepository.find({
-      where: { user_id: userId },
       order: { created_at: 'DESC' },
     });
   }
 
   /**
    * Get a single flight site by ID
+   * All authenticated users can view any site
    */
-  async findOne(id: string, userId: string, isAdmin = false): Promise<FlightSite> {
+  async findOne(id: string, _userId: string, _isAdmin = false): Promise<FlightSite> {
     const site = await this.siteRepository.findOne({
       where: { id },
     });
@@ -49,11 +50,8 @@ export class SitesService {
       throw new NotFoundException('Flight site not found');
     }
 
-    // Check ownership (admins can access any site)
-    if (!isAdmin && site.user_id !== userId) {
-      throw new ForbiddenException('You do not have access to this site');
-    }
-
+    // All authenticated users can view sites
+    // Ownership checks are only enforced for modifications (update, delete, toggle)
     return site;
   }
 
