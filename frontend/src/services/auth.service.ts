@@ -7,6 +7,7 @@ export interface User {
   is_admin: boolean;
   created_at: string;
   needs_username_setup?: boolean;
+  needs_password_reset?: boolean;
 }
 
 export interface RegisterData {

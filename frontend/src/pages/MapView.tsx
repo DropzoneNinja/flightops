@@ -72,7 +72,7 @@ export default function MapView() {
   const [pendingLocation, setPendingLocation] = useState<LatLng | null>(null);
   const [pendingLocationType, setPendingLocationType] = useState<'takeoff' | 'parking' | null>(null);
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
-  const [currentZoom, setCurrentZoom] = useState(6);
+  const [currentZoom, setCurrentZoom] = useState(9);
   const [showZoomIndicator, setShowZoomIndicator] = useState(true);
   const [parkingIconZoomLevel, setParkingIconZoomLevel] = useState(10);
 
@@ -228,7 +228,7 @@ export default function MapView() {
         ) : (
           <MapContainer
             center={[-37.8136, 144.9631]} // Default center (Melbourne, Australia)
-            zoom={6}
+            zoom={9}
             className={`h-full w-full ${activeLocationSelection ? 'cursor-crosshair' : ''}`}
             style={activeLocationSelection ? { cursor: 'crosshair' } : {}}
           >

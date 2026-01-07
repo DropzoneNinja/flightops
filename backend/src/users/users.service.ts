@@ -160,4 +160,35 @@ export class UsersService {
     user.username = username;
     return this.userRepository.save(user);
   }
+
+  /**
+   * Get all users (admin only)
+   */
+  async findAll(): Promise<User[]> {
+    return this.userRepository.find({
+      order: { created_at: 'DESC' },
+    });
+  }
+
+  /**
+   * Update last login timestamp
+   */
+  async updateLastLogin(userId: string): Promise<void> {
+    await this.userRepository.update(userId, {
+      last_login: new Date(),
+    });
+  }
+
+  /**
+   * Set password reset flag for a user
+   */
+  async setPasswordResetFlag(userId: string, needsReset: boolean): Promise<User> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.needs_password_reset = needsReset;
+    return this.userRepository.save(user);
+  }
 }

@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   UseGuards,
   HttpCode,
@@ -9,7 +10,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, SetupUsernameDto } from './dto';
+import { RegisterDto, LoginDto, SetupUsernameDto, ResetPasswordDto } from './dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -76,6 +77,20 @@ export class AuthController {
       is_admin: user.is_admin,
       created_at: user.created_at,
       needs_username_setup: !user.username,
+      needs_password_reset: user.needs_password_reset,
     };
+  }
+
+  /**
+   * PATCH /auth/reset-password
+   * Reset user password
+   */
+  @Patch('reset-password')
+  @UseGuards(JwtAuthGuard)
+  async resetPassword(
+    @CurrentUser() user: User,
+    @Body() resetDto: ResetPasswordDto,
+  ) {
+    return this.authService.resetPassword(user.id, resetDto.new_password);
   }
 }

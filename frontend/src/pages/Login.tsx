@@ -17,27 +17,34 @@ export default function Login() {
 
     try {
       await login(formData);
-      navigate('/'); // Redirect to home page after login
+
+      // Check if user needs to reset password
+      const user = useAuth.getState().user;
+      if (user?.needs_password_reset) {
+        navigate('/reset-password');
+      } else {
+        navigate('/'); // Redirect to home page after login
+      }
     } catch (error) {
       // Error is handled by the store
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-black py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="flex justify-center mb-6">
             <img
               src="/logo.png"
               alt="Throttle Junkies"
-              className="h-32 w-auto"
+              className="h-64 w-auto"
             />
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
             Sign in to FlightOps
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-gray-300">
             Paramotor Weather Visualization
           </p>
         </div>
@@ -99,11 +106,11 @@ export default function Login() {
           </div>
 
           <div className="text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-300">
               Don't have an account?{' '}
               <Link
                 to="/register"
-                className="font-medium text-blue-600 hover:text-blue-500"
+                className="font-medium text-blue-400 hover:text-blue-300"
               >
                 Register here
               </Link>

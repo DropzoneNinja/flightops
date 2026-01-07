@@ -49,6 +49,7 @@ export class AuthService {
         username: user.username,
         is_admin: user.is_admin,
         created_at: user.created_at,
+        needs_password_reset: user.needs_password_reset,
       },
     };
   }
@@ -57,6 +58,9 @@ export class AuthService {
    * Login user
    */
   async login(user: User) {
+    // Update last login timestamp
+    await this.usersService.updateLastLogin(user.id);
+
     const token = this.generateToken(user);
 
     return {
@@ -68,6 +72,7 @@ export class AuthService {
         is_admin: user.is_admin,
         created_at: user.created_at,
         needs_username_setup: !user.username,
+        needs_password_reset: user.needs_password_reset,
       },
     };
   }
@@ -140,5 +145,26 @@ export class AuthService {
    */
   async checkUsernameAvailability(username: string): Promise<boolean> {
     return this.usersService.isUsernameAvailable(username);
+  }
+
+  /**
+   * Reset user password
+   */
+  async resetPassword(userId: string, newPassword: string) {
+    const user = await this.usersService.findById(userId);
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Update password and clear reset flag
+    await this.usersService.update(userId, {
+      password: newPassword,
+      needs_password_reset: false,
+    });
+
+    return {
+      message: 'Password updated successfully',
+    };
   }
 }

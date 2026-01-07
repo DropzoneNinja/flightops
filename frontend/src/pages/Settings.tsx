@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { SettingType, UpdateSettingData } from '../services/settings.service';
 import { preAuthorizedEmailsService, PreAuthorizedEmail } from '../services/pre-authorized-emails.service';
+import { usersService, UserData } from '../services/users.service';
 
 export default function Settings() {
   const { settings, defaults, isLoading, updateManyMutation, resetToDefaultsMutation } =
@@ -19,6 +20,10 @@ export default function Settings() {
   const [newEmail, setNewEmail] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [emailError, setEmailError] = useState('');
+
+  // Current users state (admin only)
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   // Group settings by category
   const settingsByCategory = useMemo(() => {
@@ -145,6 +150,50 @@ export default function Settings() {
       } catch (error) {
         console.error('Failed to delete email:', error);
         alert('Failed to delete email. Please try again.');
+      }
+    }
+  };
+
+  // Load users (admin only)
+  useEffect(() => {
+    if (user?.is_admin) {
+      loadUsers();
+    }
+  }, [user?.is_admin]);
+
+  const loadUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const allUsers = await usersService.getAll();
+      setUsers(allUsers);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, username: string) => {
+    if (window.confirm(`Are you sure you want to delete user ${username}? This cannot be undone.`)) {
+      try {
+        await usersService.delete(userId);
+        await loadUsers();
+      } catch (error: any) {
+        console.error('Failed to delete user:', error);
+        alert(error.response?.data?.message || 'Failed to delete user. Please try again.');
+      }
+    }
+  };
+
+  const handleResetPassword = async (userId: string, username: string) => {
+    if (window.confirm(`${username} will be required to reset their password on next login. Continue?`)) {
+      try {
+        await usersService.flagPasswordReset(userId);
+        await loadUsers();
+        alert('Password reset flag set successfully.');
+      } catch (error) {
+        console.error('Failed to set password reset flag:', error);
+        alert('Failed to set password reset. Please try again.');
       }
     }
   };
@@ -429,6 +478,105 @@ export default function Settings() {
                             >
                               Delete
                             </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Current Users Management (Admin Only) */}
+        {user?.is_admin && (
+          <div className="mb-8 bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Current Users
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Manage user accounts and permissions
+              </p>
+            </div>
+
+            {/* Users List */}
+            <div className="px-6 py-4">
+              {loadingUsers ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="mt-2 text-gray-600">Loading users...</p>
+                </div>
+              ) : users.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">
+                  No users found.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Username
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Email
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Admin
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Last Login
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {users.map((userData) => (
+                        <tr key={userData.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {userData.username || '-'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                            {userData.email}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {userData.is_admin ? (
+                              <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded font-semibold">
+                                Admin
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded">
+                                User
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                            {userData.last_login
+                              ? new Date(userData.last_login).toLocaleString()
+                              : 'Never'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => handleResetPassword(userData.id, userData.username)}
+                                className="px-3 py-1 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
+                                title="Require password reset on next login"
+                              >
+                                Reset Password
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(userData.id, userData.username)}
+                                disabled={userData.id === user.id}
+                                className="px-3 py-1 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={userData.id === user.id ? "Cannot delete your own account" : "Delete user"}
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
