@@ -4,6 +4,7 @@ export interface HourlyWeatherData {
   timestamp: string;
   temperature: number;
   windSpeed: number;
+  windDirection: number;
   gustSpeed: number;
   gustSpread: number;
   rain: number;

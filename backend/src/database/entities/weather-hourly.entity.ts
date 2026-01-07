@@ -30,6 +30,9 @@ export class WeatherHourly {
   wind_speed: number;
 
   @Column({ type: 'decimal', precision: 5, scale: 2 })
+  wind_direction: number;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2 })
   gust_speed: number;
 
   @Column({ type: 'decimal', precision: 5, scale: 2 })

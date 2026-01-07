@@ -181,7 +181,7 @@ export default function MapView() {
               </div>
             </div>
             <div className="flex items-center justify-end space-x-4 ml-auto">
-              <span className="text-sm text-gray-600">{user?.email}</span>
+              <span className="text-sm text-gray-600">{user?.username || user?.email}</span>
               <button
                 onClick={handleAddSiteClick}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"

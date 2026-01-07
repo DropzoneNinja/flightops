@@ -35,6 +35,40 @@ export class UsersService {
   }
 
   /**
+   * Create a new user with username
+   */
+  async createWithUsername(
+    email: string,
+    username: string,
+    password: string,
+  ): Promise<User> {
+    // Check if user already exists
+    const existingUser = await this.findByEmail(email);
+    if (existingUser) {
+      throw new ConflictException('Email already registered');
+    }
+
+    // Check if username already exists
+    const existingUsername = await this.findByUsername(username);
+    if (existingUsername) {
+      throw new ConflictException('Username already taken');
+    }
+
+    // Hash password manually
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(password, salt);
+
+    // Create user with hashed password and username
+    const user = this.userRepository.create({
+      email,
+      username,
+      password_hash,
+    });
+
+    return this.userRepository.save(user);
+  }
+
+  /**
    * Find user by ID
    */
   async findById(id: string): Promise<User | null> {
@@ -91,5 +125,39 @@ export class UsersService {
     if (result.affected === 0) {
       throw new NotFoundException('User not found');
     }
+  }
+
+  /**
+   * Find user by username
+   */
+  async findByUsername(username: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { username } });
+  }
+
+  /**
+   * Check if username is available
+   */
+  async isUsernameAvailable(username: string): Promise<boolean> {
+    const user = await this.findByUsername(username);
+    return user === null;
+  }
+
+  /**
+   * Set username for existing user
+   */
+  async setUsername(userId: string, username: string): Promise<User> {
+    // Check if username is available
+    const existingUsername = await this.findByUsername(username);
+    if (existingUsername) {
+      throw new ConflictException('Username already taken');
+    }
+
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.username = username;
+    return this.userRepository.save(user);
   }
 }

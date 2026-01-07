@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { authService, User, RegisterData, LoginData } from '../services/auth.service';
+import { authService, User, RegisterData, LoginData, SetupUsernameData } from '../services/auth.service';
 
 interface AuthState {
   user: User | null;
@@ -10,6 +10,7 @@ interface AuthState {
   // Actions
   register: (data: RegisterData) => Promise<void>;
   login: (data: LoginData) => Promise<void>;
+  setupUsername: (data: SetupUsernameData) => Promise<void>;
   logout: () => void;
   loadUser: () => Promise<void>;
   clearError: () => void;
@@ -61,6 +62,27 @@ export const useAuth = create<AuthState>((set) => ({
       });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Login failed';
+      set({ isLoading: false, error: errorMessage });
+      throw error;
+    }
+  },
+
+  setupUsername: async (data: SetupUsernameData) => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await authService.setupUsername(data);
+
+      // Update stored user
+      authService.setStoredUser(response.user);
+
+      set({
+        user: response.user,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message || 'Failed to setup username';
       set({ isLoading: false, error: errorMessage });
       throw error;
     }

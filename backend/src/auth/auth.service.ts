@@ -1,7 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
-import { RegisterDto, LoginDto } from './dto';
+import { PreAuthorizedEmailsService } from '../pre-authorized-emails/pre-authorized-emails.service';
+import { RegisterDto, LoginDto, SetupUsernameDto } from './dto';
 import { User } from '../database/entities/user.entity';
 import { JwtPayload } from './strategies/jwt.strategy';
 
@@ -9,6 +10,7 @@ import { JwtPayload } from './strategies/jwt.strategy';
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
+    private readonly preAuthEmailsService: PreAuthorizedEmailsService,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -16,10 +18,25 @@ export class AuthService {
    * Register a new user
    */
   async register(registerDto: RegisterDto) {
-    const user = await this.usersService.create(
+    // Validate email is pre-authorized
+    const isAuthorized = await this.preAuthEmailsService.isEmailAuthorized(
       registerDto.email,
+    );
+
+    if (!isAuthorized) {
+      // Generic error message - don't reveal if email is pre-authorized
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Create user with username
+    const user = await this.usersService.createWithUsername(
+      registerDto.email,
+      registerDto.username,
       registerDto.password,
     );
+
+    // Mark email as used
+    await this.preAuthEmailsService.markAsUsed(registerDto.email);
 
     // Generate JWT token
     const token = this.generateToken(user);
@@ -29,6 +46,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        username: user.username,
         is_admin: user.is_admin,
         created_at: user.created_at,
       },
@@ -46,8 +64,10 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        username: user.username,
         is_admin: user.is_admin,
         created_at: user.created_at,
+        needs_username_setup: !user.username,
       },
     };
   }
@@ -81,6 +101,7 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
+      username: user.username,
     };
 
     return this.jwtService.sign(payload);
@@ -95,5 +116,29 @@ export class AuthService {
     } catch (error) {
       throw new UnauthorizedException('Invalid or expired token');
     }
+  }
+
+  /**
+   * Setup username for existing users
+   */
+  async setupUsername(userId: string, setupDto: SetupUsernameDto) {
+    const user = await this.usersService.setUsername(userId, setupDto.username);
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        is_admin: user.is_admin,
+        created_at: user.created_at,
+      },
+    };
+  }
+
+  /**
+   * Check username availability
+   */
+  async checkUsernameAvailability(username: string): Promise<boolean> {
+    return this.usersService.isUsernameAvailable(username);
   }
 }

@@ -3,18 +3,25 @@ import { api } from './api';
 export interface User {
   id: string;
   email: string;
+  username?: string;
   is_admin: boolean;
   created_at: string;
+  needs_username_setup?: boolean;
 }
 
 export interface RegisterData {
   email: string;
+  username: string;
   password: string;
 }
 
 export interface LoginData {
   email: string;
   password: string;
+}
+
+export interface SetupUsernameData {
+  username: string;
 }
 
 export interface AuthResponse {
@@ -89,5 +96,23 @@ export const authService = {
    */
   setStoredUser(user: User): void {
     localStorage.setItem('user', JSON.stringify(user));
+  },
+
+  /**
+   * Setup username for existing users
+   */
+  async setupUsername(data: SetupUsernameData): Promise<{ user: User }> {
+    const response = await api.post<{ user: User }>('/auth/setup-username', data);
+    return response.data;
+  },
+
+  /**
+   * Check if username is available
+   */
+  async checkUsernameAvailability(username: string): Promise<boolean> {
+    const response = await api.get<{ available: boolean }>(
+      `/auth/check-username?username=${encodeURIComponent(username)}`
+    );
+    return response.data.available;
   },
 };

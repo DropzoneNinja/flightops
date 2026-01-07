@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { SettingType, UpdateSettingData } from '../services/settings.service';
+import { preAuthorizedEmailsService, PreAuthorizedEmail } from '../services/pre-authorized-emails.service';
 
 export default function Settings() {
   const { settings, defaults, isLoading, updateManyMutation, resetToDefaultsMutation } =
@@ -11,6 +12,13 @@ export default function Settings() {
   const navigate = useNavigate();
   const [editedValues, setEditedValues] = useState<Record<string, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Pre-authorized emails state (admin only)
+  const [preAuthEmails, setPreAuthEmails] = useState<PreAuthorizedEmail[]>([]);
+  const [loadingEmails, setLoadingEmails] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newNotes, setNewNotes] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   // Group settings by category
   const settingsByCategory = useMemo(() => {
@@ -88,6 +96,59 @@ export default function Settings() {
     setHasChanges(false);
   };
 
+  // Load pre-authorized emails (admin only)
+  useEffect(() => {
+    if (user?.is_admin) {
+      loadPreAuthEmails();
+    }
+  }, [user?.is_admin]);
+
+  const loadPreAuthEmails = async () => {
+    try {
+      setLoadingEmails(true);
+      const emails = await preAuthorizedEmailsService.getAll();
+      setPreAuthEmails(emails);
+    } catch (error) {
+      console.error('Failed to load pre-authorized emails:', error);
+    } finally {
+      setLoadingEmails(false);
+    }
+  };
+
+  const handleAddEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailError('');
+
+    if (!newEmail) {
+      setEmailError('Email is required');
+      return;
+    }
+
+    try {
+      await preAuthorizedEmailsService.create({
+        email: newEmail,
+        notes: newNotes || undefined,
+      });
+      setNewEmail('');
+      setNewNotes('');
+      await loadPreAuthEmails();
+    } catch (error: any) {
+      setEmailError(error.response?.data?.message || 'Failed to add email');
+    }
+  };
+
+  const handleDeleteEmail = async (id: string, email: string) => {
+    if (window.confirm(`Are you sure you want to remove ${email} from pre-authorized emails?`)) {
+      try {
+        await preAuthorizedEmailsService.delete(id);
+        await loadPreAuthEmails();
+      } catch (error) {
+        console.error('Failed to delete email:', error);
+        alert('Failed to delete email. Please try again.');
+      }
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -117,7 +178,7 @@ export default function Settings() {
               </div>
             </div>
             <div className="flex items-center justify-end space-x-4 ml-auto">
-              <span className="text-sm text-gray-600">{user?.email}</span>
+              <span className="text-sm text-gray-600">{user?.username || user?.email}</span>
               <button
                 onClick={() => navigate('/')}
                 className="px-4 py-2 bg-gray-600 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
@@ -241,6 +302,143 @@ export default function Settings() {
             </div>
           </div>
         ))}
+
+        {/* Pre-Authorized Emails Management (Admin Only) */}
+        {user?.is_admin && (
+          <div className="mb-8 bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Pre-Authorized Emails (Admin)
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Manage which email addresses can register for an account
+              </p>
+            </div>
+
+            {/* Add Email Form */}
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <form onSubmit={handleAddEmail} className="space-y-3">
+                {emailError && (
+                  <div className="rounded-md bg-red-50 p-3">
+                    <div className="text-sm text-red-800">{emailError}</div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label htmlFor="newEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Address *
+                    </label>
+                    <input
+                      id="newEmail"
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="user@example.com"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="newNotes" className="block text-sm font-medium text-gray-700 mb-1">
+                      Notes (Optional)
+                    </label>
+                    <input
+                      id="newNotes"
+                      type="text"
+                      value={newNotes}
+                      onChange={(e) => setNewNotes(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., John Doe - Club member"
+                    />
+                  </div>
+
+                  <div className="flex items-end">
+                    <button
+                      type="submit"
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+                    >
+                      Add Email
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            {/* Email List */}
+            <div className="px-6 py-4">
+              {loadingEmails ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="mt-2 text-gray-600">Loading emails...</p>
+                </div>
+              ) : preAuthEmails.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">
+                  No pre-authorized emails yet. Add one above to allow registrations.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Email
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Notes
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Added
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {preAuthEmails.map((email) => (
+                        <tr key={email.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {email.email}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {email.notes || '-'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {email.used ? (
+                              <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
+                                Used
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
+                                Available
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                            {new Date(email.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
+                            <button
+                              onClick={() => handleDeleteEmail(email.id, email.email)}
+                              className="px-3 py-1 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { getDatabaseConfig } from './config/database.config';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { PreAuthorizedEmailsModule } from './pre-authorized-emails/pre-authorized-emails.module';
 import { SitesModule } from './sites/sites.module';
 import { SettingsModule } from './settings/settings.module';
 import { WeatherModule } from './weather/weather.module';
@@ -33,6 +34,7 @@ import { WeatherModule } from './weather/weather.module';
     // Feature modules
     AuthModule,
     UsersModule,
+    PreAuthorizedEmailsModule,
     SitesModule,
     SettingsModule,
     WeatherModule,

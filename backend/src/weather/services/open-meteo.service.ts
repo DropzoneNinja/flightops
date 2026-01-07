@@ -39,6 +39,7 @@ export class OpenMeteoService {
           hourly: [
             'temperature_2m',
             'wind_speed_10m',
+            'wind_direction_10m',
             'wind_gusts_10m',
             'precipitation',
           ].join(','),

@@ -1,6 +1,7 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { authService } from '../services/auth.service';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -8,16 +9,79 @@ export default function Register() {
 
   const [formData, setFormData] = useState({
     email: '',
+    username: '',
     password: '',
     confirmPassword: '',
   });
 
   const [validationError, setValidationError] = useState('');
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+
+  // Debounced username availability check
+  useEffect(() => {
+    if (formData.username.length < 3) {
+      setUsernameAvailable(null);
+      return;
+    }
+
+    // Validate format first
+    if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+      setUsernameAvailable(null);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setCheckingUsername(true);
+      try {
+        const available = await authService.checkUsernameAvailability(formData.username);
+        setUsernameAvailable(available);
+      } catch (error) {
+        console.error('Failed to check username:', error);
+        setUsernameAvailable(null);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.username]);
+
+  const handleUsernameChange = (value: string) => {
+    setFormData({ ...formData, username: value });
+    setUsernameAvailable(null);
+
+    // Validate format
+    if (value && !/^[a-zA-Z0-9_]+$/.test(value)) {
+      setValidationError('Username can only contain letters, numbers, and underscores');
+      return;
+    }
+
+    setValidationError('');
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     clearError();
     setValidationError('');
+
+    // Validate username format
+    if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+      setValidationError('Username can only contain letters, numbers, and underscores');
+      return;
+    }
+
+    // Validate username length
+    if (formData.username.length < 3 || formData.username.length > 20) {
+      setValidationError('Username must be between 3 and 20 characters');
+      return;
+    }
+
+    // Check username availability
+    if (usernameAvailable === false) {
+      setValidationError('Username is already taken');
+      return;
+    }
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
@@ -34,6 +98,7 @@ export default function Register() {
     try {
       await register({
         email: formData.email,
+        username: formData.username,
         password: formData.password,
       });
       navigate('/'); // Redirect to home page after registration
@@ -89,6 +154,35 @@ export default function Register() {
                 }
               />
             </div>
+
+            <div className="relative">
+              <label htmlFor="username" className="sr-only">
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Username (3-20 characters, letters, numbers, underscore)"
+                value={formData.username}
+                onChange={(e) => handleUsernameChange(e.target.value)}
+              />
+              {checkingUsername && (
+                <div className="absolute right-3 top-2.5">
+                  <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                </div>
+              )}
+              {usernameAvailable === true && !checkingUsername && formData.username && (
+                <div className="absolute right-3 top-2.5 text-green-600">✓</div>
+              )}
+              {usernameAvailable === false && !checkingUsername && formData.username && (
+                <div className="absolute right-3 top-2.5 text-red-600">✗</div>
+              )}
+            </div>
+
             <div>
               <label htmlFor="password" className="sr-only">
                 Password
@@ -130,7 +224,7 @@ export default function Register() {
           <div>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || usernameAvailable === false}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Creating account...' : 'Register'}

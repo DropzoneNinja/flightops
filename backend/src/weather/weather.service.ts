@@ -116,6 +116,7 @@ export class WeatherService {
         timestamp: hourly.timestamp,
         temperature: parseFloat(hourly.temperature.toString()),
         windSpeed: parseFloat(hourly.wind_speed.toString()),
+        windDirection: parseFloat(hourly.wind_direction.toString()),
         gustSpeed: parseFloat(hourly.gust_speed.toString()),
         gustSpread: parseFloat(hourly.gust_spread.toString()),
         rain: parseFloat(hourly.rain.toString()),

@@ -20,6 +20,9 @@ export class User {
   @Column({ unique: true, length: 255 })
   email: string;
 
+  @Column({ unique: true, length: 50, nullable: true })
+  username: string;
+
   @Column({ length: 255, select: false })
   password_hash: string;
 

@@ -34,6 +34,12 @@ export default function HourlyWeatherDialog({ forecast, onClose }: HourlyWeather
     return 'bg-red-500 text-white';
   };
 
+  const getWindDirection = (degrees: number): string => {
+    const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+    const index = Math.round(((degrees % 360) / 22.5)) % 16;
+    return directions[index];
+  };
+
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50"
@@ -82,6 +88,7 @@ export default function HourlyWeatherDialog({ forecast, onClose }: HourlyWeather
                 <th className="text-center text-sm font-semibold text-gray-700 pb-2">Score</th>
                 <th className="text-right text-sm font-semibold text-gray-700 pb-2">Temp</th>
                 <th className="text-right text-sm font-semibold text-gray-700 pb-2">Wind</th>
+                <th className="text-center text-sm font-semibold text-gray-700 pb-2">Dir</th>
                 <th className="text-right text-sm font-semibold text-gray-700 pb-2">Gust</th>
                 <th className="text-right text-sm font-semibold text-gray-700 pb-2">Rain</th>
               </tr>
@@ -110,6 +117,9 @@ export default function HourlyWeatherDialog({ forecast, onClose }: HourlyWeather
                     </td>
                     <td className="py-2 text-right text-sm text-gray-700">
                       {Number(data.windSpeed).toFixed(1)} km/h
+                    </td>
+                    <td className="py-2 text-center text-sm font-medium text-gray-900">
+                      {getWindDirection(Number(data.windDirection))}
                     </td>
                     <td className="py-2 text-right text-sm text-gray-700">
                       {Number(data.gustSpeed).toFixed(1)} km/h

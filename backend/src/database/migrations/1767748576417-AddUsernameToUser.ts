@@ -1,0 +1,27 @@
+import { MigrationInterface, QueryRunner } from "typeorm";
+
+export class AddUsernameToUser1767748576417 implements MigrationInterface {
+    name = 'AddUsernameToUser1767748576417'
+
+    public async up(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`ALTER TABLE "users" ADD "username" character varying(50)`);
+
+        await queryRunner.query(`
+            ALTER TABLE "users"
+            ADD CONSTRAINT "UQ_users_username" UNIQUE ("username")
+        `);
+
+        await queryRunner.query(`
+            CREATE UNIQUE INDEX "IDX_users_username"
+            ON "users" ("username")
+            WHERE "username" IS NOT NULL
+        `);
+    }
+
+    public async down(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`DROP INDEX "public"."IDX_users_username"`);
+        await queryRunner.query(`ALTER TABLE "users" DROP CONSTRAINT "UQ_users_username"`);
+        await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "username"`);
+    }
+
+}

@@ -172,6 +172,7 @@ export class WeatherProcessorService {
         const timestamp = new Date(hourlyData.time[index]);
         const temperature = hourlyData.temperature_2m[index];
         const windSpeed = hourlyData.wind_speed_10m[index];
+        const windDirection = hourlyData.wind_direction_10m[index];
         const gustSpeed = hourlyData.wind_gusts_10m[index];
         const rain = hourlyData.precipitation[index];
 
@@ -191,6 +192,7 @@ export class WeatherProcessorService {
           timestamp,
           temperature,
           wind_speed: windSpeed,
+          wind_direction: windDirection,
           gust_speed: gustSpeed,
           gust_spread: gustSpread,
           rain,

@@ -6,9 +6,10 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto } from './dto';
+import { RegisterDto, LoginDto, SetupUsernameDto } from './dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -39,6 +40,29 @@ export class AuthController {
   }
 
   /**
+   * POST /auth/setup-username
+   * Setup username for existing users
+   */
+  @Post('setup-username')
+  @UseGuards(JwtAuthGuard)
+  async setupUsername(
+    @CurrentUser() user: User,
+    @Body() setupDto: SetupUsernameDto,
+  ) {
+    return this.authService.setupUsername(user.id, setupDto);
+  }
+
+  /**
+   * GET /auth/check-username
+   * Check if username is available
+   */
+  @Get('check-username')
+  async checkUsername(@Query('username') username: string) {
+    const available = await this.authService.checkUsernameAvailability(username);
+    return { available };
+  }
+
+  /**
    * GET /auth/me
    * Get current user profile
    */
@@ -48,7 +72,10 @@ export class AuthController {
     return {
       id: user.id,
       email: user.email,
+      username: user.username,
+      is_admin: user.is_admin,
       created_at: user.created_at,
+      needs_username_setup: !user.username,
     };
   }
 }
