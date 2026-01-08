@@ -19,17 +19,15 @@ export class SettingsService {
   ) {}
 
   /**
-   * Get all settings for a user
-   * If user has no settings, initialize with defaults
+   * Get all global settings
+   * If no settings exist, initialize with defaults
    */
-  async findAllByUser(userId: string): Promise<Setting[]> {
-    const settings = await this.settingRepository.find({
-      where: { user_id: userId },
-    });
+  async findAll(): Promise<Setting[]> {
+    const settings = await this.settingRepository.find();
 
-    // If user has no settings, initialize with defaults
+    // If no settings exist, initialize with defaults
     if (settings.length === 0) {
-      return this.initializeDefaultSettings(userId);
+      return this.initializeDefaultSettings();
     }
 
     return settings;
@@ -37,42 +35,61 @@ export class SettingsService {
 
   /**
    * Get all settings as a key-value map
-   * Merges user settings with defaults to ensure all settings have values
+   * Merges global settings with defaults to ensure all settings have values
    */
-  async getSettingsMap(userId: string): Promise<Record<string, any>> {
+  async getSettingsMap(): Promise<Record<string, any>> {
+    console.log('🔍 [Settings] getSettingsMap called');
+
     // Start with default settings
     const defaultsMap = getDefaultSettingsMap();
 
-    // Get user settings
-    const settings = await this.findAllByUser(userId);
+    // Get global settings
+    const settings = await this.findAll();
+    console.log('📊 [Settings] Found', settings.length, 'global settings');
 
-    // Merge user settings over defaults
-    const userSettingsMap = settings.reduce(
+    // Merge global settings over defaults
+    const settingsMap = settings.reduce(
       (acc, setting) => {
-        acc[setting.setting_key] = this.parseSettingValue(
+        const parsedValue = this.parseSettingValue(
           setting.setting_value,
           setting.setting_type as SettingType,
         );
+        acc[setting.setting_key] = parsedValue;
+
+        // Log critical settings
+        if (setting.setting_key === 'map.show_zoom_indicator' ||
+            setting.setting_key === 'debug.heatbar_debug_mode' ||
+            setting.setting_key === 'map.parking_icon_zoom_level') {
+          console.log(`  ⚙️  [Settings] ${setting.setting_key}:`,
+            `"${setting.setting_value}" (${setting.setting_type}) ->`, parsedValue,
+            `(${typeof parsedValue})`);
+        }
+
         return acc;
       },
       {} as Record<string, any>,
     );
 
-    // Return merged map (user settings override defaults)
-    return { ...defaultsMap, ...userSettingsMap };
+    // Return merged map (global settings override defaults)
+    const finalMap = { ...defaultsMap, ...settingsMap };
+    console.log('✅ [Settings] Returning map with', Object.keys(finalMap).length, 'settings');
+    console.log('  - map.show_zoom_indicator:', finalMap['map.show_zoom_indicator'], typeof finalMap['map.show_zoom_indicator']);
+    console.log('  - debug.heatbar_debug_mode:', finalMap['debug.heatbar_debug_mode'], typeof finalMap['debug.heatbar_debug_mode']);
+
+    return finalMap;
   }
 
   /**
    * Get a single setting by key
    */
-  async findOne(userId: string, settingKey: string): Promise<Setting> {
+  async findOne(settingKey: string): Promise<Setting> {
     const setting = await this.settingRepository.findOne({
-      where: { user_id: userId, setting_key: settingKey },
+      where: { setting_key: settingKey },
     });
 
     if (!setting) {
       throw new NotFoundException(
-        `Setting with key '${settingKey}' not found for user`,
+        `Setting with key '${settingKey}' not found`,
       );
     }
 
@@ -82,9 +99,9 @@ export class SettingsService {
   /**
    * Get a setting value by key (with type parsing)
    */
-  async getValue(userId: string, settingKey: SettingKey): Promise<any> {
+  async getValue(settingKey: SettingKey): Promise<any> {
     try {
-      const setting = await this.findOne(userId, settingKey);
+      const setting = await this.findOne(settingKey);
       return this.parseSettingValue(
         setting.setting_value,
         setting.setting_type as SettingType,
@@ -96,20 +113,19 @@ export class SettingsService {
   }
 
   /**
-   * Update a single setting
+   * Update a single setting (admin only)
    */
   async update(
-    userId: string,
     settingKey: string,
     updateSettingDto: UpdateSettingDto,
   ): Promise<Setting> {
     const setting = await this.settingRepository.findOne({
-      where: { user_id: userId, setting_key: settingKey },
+      where: { setting_key: settingKey },
     });
 
     if (!setting) {
       throw new NotFoundException(
-        `Setting with key '${settingKey}' not found for user`,
+        `Setting with key '${settingKey}' not found`,
       );
     }
 
@@ -126,16 +142,15 @@ export class SettingsService {
   }
 
   /**
-   * Update multiple settings at once
+   * Update multiple settings at once (admin only)
    */
   async updateMany(
-    userId: string,
     updateDtos: UpdateSettingDto[],
   ): Promise<Setting[]> {
     const updatedSettings: Setting[] = [];
 
     for (const dto of updateDtos) {
-      const updated = await this.update(userId, dto.setting_key, dto);
+      const updated = await this.update(dto.setting_key, dto);
       updatedSettings.push(updated);
     }
 
@@ -143,23 +158,22 @@ export class SettingsService {
   }
 
   /**
-   * Reset all settings to defaults for a user
+   * Reset all settings to defaults (admin only)
    */
-  async resetToDefaults(userId: string): Promise<Setting[]> {
-    // Delete all existing settings for user
-    await this.settingRepository.delete({ user_id: userId });
+  async resetToDefaults(): Promise<Setting[]> {
+    // Delete all existing settings
+    await this.settingRepository.delete({});
 
     // Reinitialize with defaults
-    return this.initializeDefaultSettings(userId);
+    return this.initializeDefaultSettings();
   }
 
   /**
-   * Initialize default settings for a new user
+   * Initialize default global settings
    */
-  private async initializeDefaultSettings(userId: string): Promise<Setting[]> {
+  private async initializeDefaultSettings(): Promise<Setting[]> {
     const defaultSettings = DEFAULT_SETTINGS.map((defaultSetting) => {
       return this.settingRepository.create({
-        user_id: userId,
         setting_key: defaultSetting.key,
         setting_value: String(defaultSetting.value),
         setting_type: defaultSetting.type,

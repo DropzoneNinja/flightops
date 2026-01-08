@@ -41,17 +41,15 @@ export class WeatherScoringService {
    * @param windSpeed Wind speed in km/h
    * @param gustSpeed Gust speed in km/h
    * @param rain Precipitation in mm/hr
-   * @param userId User ID for personalized thresholds
    * @returns Weather safety scores (0-100)
    */
   async calculateScores(
     windSpeed: number,
     gustSpeed: number,
     rain: number,
-    userId: string,
   ): Promise<WeatherScores> {
-    // Get user's thresholds (or defaults)
-    const thresholds = await this.settingsService.getSettingsMap(userId);
+    // Get global thresholds (or defaults)
+    const thresholds = await this.settingsService.getSettingsMap();
 
     const wind_score = this.calculateWindScore(
       windSpeed,

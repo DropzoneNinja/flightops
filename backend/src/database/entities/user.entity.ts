@@ -10,7 +10,6 @@ import {
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { FlightSite } from './flight-site.entity';
-import { Setting } from './setting.entity';
 
 @Entity('users')
 export class User {
@@ -56,9 +55,6 @@ export class User {
   // Relationships
   @OneToMany(() => FlightSite, (site) => site.user)
   flight_sites: FlightSite[];
-
-  @OneToMany(() => Setting, (setting) => setting.user)
-  settings: Setting[];
 
   // Virtual field for password (not stored in DB)
   password?: string;

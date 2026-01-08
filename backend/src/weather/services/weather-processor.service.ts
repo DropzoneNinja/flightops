@@ -184,7 +184,6 @@ export class WeatherProcessorService {
           windSpeed,
           gustSpeed,
           rain,
-          site.user_id,
         );
 
         return this.hourlyRepository.create({

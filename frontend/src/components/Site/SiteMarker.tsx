@@ -51,6 +51,13 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
   // Check if heatbar debug mode is enabled
   const isDebugMode = settingsMap['debug.heatbar_debug_mode'] === true;
 
+  // Debug logging for settings
+  useEffect(() => {
+    console.log('🔧 [SiteMarker]', site.name, '- settingsMap:', settingsMap);
+    console.log('  - debug.heatbar_debug_mode:', settingsMap['debug.heatbar_debug_mode'], typeof settingsMap['debug.heatbar_debug_mode']);
+    console.log('  - isDebugMode:', isDebugMode);
+  }, [settingsMap, site.name, isDebugMode]);
+
   // Convert coordinates to numbers (they come as strings from PostgreSQL decimal type)
   const takeoffLat = parseFloat(site.takeoff_lat.toString());
   const takeoffLon = parseFloat(site.takeoff_lon.toString());

@@ -78,13 +78,29 @@ export default function MapView() {
 
   // Update state when settings are loaded
   useEffect(() => {
+    console.log('🗺️ [MapView] Settings effect triggered');
+    console.log('  - isLoadingMap:', isLoadingMap);
+    console.log('  - settingsMap:', settingsMap);
+    console.log('  - settingsMap keys:', Object.keys(settingsMap || {}));
+
     if (!isLoadingMap && settingsMap) {
+      console.log('  ✅ [MapView] Applying settings...');
+
       if (settingsMap['map.show_zoom_indicator'] !== undefined) {
+        console.log('    - Setting showZoomIndicator to:', settingsMap['map.show_zoom_indicator'], typeof settingsMap['map.show_zoom_indicator']);
         setShowZoomIndicator(settingsMap['map.show_zoom_indicator']);
+      } else {
+        console.log('    ⚠️ [MapView] map.show_zoom_indicator is undefined!');
       }
+
       if (settingsMap['map.parking_icon_zoom_level'] !== undefined) {
+        console.log('    - Setting parkingIconZoomLevel to:', settingsMap['map.parking_icon_zoom_level'], typeof settingsMap['map.parking_icon_zoom_level']);
         setParkingIconZoomLevel(settingsMap['map.parking_icon_zoom_level']);
+      } else {
+        console.log('    ⚠️ [MapView] map.parking_icon_zoom_level is undefined!');
       }
+    } else {
+      console.log('  ⏳ [MapView] Still loading or no settingsMap');
     }
   }, [settingsMap, isLoadingMap]);
 

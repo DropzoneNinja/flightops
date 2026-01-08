@@ -10,8 +10,7 @@ import {
 import { SettingsService } from './settings.service';
 import { UpdateSettingDto, UpdateSettingsDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { User } from '../database/entities/user.entity';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import { DEFAULT_SETTINGS } from './constants/default-settings';
 
 @Controller('settings')
@@ -21,25 +20,25 @@ export class SettingsController {
 
   /**
    * GET /settings
-   * Get all settings for the current user
+   * Get all global settings (all authenticated users can read)
    */
   @Get()
-  findAll(@CurrentUser() user: User) {
-    return this.settingsService.findAllByUser(user.id);
+  findAll() {
+    return this.settingsService.findAll();
   }
 
   /**
    * GET /settings/map
-   * Get all settings as a key-value map
+   * Get all settings as a key-value map (all authenticated users can read)
    */
   @Get('map')
-  getSettingsMap(@CurrentUser() user: User) {
-    return this.settingsService.getSettingsMap(user.id);
+  getSettingsMap() {
+    return this.settingsService.getSettingsMap();
   }
 
   /**
    * GET /settings/defaults
-   * Get default settings (not user-specific)
+   * Get default settings (all authenticated users)
    */
   @Get('defaults')
   getDefaults() {
@@ -48,44 +47,45 @@ export class SettingsController {
 
   /**
    * GET /settings/:key
-   * Get a specific setting by key
+   * Get a specific setting by key (all authenticated users can read)
    */
   @Get(':key')
-  findOne(@CurrentUser() user: User, @Param('key') key: string) {
-    return this.settingsService.findOne(user.id, key);
+  findOne(@Param('key') key: string) {
+    return this.settingsService.findOne(key);
   }
 
   /**
    * PUT /settings/:key
-   * Update a specific setting
+   * Update a specific setting (admin only)
    */
   @Put(':key')
+  @UseGuards(AdminGuard)
   update(
-    @CurrentUser() user: User,
     @Param('key') key: string,
     @Body() updateSettingDto: UpdateSettingDto,
   ) {
-    return this.settingsService.update(user.id, key, updateSettingDto);
+    return this.settingsService.update(key, updateSettingDto);
   }
 
   /**
    * PUT /settings
-   * Update multiple settings at once
+   * Update multiple settings at once (admin only)
    */
   @Put()
+  @UseGuards(AdminGuard)
   updateMany(
-    @CurrentUser() user: User,
     @Body() updateSettingsDto: UpdateSettingsDto,
   ) {
-    return this.settingsService.updateMany(user.id, updateSettingsDto.settings);
+    return this.settingsService.updateMany(updateSettingsDto.settings);
   }
 
   /**
    * POST /settings/reset
-   * Reset all settings to defaults
+   * Reset all settings to defaults (admin only)
    */
   @Post('reset')
-  resetToDefaults(@CurrentUser() user: User) {
-    return this.settingsService.resetToDefaults(user.id);
+  @UseGuards(AdminGuard)
+  resetToDefaults() {
+    return this.settingsService.resetToDefaults();
   }
 }
