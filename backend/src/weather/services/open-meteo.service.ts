@@ -4,6 +4,7 @@ import {
   OpenMeteoResponse,
   OpenMeteoMultiHeightResponse,
 } from '../interfaces/open-meteo-response.interface';
+import { WeatherStatsService } from './weather-stats.service';
 
 @Injectable()
 export class OpenMeteoService {
@@ -11,7 +12,7 @@ export class OpenMeteoService {
   private readonly axiosInstance: AxiosInstance;
   private readonly BASE_URL = 'https://api.open-meteo.com/v1/forecast';
 
-  constructor() {
+  constructor(private readonly weatherStatsService: WeatherStatsService) {
     this.axiosInstance = axios.create({
       baseURL: this.BASE_URL,
       timeout: 10000, // 10 second timeout
@@ -53,6 +54,11 @@ export class OpenMeteoService {
 
       this.logger.log(
         `Successfully fetched forecast for (${latitude}, ${longitude})`,
+      );
+
+      // Log external API call to Open-Meteo
+      await this.weatherStatsService.logApiCall(
+        'Open-Meteo: GET /forecast (standard)',
       );
 
       return response.data;
@@ -146,6 +152,11 @@ export class OpenMeteoService {
 
       this.logger.log(
         `Successfully fetched multi-height forecast for (${latitude}, ${longitude})`,
+      );
+
+      // Log external API call to Open-Meteo
+      await this.weatherStatsService.logApiCall(
+        'Open-Meteo: GET /forecast (multi-height)',
       );
 
       return response.data;

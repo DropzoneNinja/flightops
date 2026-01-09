@@ -156,7 +156,7 @@ export default function HeatbarDebugDialog({
                   {/* 120m row */}
                   <tr>
                     <td className="border border-gray-300 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-900 sticky left-0 z-10">
-                      120m
+                      394 ft
                     </td>
                     {filteredHours.map((hourData, index) => (
                       <td
@@ -176,7 +176,7 @@ export default function HeatbarDebugDialog({
                   {/* 80m row */}
                   <tr>
                     <td className="border border-gray-300 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-900 sticky left-0 z-10">
-                      80m
+                      262 ft
                     </td>
                     {filteredHours.map((hourData, index) => (
                       <td
@@ -196,7 +196,7 @@ export default function HeatbarDebugDialog({
                   {/* 10m row */}
                   <tr>
                     <td className="border border-gray-300 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-900 sticky left-0 z-10">
-                      10m
+                      33 ft
                     </td>
                     {filteredHours.map((hourData, index) => (
                       <td

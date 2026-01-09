@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { APP_INTERCEPTOR } from '@nestjs/core';
 import { WeatherForecast } from '../database/entities/weather-forecast.entity';
 import { WeatherHourly } from '../database/entities/weather-hourly.entity';
 import { WeatherMultiHeight } from '../database/entities/weather-multi-height.entity';
@@ -15,7 +14,6 @@ import { WeatherStatsService } from './services/weather-stats.service';
 import { WeatherFetchJob } from './jobs/weather-fetch.job';
 import { WeatherService } from './weather.service';
 import { WeatherController } from './weather.controller';
-import { WeatherStatsInterceptor } from './interceptors/weather-stats.interceptor';
 
 @Module({
   imports: [
@@ -37,10 +35,6 @@ import { WeatherStatsInterceptor } from './interceptors/weather-stats.intercepto
     WeatherProcessorService,
     WeatherStatsService,
     WeatherFetchJob,
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: WeatherStatsInterceptor,
-    },
   ],
   exports: [
     WeatherService,
