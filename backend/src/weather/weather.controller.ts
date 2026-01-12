@@ -10,6 +10,8 @@ import {
 import { WeatherService } from './weather.service';
 import { WeatherFetchJob } from './jobs/weather-fetch.job';
 import { WeatherStatsService } from './services/weather-stats.service';
+import { SettingsService } from '../settings/settings.service';
+import { SettingKey } from '../settings/constants/default-settings';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -21,6 +23,7 @@ export class WeatherController {
     private readonly weatherService: WeatherService,
     private readonly weatherFetchJob: WeatherFetchJob,
     private readonly weatherStatsService: WeatherStatsService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   /**
@@ -30,7 +33,10 @@ export class WeatherController {
   @Post('weather/fetch')
   @UseGuards(JwtAuthGuard, AdminGuard)
   async triggerWeatherFetch() {
-    await this.weatherFetchJob.triggerManualFetch(3);
+    const forecastDays = await this.settingsService.getValue(
+      SettingKey.WEATHER_FORECAST_DAYS,
+    ) as number;
+    await this.weatherFetchJob.triggerManualFetch(forecastDays);
     return { message: 'Weather fetch initiated successfully' };
   }
 

@@ -27,6 +27,14 @@ export default function HourlyWeatherDialog({ forecast, onClose }: HourlyWeather
 
   if (!forecast) return null;
 
+  // Calculate daily temperature range
+  const temperatures = forecast.hourlyData.map(data => Number(data.temperature));
+  const minTemp = Math.min(...temperatures);
+  const maxTemp = Math.max(...temperatures);
+
+  // Calculate total rain
+  const totalRain = forecast.hourlyData.reduce((sum, data) => sum + Number(data.rain), 0);
+
   const getScoreBadgeClass = (score: number) => {
     if (score >= 76) return 'bg-green-600 text-white';
     if (score >= 51) return 'bg-green-300 text-gray-900';
@@ -50,33 +58,38 @@ export default function HourlyWeatherDialog({ forecast, onClose }: HourlyWeather
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div>
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">
               {formatForecastDate(forecast.date)}
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-sm text-gray-600">
               Sunrise: {forecast.sunrise} | Sunset: {forecast.sunset}
             </p>
+            <p className="text-sm text-gray-600">
+              Temp: {minTemp.toFixed(1)}°C - {maxTemp.toFixed(1)}°C | Rain: {totalRain.toFixed(1)} mm
+            </p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
         </div>
 
         {/* Body */}

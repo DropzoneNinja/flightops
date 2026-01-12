@@ -11,6 +11,8 @@ import { WeatherMultiHeight } from '../database/entities/weather-multi-height.en
 import { FlightSite } from '../database/entities/flight-site.entity';
 import { OpenMeteoService } from './services/open-meteo.service';
 import { OpenMeteoMultiHeightResponse } from './interfaces/open-meteo-response.interface';
+import { SettingsService } from '../settings/settings.service';
+import { SettingKey } from '../settings/constants/default-settings';
 
 @Injectable()
 export class WeatherService {
@@ -26,10 +28,11 @@ export class WeatherService {
     @InjectRepository(FlightSite)
     private readonly siteRepository: Repository<FlightSite>,
     private readonly openMeteoService: OpenMeteoService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   /**
-   * Get forecast data for a site (next 3 days from today)
+   * Get forecast data for a site (based on WEATHER_FORECAST_DAYS setting)
    * Returns forecast with hourly data included
    */
   async getForecastBySite(siteId: string, _userId: string) {
@@ -42,19 +45,24 @@ export class WeatherService {
       throw new NotFoundException('Site not found');
     }
 
+    // Get forecast days from settings
+    const forecastDays = await this.settingsService.getValue(
+      SettingKey.WEATHER_FORECAST_DAYS,
+    ) as number;
+
     // Get today's date at midnight
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Get date 3 days from now
-    const threeDaysFromNow = new Date(today);
-    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+    // Get date N days from now based on setting
+    const endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + forecastDays);
 
-    // Fetch forecasts for the next 3 days, including hourly data
+    // Fetch forecasts for the configured number of days, including hourly data
     const forecasts = await this.forecastRepository.find({
       where: {
         site: { id: siteId },
-        forecast_date: Between(today, threeDaysFromNow),
+        forecast_date: Between(today, endDate),
       },
       relations: ['hourly_data'],
       order: {

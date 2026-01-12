@@ -6,9 +6,10 @@ interface WeatherForecastBarsProps {
   forecasts: WeatherForecast[];
   onDayClick: (forecast: WeatherForecast) => void;
   isLoading: boolean;
+  maxDays?: number; // Maximum number of forecast days to display (default: 3)
 }
 
-export default function WeatherForecastBars({ forecasts, onDayClick, isLoading }: WeatherForecastBarsProps) {
+export default function WeatherForecastBars({ forecasts, onDayClick, isLoading, maxDays = 3 }: WeatherForecastBarsProps) {
   if (isLoading) {
     return (
       <div className="bg-white/90 backdrop-blur-sm rounded shadow-lg p-1.5 ml-6 border-2 border-black" style={{ width: '120px' }}>
@@ -27,9 +28,12 @@ export default function WeatherForecastBars({ forecasts, onDayClick, isLoading }
     );
   }
 
+  // Limit forecasts to the specified number of days
+  const displayForecasts = forecasts.slice(0, maxDays);
+
   return (
     <div className="bg-white/90 backdrop-blur-sm rounded shadow-lg p-1.5 ml-6 border-2 border-black" style={{ width: '120px' }}>
-      {forecasts.map((forecast) => (
+      {displayForecasts.map((forecast) => (
         <DayForecastBar
           key={forecast.id}
           forecast={forecast}

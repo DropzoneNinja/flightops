@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { WeatherProcessorService } from '../services/weather-processor.service';
+import { SettingsService } from '../../settings/settings.service';
+import { SettingKey } from '../../settings/constants/default-settings';
 
 @Injectable()
 export class WeatherFetchJob {
@@ -9,12 +11,13 @@ export class WeatherFetchJob {
 
   constructor(
     private readonly weatherProcessor: WeatherProcessorService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   /**
    * Scheduled job to fetch weather data for all enabled sites
    * Runs every hour by default
-   * TODO: Make this configurable based on user settings
+   * Uses WEATHER_FORECAST_DAYS setting to determine how many days to fetch
    */
   @Cron(CronExpression.EVERY_HOUR)
   async handleWeatherFetch(): Promise<void> {
@@ -28,7 +31,11 @@ export class WeatherFetchJob {
       this.isRunning = true;
       this.logger.log('Starting scheduled weather fetch job');
 
-      await this.weatherProcessor.processAllEnabledSites(3); // 3-day forecast
+      const forecastDays = await this.settingsService.getValue(
+        SettingKey.WEATHER_FORECAST_DAYS,
+      ) as number;
+
+      await this.weatherProcessor.processAllEnabledSites(forecastDays);
 
       this.logger.log('Successfully completed scheduled weather fetch job');
     } catch (error) {

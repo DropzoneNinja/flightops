@@ -51,6 +51,11 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
   // Check if heatbar debug mode is enabled
   const isDebugMode = settingsMap['debug.heatbar_debug_mode'] === true;
 
+  // Get weather forecast days setting (default to 3)
+  const forecastDays = typeof settingsMap['weather.forecast_days'] === 'number'
+    ? settingsMap['weather.forecast_days']
+    : 3;
+
   // Debug logging for settings
   useEffect(() => {
     console.log('🔧 [SiteMarker]', site.name, '- settingsMap:', settingsMap);
@@ -103,6 +108,7 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
         forecasts={forecasts}
         isLoading={isLoadingWeather}
         onDayClick={setSelectedForecast}
+        maxDays={forecastDays}
       />
     );
 
@@ -113,7 +119,7 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
         rootRef.current = null;
       }
     };
-  }, [forecasts, isLoadingWeather, currentZoom, parkingIconZoomLevel]);
+  }, [forecasts, isLoadingWeather, currentZoom, parkingIconZoomLevel, forecastDays]);
 
   const handleDelete = async () => {
     if (window.confirm(`Are you sure you want to delete "${site.name}"?`)) {
@@ -219,7 +225,7 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
             {/* Weather Forecast Section */}
             <div className="border-t pt-3 mb-3">
               <h4 className="text-sm font-semibold text-gray-900 mb-2">
-                3-Day Forecast
+                {forecastDays}-Day Forecast
               </h4>
               {isLoadingWeather ? (
                 <div className="text-center py-4">
@@ -228,7 +234,7 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
                 </div>
               ) : forecasts.length > 0 ? (
                 <div className="space-y-3">
-                  {forecasts.map((forecast) => (
+                  {forecasts.slice(0, forecastDays).map((forecast) => (
                     <div key={forecast.id} className="bg-gray-50 p-2 rounded">
                       <p className="text-xs font-medium text-gray-700 mb-2">
                         {new Date(forecast.date).toLocaleDateString([], {
