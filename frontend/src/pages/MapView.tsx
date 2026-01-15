@@ -7,6 +7,12 @@ import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import SiteMarker from '../components/Site/SiteMarker';
 import AddSitePanel from '../components/Site/AddSitePanel';
+import AirspaceOverlay from '../components/Airspace/AirspaceOverlay';
+import AirspaceClassFilter from '../components/Airspace/AirspaceClassFilter';
+import AirspaceLayerVisualization from '../components/Airspace/AirspaceLayerVisualization';
+import { useAirspace } from '../hooks/useAirspace';
+import { AirspaceClass } from '../services/airspace.service';
+import { FlightSite } from '../services/sites.service';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default marker icons in React-Leaflet
@@ -66,6 +72,7 @@ export default function MapView() {
   const { sites, isLoading } = useSites();
   const { logout, user } = useAuth();
   const { settingsMap, isLoadingMap } = useSettings();
+  const { airspace } = useAirspace();
   const navigate = useNavigate();
   const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
   const [activeLocationSelection, setActiveLocationSelection] = useState<'takeoff' | 'parking' | null>(null);
@@ -75,6 +82,11 @@ export default function MapView() {
   const [currentZoom, setCurrentZoom] = useState(9);
   const [showZoomIndicator, setShowZoomIndicator] = useState(true);
   const [parkingIconZoomLevel, setParkingIconZoomLevel] = useState(10);
+  const [showAirspace, setShowAirspace] = useState(false);
+  const [enabledAirspaceClasses, setEnabledAirspaceClasses] = useState<Set<AirspaceClass>>(
+    new Set(['A', 'C', 'CTR', 'D', 'E', 'Q', 'R', 'RMZ']) // G disabled by default to reduce clutter
+  );
+  const [selectedSiteForAirspace, setSelectedSiteForAirspace] = useState<FlightSite | null>(null);
 
   // Update state when settings are loaded
   useEffect(() => {
@@ -155,6 +167,31 @@ export default function MapView() {
     }
   };
 
+  const handleToggleAirspaceClass = (airspaceClass: AirspaceClass) => {
+    setEnabledAirspaceClasses(prev => {
+      const next = new Set(prev);
+      if (next.has(airspaceClass)) {
+        next.delete(airspaceClass);
+      } else {
+        next.add(airspaceClass);
+      }
+      return next;
+    });
+  };
+
+  const handleTakeoffClick = (site: FlightSite) => {
+    // Turn on airspace if not already showing
+    if (!showAirspace) {
+      setShowAirspace(true);
+    }
+    // Set selected site (one visualization at a time)
+    setSelectedSiteForAirspace(site);
+  };
+
+  const handleCloseAirspaceVisualization = () => {
+    setSelectedSiteForAirspace(null);
+  };
+
   return (
     <div className="h-screen flex flex-col">
       {/* Custom styles for crosshair and pulse animation */}
@@ -203,6 +240,16 @@ export default function MapView() {
                 className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
               >
                 Add Site
+              </button>
+              <button
+                onClick={() => setShowAirspace(!showAirspace)}
+                className={`px-4 py-2 text-white rounded-md text-sm font-medium transition-colors ${
+                  showAirspace
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-gray-600 hover:bg-gray-700'
+                }`}
+              >
+                {showAirspace ? 'Hide Airspace' : 'Show Airspace'}
               </button>
               {user?.is_admin && (
                 <>
@@ -256,6 +303,14 @@ export default function MapView() {
             <MapClickHandler onMapClick={handleMapClick} />
             <ZoomTracker onZoomChange={setCurrentZoom} />
 
+            {/* Airspace overlay */}
+            {showAirspace && airspace && (
+              <AirspaceOverlay
+                airspace={airspace}
+                enabledClasses={enabledAirspaceClasses}
+              />
+            )}
+
             {/* Render site markers */}
             {sites.map((site) => (
               <SiteMarker
@@ -263,6 +318,7 @@ export default function MapView() {
                 site={site}
                 currentZoom={currentZoom}
                 parkingIconZoomLevel={parkingIconZoomLevel}
+                onTakeoffClick={handleTakeoffClick}
               />
             ))}
 
@@ -293,6 +349,23 @@ export default function MapView() {
               Parking icons: {currentZoom >= parkingIconZoomLevel ? 'ON' : 'OFF'}
             </div>
           </div>
+        )}
+
+        {/* Airspace class filter */}
+        {showAirspace && !isLoading && (
+          <AirspaceClassFilter
+            enabledClasses={enabledAirspaceClasses}
+            onToggleClass={handleToggleAirspaceClass}
+          />
+        )}
+
+        {/* Airspace layer visualization */}
+        {selectedSiteForAirspace && showAirspace && airspace && (
+          <AirspaceLayerVisualization
+            site={selectedSiteForAirspace}
+            airspace={airspace}
+            onClose={handleCloseAirspaceVisualization}
+          />
         )}
       </div>
 

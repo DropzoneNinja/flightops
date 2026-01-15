@@ -31,6 +31,9 @@ RUN npm ci --only=production
 # Copy built application from builder
 COPY --from=builder /app/dist ./dist
 
+# Copy source assets folder (needed for airspace.geojson)
+COPY --from=builder /app/src/assets ./src/assets
+
 # Expose port
 EXPOSE 3000
 

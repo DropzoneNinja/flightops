@@ -1,13 +1,10 @@
-import { Marker, Popup, Polyline } from 'react-leaflet';
+import { Marker, Polyline } from 'react-leaflet';
 import { FlightSite } from '../../services/sites.service';
-import { useSites } from '../../hooks/useSites';
-import { useAuth } from '../../hooks/useAuth';
 import { useWeather } from '../../hooks/useWeather';
 import { useSettings } from '../../hooks/useSettings';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import L from 'leaflet';
-import HeatBar from '../Weather/HeatBar';
 import WeatherForecastBars from '../Weather/WeatherForecastBars';
 import HourlyWeatherDialog from '../Weather/HourlyWeatherDialog';
 import HeatbarDebugDialog from '../Weather/HeatbarDebugDialog';
@@ -36,14 +33,12 @@ interface SiteMarkerProps {
   site: FlightSite;
   currentZoom: number;
   parkingIconZoomLevel: number;
+  onTakeoffClick?: (site: FlightSite) => void;
 }
 
-export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: SiteMarkerProps) {
-  const { deleteSiteMutation, toggleSiteEnabledMutation } = useSites();
-  const { user } = useAuth();
+export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, onTakeoffClick }: SiteMarkerProps) {
   const { forecasts, isLoading: isLoadingWeather } = useWeather(site.id);
   const { settingsMap } = useSettings();
-  const [isDeleting, setIsDeleting] = useState(false);
   const [selectedForecast, setSelectedForecast] = useState<WeatherForecast | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const rootRef = useRef<Root | null>(null);
@@ -121,25 +116,12 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
     };
   }, [forecasts, isLoadingWeather, currentZoom, parkingIconZoomLevel, forecastDays]);
 
-  const handleDelete = async () => {
-    if (window.confirm(`Are you sure you want to delete "${site.name}"?`)) {
-      setIsDeleting(true);
-      try {
-        await deleteSiteMutation.mutateAsync(site.id);
-      } catch (error) {
-        console.error('Failed to delete site:', error);
-        alert('Failed to delete site. Please try again.');
-        setIsDeleting(false);
-      }
-    }
-  };
+  const handleMarkerClick = (e: L.LeafletMouseEvent) => {
+    // Prevent default popup behavior
+    e.originalEvent.stopPropagation();
 
-  const handleToggleEnabled = async () => {
-    try {
-      await toggleSiteEnabledMutation.mutateAsync(site.id);
-    } catch (error) {
-      console.error('Failed to toggle site status:', error);
-      alert('Failed to update site status. Please try again.');
+    if (onTakeoffClick) {
+      onTakeoffClick(site);
     }
   };
 
@@ -191,114 +173,10 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
         <Marker
           position={[takeoffLat, takeoffLon]}
           icon={takeoffIcon}
-        >
-          <Popup>
-            <div className="min-w-[350px] max-w-[400px]">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-bold text-gray-900">{site.name}</h3>
-                <span
-                  className={`px-2 py-1 text-xs font-medium rounded ${
-                    site.enabled
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {site.enabled ? 'Enabled' : 'Disabled'}
-                </span>
-              </div>
-
-            <div className="space-y-2 mb-3">
-              <div>
-                <p className="text-xs font-medium text-gray-500">Takeoff</p>
-                <p className="text-sm text-gray-700">
-                  {takeoffLat.toFixed(6)}, {takeoffLon.toFixed(6)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-500">Parking</p>
-                <p className="text-sm text-gray-700">
-                  {parkingLat.toFixed(6)}, {parkingLon.toFixed(6)}
-                </p>
-              </div>
-            </div>
-
-            {/* Weather Forecast Section */}
-            <div className="border-t pt-3 mb-3">
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">
-                {forecastDays}-Day Forecast
-              </h4>
-              {isLoadingWeather ? (
-                <div className="text-center py-4">
-                  <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                  <p className="mt-2 text-xs text-gray-600">Loading weather...</p>
-                </div>
-              ) : forecasts.length > 0 ? (
-                <div className="space-y-3">
-                  {forecasts.slice(0, forecastDays).map((forecast) => (
-                    <div key={forecast.id} className="bg-gray-50 p-2 rounded">
-                      <p className="text-xs font-medium text-gray-700 mb-2">
-                        {new Date(forecast.date).toLocaleDateString([], {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </p>
-                      <HeatBar
-                        hourlyData={forecast.hourlyData}
-                        type="wind"
-                        label="Wind"
-                      />
-                      <HeatBar
-                        hourlyData={forecast.hourlyData}
-                        type="gust"
-                        label="Gusts"
-                      />
-                      <HeatBar
-                        hourlyData={forecast.hourlyData}
-                        type="rain"
-                        label="Rain"
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-500 text-center py-2">
-                  No forecast data available
-                </p>
-              )}
-            </div>
-
-            {user?.is_admin && (
-              <div className="flex gap-2 border-t pt-3">
-                <button
-                  onClick={handleToggleEnabled}
-                  disabled={toggleSiteEnabledMutation.isPending}
-                  className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
-                    site.enabled
-                      ? 'bg-yellow-600 text-white hover:bg-yellow-700'
-                      : 'bg-green-600 text-white hover:bg-green-700'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {toggleSiteEnabledMutation.isPending
-                    ? 'Updating...'
-                    : site.enabled
-                    ? 'Disable'
-                    : 'Enable'}
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={isDeleting || deleteSiteMutation.isPending}
-                  className="flex-1 px-3 py-2 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isDeleting || deleteSiteMutation.isPending
-                    ? 'Deleting...'
-                    : 'Delete'}
-                </button>
-              </div>
-            )}
-          </div>
-        </Popup>
-        </Marker>
+          eventHandlers={{
+            click: handleMarkerClick,
+          }}
+        />
       )}
 
       {/* Parking marker - only visible when zoomed in */}
@@ -306,18 +184,7 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel }: 
         <Marker
           position={[parkingLat, parkingLon]}
           icon={parkingIcon}
-        >
-          <Popup>
-            <div className="min-w-[200px]">
-              <h4 className="text-sm font-semibold text-gray-900 mb-1">
-                Parking - {site.name}
-              </h4>
-              <p className="text-xs text-gray-700">
-                {parkingLat.toFixed(6)}, {parkingLon.toFixed(6)}
-              </p>
-            </div>
-          </Popup>
-        </Marker>
+        />
       )}
     </>
   );

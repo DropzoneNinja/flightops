@@ -11,6 +11,7 @@ import { PreAuthorizedEmailsModule } from './pre-authorized-emails/pre-authorize
 import { SitesModule } from './sites/sites.module';
 import { SettingsModule } from './settings/settings.module';
 import { WeatherModule } from './weather/weather.module';
+import { AirspaceModule } from './airspace/airspace.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { WeatherModule } from './weather/weather.module';
     SitesModule,
     SettingsModule,
     WeatherModule,
+    AirspaceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
