@@ -83,9 +83,20 @@ export default function MapView() {
   const [showZoomIndicator, setShowZoomIndicator] = useState(true);
   const [parkingIconZoomLevel, setParkingIconZoomLevel] = useState(10);
   const [showAirspace, setShowAirspace] = useState(false);
-  const [enabledAirspaceClasses, setEnabledAirspaceClasses] = useState<Set<AirspaceClass>>(
-    new Set(['A', 'C', 'CTR', 'D', 'E', 'Q', 'R', 'RMZ']) // G disabled by default to reduce clutter
-  );
+  const [enabledAirspaceClasses, setEnabledAirspaceClasses] = useState<Set<AirspaceClass>>(() => {
+    // Try to load from localStorage first
+    const stored = localStorage.getItem('enabledAirspaceClasses');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as AirspaceClass[];
+        return new Set(parsed);
+      } catch (e) {
+        console.error('Failed to parse stored airspace classes:', e);
+      }
+    }
+    // Default classes: A, C, CTR, D, E, Q, R (G and RMZ disabled by default)
+    return new Set(['A', 'C', 'CTR', 'D', 'E', 'Q', 'R']);
+  });
   const [selectedSiteForAirspace, setSelectedSiteForAirspace] = useState<FlightSite | null>(null);
 
   // Update state when settings are loaded
@@ -115,6 +126,12 @@ export default function MapView() {
       console.log('  ⏳ [MapView] Still loading or no settingsMap');
     }
   }, [settingsMap, isLoadingMap]);
+
+  // Persist enabled airspace classes to localStorage
+  useEffect(() => {
+    const classesArray = Array.from(enabledAirspaceClasses);
+    localStorage.setItem('enabledAirspaceClasses', JSON.stringify(classesArray));
+  }, [enabledAirspaceClasses]);
 
   const handleMapClick = (latlng: LatLng) => {
     // Only handle clicks when actively selecting a location

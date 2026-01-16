@@ -1,7 +1,7 @@
 import { GeoJSON } from 'react-leaflet';
 import { PathOptions } from 'leaflet';
 import { useMemo } from 'react';
-import { AirspaceGeoJSON, AirspaceClass } from '../../services/airspace.service';
+import { AirspaceGeoJSON, AirspaceClass, AirspaceFeature } from '../../services/airspace.service';
 
 interface AirspaceOverlayProps {
   airspace: AirspaceGeoJSON;
@@ -78,6 +78,24 @@ const AIRSPACE_STYLES: Record<AirspaceClass, PathOptions> = {
   },
 };
 
+// FL150 cap (15,000 feet)
+const FL150_FEET = 15000;
+
+/**
+ * Z-order priority for airspace classes (lower number = higher priority = renders on top)
+ */
+const AIRSPACE_PRIORITY: Record<AirspaceClass, number> = {
+  R: 1,      // Restricted - highest priority
+  CTR: 2,
+  Q: 3,
+  A: 4,
+  C: 4,      // Class C - same priority as A
+  D: 5,
+  E: 6,
+  G: 7,
+  RMZ: 8,
+};
+
 /**
  * Parse altitude string to feet
  * Examples: "FL180" -> 18000, "SFC" -> 0, "5000FT" -> 5000
@@ -95,18 +113,42 @@ function parseAltitude(alt: string): number {
 }
 
 export default function AirspaceOverlay({ airspace, enabledClasses }: AirspaceOverlayProps) {
-  // Filter and sort features for topmost logic
+  // Filter, truncate at FL150, and sort features by priority
   const processedData = useMemo(() => {
     // Filter by enabled classes first
     const filteredFeatures = airspace.features.filter(feature =>
       enabledClasses.has(feature.properties.class)
     );
 
-    // Sort by upper altitude (ascending) - lower altitude rendered first (bottom), higher altitude last (top)
-    const sortedFeatures = [...filteredFeatures].sort((a, b) => {
-      const altA = parseAltitude(a.properties.upper);
-      const altB = parseAltitude(b.properties.upper);
-      return altA - altB;
+    // Truncate upper altitude at FL150 and filter out features entirely above FL150
+    const truncatedFeatures = filteredFeatures.map(feature => {
+      const upperFeet = parseAltitude(feature.properties.upper);
+      const lowerFeet = parseAltitude(feature.properties.lower);
+
+      // Exclude layers entirely above FL150
+      if (lowerFeet >= FL150_FEET) {
+        return null;
+      }
+
+      // Truncate upper altitude at FL150 if it exceeds
+      if (upperFeet > FL150_FEET) {
+        return {
+          ...feature,
+          properties: {
+            ...feature.properties,
+            upper: 'FL150',
+          },
+        };
+      }
+
+      return feature;
+    }).filter((f): f is AirspaceFeature => f !== null); // Remove null entries
+
+    // Sort by priority (descending) - higher priority (lower number) renders last = on top
+    const sortedFeatures = [...truncatedFeatures].sort((a, b) => {
+      const priorityA = AIRSPACE_PRIORITY[a.properties.class as AirspaceClass] || 999;
+      const priorityB = AIRSPACE_PRIORITY[b.properties.class as AirspaceClass] || 999;
+      return priorityB - priorityA; // Descending: G first, R last (R on top)
     });
 
     return {

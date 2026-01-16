@@ -39,4 +39,14 @@ export const airspaceService = {
     const response = await api.get<AirspaceClass[]>('/airspace/classes');
     return response.data;
   },
+
+  /**
+   * Get description for a specific airspace class
+   */
+  async getClassDescription(airspaceClass: AirspaceClass): Promise<{ class: string; description: string }> {
+    const response = await api.get<{ class: string; description: string }>(
+      `/airspace/class-description/${airspaceClass}`
+    );
+    return response.data;
+  },
 };

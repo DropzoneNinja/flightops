@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { Parser } from '@openaip/openair-parser';
@@ -194,5 +194,43 @@ export class AirspaceService {
    */
   getClasses(): string[] {
     return ['A', 'C', 'CTR', 'D', 'E', 'G', 'Q', 'R', 'RMZ'];
+  }
+
+  /**
+   * Get description text for a specific airspace class
+   */
+  getClassDescription(airspaceClass: string): { class: string; description: string } {
+    const validClasses = ['A', 'C', 'CTR', 'D', 'E', 'G', 'Q', 'R', 'RMZ'];
+
+    if (!validClasses.includes(airspaceClass)) {
+      throw new NotFoundException(`Invalid airspace class: ${airspaceClass}`);
+    }
+
+    // Handle classes without description files (CTR, RMZ)
+    const filesWithDescriptions = ['A', 'C', 'D', 'E', 'G', 'Q', 'R'];
+    if (!filesWithDescriptions.includes(airspaceClass)) {
+      return {
+        class: airspaceClass,
+        description: `Class ${airspaceClass} airspace description not yet available.`
+      };
+    }
+
+    // Try multiple paths (dev vs production)
+    const possiblePaths = [
+      join(__dirname, `../assets/class-descriptions/Class${airspaceClass}.txt`),
+      join(__dirname, `../../../src/assets/class-descriptions/Class${airspaceClass}.txt`),
+    ];
+
+    for (const filePath of possiblePaths) {
+      try {
+        const description = readFileSync(filePath, 'utf-8');
+        return { class: airspaceClass, description: description.trim() };
+      } catch (err) {
+        // Try next path
+        continue;
+      }
+    }
+
+    throw new NotFoundException(`Description file not found for class ${airspaceClass}`);
   }
 }

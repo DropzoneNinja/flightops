@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { AirspaceService } from './airspace.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -23,5 +23,14 @@ export class AirspaceController {
   @Get('classes')
   getClasses() {
     return this.airspaceService.getClasses();
+  }
+
+  /**
+   * GET /airspace/class-description/:class
+   * Get description text for a specific airspace class
+   */
+  @Get('class-description/:class')
+  getClassDescription(@Param('class') airspaceClass: string) {
+    return this.airspaceService.getClassDescription(airspaceClass);
   }
 }

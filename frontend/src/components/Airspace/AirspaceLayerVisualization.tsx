@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { FlightSite } from '../../services/sites.service';
 import { AirspaceGeoJSON, AirspaceClass } from '../../services/airspace.service';
+import AirspaceClassModal from './AirspaceClassModal';
 
 interface AirspaceLayerVisualizationProps {
   site: FlightSite;
@@ -31,6 +32,22 @@ const CLASS_COLORS: Record<AirspaceClass, string> = {
   RMZ: '#1E90FF',
 };
 
+// FL150 cap (15,000 feet)
+const FL150_FEET = 15000;
+
+// Airspace class priority (lower number = higher priority)
+const CLASS_PRIORITY: Record<AirspaceClass, number> = {
+  A: 1,    // Class A - Highest priority
+  C: 2,    // Class C - Major/busy airports
+  CTR: 3,  // Control zones
+  D: 4,    // Class D - Controlled airports with towers
+  R: 5,    // Restricted airspace
+  RMZ: 6,  // Radio Mandatory Zone
+  E: 7,    // Class E - Controlled airspace
+  Q: 8,    // Danger areas
+  G: 9,    // Class G - Uncontrolled (lowest priority)
+};
+
 /**
  * Parse altitude string to feet
  */
@@ -44,19 +61,6 @@ function parseAltitude(alt: string): number {
     return parseInt(alt.replace('FT', ''));
   }
   return 0;
-}
-
-/**
- * Format altitude for display
- */
-function formatAltitude(alt: string): string {
-  if (alt === 'SFC' || alt === 'GND') return 'GND';
-  if (alt.startsWith('FL')) return alt;
-  if (alt.includes('FT')) {
-    const feet = parseInt(alt.replace('FT', ''));
-    return `${(feet / 1000).toFixed(1)}k`;
-  }
-  return alt;
 }
 
 /**
@@ -92,6 +96,15 @@ export default function AirspaceLayerVisualization({
   airspace,
   onClose,
 }: AirspaceLayerVisualizationProps) {
+  // State for modal
+  const [selectedClass, setSelectedClass] = useState<{
+    class: AirspaceClass;
+    name: string;
+    color: string;
+    lower: string;
+    upper: string;
+  } | null>(null);
+
   // Calculate layers for this site
   const layers = useMemo(() => {
     const point: [number, number] = [
@@ -114,16 +127,36 @@ export default function AirspaceLayerVisualization({
 
     console.log(`   Found ${containingFeatures.length} airspace features containing this point:`);
 
-    // Convert to layer objects with parsed altitudes
-    const layerObjects: AirspaceLayer[] = containingFeatures.map(feature => ({
-      class: feature.properties.class,
-      name: feature.properties.name,
-      lower: feature.properties.lower,
-      upper: feature.properties.upper,
-      lowerFeet: parseAltitude(feature.properties.lower),
-      upperFeet: parseAltitude(feature.properties.upper),
-      color: CLASS_COLORS[feature.properties.class],
-    }));
+    // Debug: Print detailed airspace info for each zone
+    containingFeatures.forEach((feature, index) => {
+      console.log(`   [Zone ${index + 1}]`);
+      console.log(`     AC (Class): ${feature.properties.class}`);
+      console.log(`     AN (Name):  ${feature.properties.name}`);
+      console.log(`     AL (Lower): ${feature.properties.lower}`);
+      console.log(`     AH (Upper): ${feature.properties.upper}`);
+    });
+
+    // Convert to layer objects with parsed altitudes and truncate at FL150
+    const layerObjects: AirspaceLayer[] = containingFeatures.map(feature => {
+      const lowerFeet = parseAltitude(feature.properties.lower);
+      const upperFeet = parseAltitude(feature.properties.upper);
+
+      // Truncate upper altitude at FL150
+      const truncatedUpperFeet = Math.min(upperFeet, FL150_FEET);
+      const truncatedUpper = truncatedUpperFeet === FL150_FEET && upperFeet > FL150_FEET
+        ? 'FL150'
+        : feature.properties.upper;
+
+      return {
+        class: feature.properties.class,
+        name: feature.properties.name,
+        lower: feature.properties.lower,
+        upper: truncatedUpper,
+        lowerFeet: lowerFeet,
+        upperFeet: truncatedUpperFeet,
+        color: CLASS_COLORS[feature.properties.class],
+      };
+    }).filter(layer => layer.lowerFeet < FL150_FEET); // Exclude layers entirely above FL150
 
     layerObjects.forEach(layer => {
       console.log(`     - ${layer.class}: ${layer.lower} to ${layer.upper} (${layer.name})`);
@@ -141,9 +174,47 @@ export default function AirspaceLayerVisualization({
     // Sort by lower altitude (ground up)
     uniqueLayers.sort((a, b) => a.lowerFeet - b.lowerFeet);
 
+    // Resolve overlapping airspace by priority
+    // Collect all unique altitude boundaries
+    const altitudeBoundaries = new Set<number>();
+    uniqueLayers.forEach(layer => {
+      altitudeBoundaries.add(layer.lowerFeet);
+      altitudeBoundaries.add(layer.upperFeet);
+    });
+    const sortedBoundaries = Array.from(altitudeBoundaries).sort((a, b) => a - b);
+
+    // For each altitude segment, find the highest priority class
+    const resolvedLayers: AirspaceLayer[] = [];
+    for (let i = 0; i < sortedBoundaries.length - 1; i++) {
+      const segmentLower = sortedBoundaries[i];
+      const segmentUpper = sortedBoundaries[i + 1];
+
+      // Find all classes that cover this segment
+      const coveringLayers = uniqueLayers.filter(layer =>
+        layer.lowerFeet <= segmentLower && layer.upperFeet >= segmentUpper
+      );
+
+      if (coveringLayers.length === 0) continue;
+
+      // Sort by priority and take the highest priority (lowest number)
+      coveringLayers.sort((a, b) => CLASS_PRIORITY[a.class] - CLASS_PRIORITY[b.class]);
+      const highestPriorityLayer = coveringLayers[0];
+
+      // Create a segment for this altitude range
+      resolvedLayers.push({
+        class: highestPriorityLayer.class,
+        name: highestPriorityLayer.name,
+        lower: segmentLower === 0 ? 'SFC' : `FL${Math.round(segmentLower / 100)}`,
+        upper: `FL${Math.round(segmentUpper / 100)}`,
+        lowerFeet: segmentLower,
+        upperFeet: segmentUpper,
+        color: highestPriorityLayer.color,
+      });
+    }
+
     // Merge adjacent layers of the same class
     const mergedLayers: AirspaceLayer[] = [];
-    for (const layer of uniqueLayers) {
+    for (const layer of resolvedLayers) {
       const lastLayer = mergedLayers[mergedLayers.length - 1];
 
       // If the last layer has the same class and is adjacent (upper altitude matches current lower altitude)
@@ -157,7 +228,7 @@ export default function AirspaceLayerVisualization({
       }
     }
 
-    console.log(`   After merging, ${mergedLayers.length} layers:`);
+    console.log(`   After priority resolution and merging, ${mergedLayers.length} layers:`);
     mergedLayers.forEach(layer => {
       console.log(`     - ${layer.class}: ${layer.lower} to ${layer.upper}`);
     });
@@ -165,31 +236,71 @@ export default function AirspaceLayerVisualization({
     return mergedLayers;
   }, [site, airspace]);
 
-  // Calculate visual heights for each layer (proportional to altitude range)
-  const layersWithHeights = useMemo(() => {
-    if (layers.length === 0) return [];
+  // SVG dimensions configuration
+  const SVG_HEIGHT = 400;
+  const SVG_WIDTH = 100;
+  const SVG_PADDING_TOP = 20;
+  const SVG_PADDING_BOTTOM = 30;
+  const GRAPH_HEIGHT = SVG_HEIGHT - SVG_PADDING_TOP - SVG_PADDING_BOTTOM; // 350px
+  const AXIS_WIDTH = 70; // Width for boundary labels on the left
 
-    const maxAltitude = Math.max(...layers.map(l => l.upperFeet));
-    const minHeight = 40; // Minimum pixels per layer
-    const maxHeight = 120; // Maximum pixels per layer
-    const containerHeight = 400; // Total available height
+  // Calculate SVG data for rendering
+  const svgData = useMemo(() => {
+    if (layers.length === 0) return null;
 
-    return layers.map(layer => {
-      const range = layer.upperFeet - layer.lowerFeet;
-      const proportion = range / maxAltitude;
-      let height = Math.max(minHeight, proportion * containerHeight);
-      height = Math.min(maxHeight, height);
+    const maxAltitude = Math.min(
+      Math.max(...layers.map(l => l.upperFeet)),
+      FL150_FEET
+    );
+
+    // Convert feet to pixels (inverted for SVG coordinate system)
+    const feetToPixels = (feet: number) => {
+      const proportion = feet / maxAltitude;
+      return SVG_PADDING_TOP + GRAPH_HEIGHT - (proportion * GRAPH_HEIGHT);
+    };
+
+    // Convert feet to Flight Level (divide by 100)
+    const feetToFL = (feet: number) => Math.round(feet / 100);
+
+    // Calculate layer rectangles
+    const layerRects = layers.map(layer => {
+      const y1 = feetToPixels(layer.upperFeet); // Top of layer
+      const y2 = feetToPixels(layer.lowerFeet); // Bottom of layer
+      const height = y2 - y1;
 
       return {
         ...layer,
-        displayHeight: height,
+        y: y1,
+        height: height,
+        centerY: y1 + height / 2, // For centering class letter
       };
     });
-  }, [layers]);
+
+    // Calculate boundary labels (unique altitudes where layers start/end)
+    const boundaryAltitudes = new Set<number>();
+    layers.forEach(layer => {
+      boundaryAltitudes.add(layer.lowerFeet);
+      boundaryAltitudes.add(layer.upperFeet);
+    });
+
+    const boundaryLabels = Array.from(boundaryAltitudes)
+      .sort((a, b) => a - b)
+      .map(feet => ({
+        feet,
+        label: feet === 0 ? 'SFC' : `FL${feetToFL(feet)}`,
+        y: feetToPixels(feet),
+      }));
+
+    return {
+      maxAltitude,
+      layerRects,
+      boundaryLabels,
+    };
+  }, [layers, SVG_HEIGHT, SVG_PADDING_TOP, SVG_PADDING_BOTTOM, GRAPH_HEIGHT]);
 
   if (layers.length === 0) {
     return (
-      <div className="absolute bottom-4 right-4 mb-[280px] bg-white rounded-lg shadow-lg border-2 border-gray-300 p-4 z-[500] min-w-[250px]">
+      <div className="absolute bottom-4 right-4 mb-[340px] bg-white rounded-lg shadow-lg border-2 border-gray-300 p-4 z-[500] min-w-[250px]">
         <div className="flex justify-between items-center mb-2">
           <h3 className="text-sm font-semibold text-gray-900">
             Airspace Layers
@@ -213,62 +324,129 @@ export default function AirspaceLayerVisualization({
   }
 
   return (
-    <div className="absolute bottom-4 right-4 mb-[280px] bg-white rounded-lg shadow-lg border-2 border-gray-300 p-4 z-[500] min-w-[250px] max-w-[300px]">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-sm font-semibold text-gray-900">
-          Airspace Layers
-        </h3>
-        <button
-          onClick={onClose}
-          className="text-gray-500 hover:text-gray-700 transition-colors"
-          aria-label="Close"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+    <>
+      {/* Airspace Class Modal */}
+      <AirspaceClassModal
+        airspaceClass={selectedClass?.class || null}
+        className={selectedClass ? `Class ${selectedClass.class}` : ''}
+        color={selectedClass?.color || '#000000'}
+        airspaceName={selectedClass?.name || ''}
+        lowerAltitude={selectedClass?.lower || ''}
+        upperAltitude={selectedClass?.upper || ''}
+        onClose={() => setSelectedClass(null)}
+      />
 
-      {/* Site name */}
-      <p className="text-xs text-gray-600 mb-4">{site.name}</p>
-
-      {/* Layers visualization */}
-      <div className="space-y-2 max-h-[500px] overflow-y-auto flex flex-col-reverse">
-        {layersWithHeights.map((layer, index) => (
-          <div
-            key={`${layer.class}-${layer.lowerFeet}-${index}`}
-            className="relative border-2 border-gray-300 rounded flex flex-col justify-between overflow-hidden"
-            style={{
-              backgroundColor: layer.color,
-              opacity: 0.85,
-              minHeight: `${layer.displayHeight}px`,
-            }}
+      {/* Main Visualization Container */}
+      <div className="absolute bottom-4 right-4 mb-[340px] bg-white rounded-lg shadow-lg border-2 border-gray-300 p-4 z-[500]">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-sm font-semibold text-gray-900">
+            Airspace Layers
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 transition-colors"
+            aria-label="Close"
           >
-            {/* Upper altitude */}
-            <div className="px-2 py-1 text-xs font-semibold text-white bg-black bg-opacity-30">
-              {formatAltitude(layer.upper)}
-            </div>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-            {/* Center - Class letter */}
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-3xl font-bold text-white drop-shadow-lg">
-                {layer.class}
-              </div>
-            </div>
+        {/* Site name */}
+        <p className="text-xs text-gray-600 mb-4">{site.name}</p>
 
-            {/* Lower altitude */}
-            <div className="px-2 py-1 text-xs font-semibold text-white bg-black bg-opacity-30">
-              {formatAltitude(layer.lower)}
-            </div>
-          </div>
-        ))}
+        {/* SVG Bar Graph */}
+        {svgData && (
+          <svg
+            width={AXIS_WIDTH + SVG_WIDTH}
+            height={SVG_HEIGHT}
+            className="mx-auto"
+          >
+            {/* Boundary labels on the left side */}
+            {svgData.boundaryLabels.map((boundary, index) => (
+              <g key={`boundary-${boundary.feet}-${index}`}>
+                {/* Boundary label */}
+                <text
+                  x={AXIS_WIDTH - 15}
+                  y={boundary.y}
+                  textAnchor="end"
+                  dominantBaseline="middle"
+                  fontSize="11"
+                  fill="#374151"
+                  fontWeight="600"
+                >
+                  {boundary.label}
+                </text>
+                {/* Horizontal line from label to bar */}
+                <line
+                  x1={AXIS_WIDTH - 10}
+                  y1={boundary.y}
+                  x2={AXIS_WIDTH}
+                  y2={boundary.y}
+                  stroke="#374151"
+                  strokeWidth="1.5"
+                />
+              </g>
+            ))}
+
+            {/* Stacked bar layers */}
+            {svgData.layerRects.map((layer, index) => (
+              <g key={`${layer.class}-${layer.lowerFeet}-${index}`}>
+                {/* Layer rectangle */}
+                <rect
+                  x={AXIS_WIDTH}
+                  y={layer.y}
+                  width={SVG_WIDTH}
+                  height={layer.height}
+                  fill={layer.color}
+                  opacity="0.85"
+                  stroke="#374151"
+                  strokeWidth="2"
+                  className="cursor-pointer transition-opacity hover:opacity-100"
+                  onClick={() => setSelectedClass({
+                    class: layer.class,
+                    name: layer.name,
+                    color: layer.color,
+                    lower: layer.lower,
+                    upper: layer.upper,
+                  })}
+                />
+
+                {/* Class letter in center of layer */}
+                {layer.height > 30 && ( // Only show if layer is tall enough
+                  <text
+                    x={AXIS_WIDTH + SVG_WIDTH / 2}
+                    y={layer.centerY}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize="24"
+                    fontWeight="bold"
+                    fill="white"
+                    className="pointer-events-none drop-shadow-lg"
+                    style={{ filter: 'drop-shadow(2px 2px 2px rgba(0,0,0,0.5))' }}
+                  >
+                    {layer.class}
+                  </text>
+                )}
+              </g>
+            ))}
+
+            {/* Ground label */}
+            <text
+              x={AXIS_WIDTH + SVG_WIDTH / 2}
+              y={SVG_HEIGHT - 10}
+              textAnchor="middle"
+              fontSize="12"
+              fontWeight="600"
+              fill="#374151"
+            >
+              GROUND
+            </text>
+          </svg>
+        )}
       </div>
-
-      {/* Ground reference */}
-      <div className="mt-2 pt-2 border-t-2 border-gray-400 text-center">
-        <span className="text-xs font-semibold text-gray-700">GROUND</span>
-      </div>
-    </div>
+    </>
   );
 }
