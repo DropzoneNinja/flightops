@@ -11,14 +11,17 @@ import HeatbarDebugDialog from '../Weather/HeatbarDebugDialog';
 import { WeatherForecast } from '../../services/weather.service';
 
 // Custom marker icons for takeoff and parking
-const takeoffIcon = new L.Icon({
-  iconUrl: '/icon-ppg.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [64, 64],
-  iconAnchor: [32, 32],  // Center of the takeoff icon (64x64)
-  popupAnchor: [0, -32],
-  shadowSize: [82, 82],
-});
+const createTakeoffIcon = (isAnimating: boolean = false) => {
+  return new L.Icon({
+    iconUrl: '/icon-ppg.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+    iconSize: [64, 64],
+    iconAnchor: [32, 32],  // Center of the takeoff icon (64x64)
+    popupAnchor: [0, -32],
+    shadowSize: [82, 82],
+    className: isAnimating ? 'takeoff-icon-fade' : '',
+  });
+};
 
 const parkingIcon = new L.Icon({
   iconUrl: '/icon-park.png',
@@ -32,15 +35,17 @@ const parkingIcon = new L.Icon({
 // Z-index offsets to ensure proper stacking order
 const PARKING_Z_INDEX = 0;
 const TAKEOFF_Z_INDEX = 1000;
+const WEATHER_BARS_Z_INDEX = 2000;
 
 interface SiteMarkerProps {
   site: FlightSite;
   currentZoom: number;
   parkingIconZoomLevel: number;
   onTakeoffClick?: (site: FlightSite) => void;
+  isSelectedForAirspace?: boolean;
 }
 
-export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, onTakeoffClick }: SiteMarkerProps) {
+export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, onTakeoffClick, isSelectedForAirspace = false }: SiteMarkerProps) {
   const { forecasts, isLoading: isLoadingWeather } = useWeather(site.id);
   const { settingsMap } = useSettings();
   const [selectedForecast, setSelectedForecast] = useState<WeatherForecast | null>(null);
@@ -140,6 +145,22 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
 
   return (
     <>
+      {/* CSS for fade animation */}
+      <style>{`
+        @keyframes fadeInOut {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.3;
+          }
+        }
+
+        .takeoff-icon-fade {
+          animation: fadeInOut 2s ease-in-out infinite;
+        }
+      `}</style>
+
       {/* Weather Dialog */}
       {isDebugMode ? (
         <HeatbarDebugDialog
@@ -170,13 +191,14 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
         ref={markerRef}
         position={[takeoffLat, takeoffLon]}
         icon={weatherBarsDivIcon}
+        zIndexOffset={WEATHER_BARS_Z_INDEX}
       />
 
       {/* Takeoff icon marker - only visible at high zoom */}
       {currentZoom >= parkingIconZoomLevel && (
         <Marker
           position={[takeoffLat, takeoffLon]}
-          icon={takeoffIcon}
+          icon={createTakeoffIcon(isSelectedForAirspace)}
           zIndexOffset={TAKEOFF_Z_INDEX}
           eventHandlers={{
             click: handleMarkerClick,

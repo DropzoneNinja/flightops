@@ -354,6 +354,7 @@ export default function MapView() {
                 currentZoom={currentZoom}
                 parkingIconZoomLevel={parkingIconZoomLevel}
                 onTakeoffClick={handleTakeoffClick}
+                isSelectedForAirspace={selectedSiteForAirspace?.id === site.id}
               />
             ))}
 
