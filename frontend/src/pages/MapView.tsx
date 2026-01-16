@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, useMapEvents, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, useMapEvents, Marker, Popup, useMap } from 'react-leaflet';
 import { LatLng } from 'leaflet';
 import { useSites } from '../hooks/useSites';
 import { useAuth } from '../hooks/useAuth';
@@ -68,12 +68,23 @@ function ZoomTracker({ onZoomChange }: { onZoomChange: (zoom: number) => void })
   return null;
 }
 
+function MapController({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> }) {
+  const map = useMap();
+
+  useEffect(() => {
+    mapRef.current = map;
+  }, [map, mapRef]);
+
+  return null;
+}
+
 export default function MapView() {
   const { sites, isLoading } = useSites();
   const { logout, user } = useAuth();
   const { settingsMap, isLoadingMap } = useSettings();
   const { airspace } = useAirspace();
   const navigate = useNavigate();
+  const mapRef = useRef<L.Map | null>(null);
   const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
   const [activeLocationSelection, setActiveLocationSelection] = useState<'takeoff' | 'parking' | null>(null);
   const [pendingLocation, setPendingLocation] = useState<LatLng | null>(null);
@@ -156,6 +167,12 @@ export default function MapView() {
   const handleSelectLocation = (type: 'takeoff' | 'parking') => {
     setActiveLocationSelection(type);
   };
+
+  const handleZoomToLocation = useCallback((lat: number, lon: number, zoom: number = 17) => {
+    if (mapRef.current) {
+      mapRef.current.setView([lat, lon], zoom);
+    }
+  }, []);
 
   const handleFetchWeather = async () => {
     setIsFetchingWeather(true);
@@ -319,6 +336,7 @@ export default function MapView() {
 
             <MapClickHandler onMapClick={handleMapClick} />
             <ZoomTracker onZoomChange={setCurrentZoom} />
+            <MapController mapRef={mapRef} />
 
             {/* Airspace overlay */}
             {showAirspace && airspace && (
@@ -398,6 +416,7 @@ export default function MapView() {
           setPendingLocation(null);
           setPendingLocationType(null);
         }}
+        onZoomToLocation={handleZoomToLocation}
       />
     </div>
   );

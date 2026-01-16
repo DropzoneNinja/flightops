@@ -29,6 +29,10 @@ const parkingIcon = new L.Icon({
   shadowSize: [82, 82],
 });
 
+// Z-index offsets to ensure proper stacking order
+const PARKING_Z_INDEX = 0;
+const TAKEOFF_Z_INDEX = 1000;
+
 interface SiteMarkerProps {
   site: FlightSite;
   currentZoom: number;
@@ -173,6 +177,7 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
         <Marker
           position={[takeoffLat, takeoffLon]}
           icon={takeoffIcon}
+          zIndexOffset={TAKEOFF_Z_INDEX}
           eventHandlers={{
             click: handleMarkerClick,
           }}
@@ -184,6 +189,7 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
         <Marker
           position={[parkingLat, parkingLon]}
           icon={parkingIcon}
+          zIndexOffset={PARKING_Z_INDEX}
         />
       )}
     </>

@@ -12,6 +12,7 @@ interface AddSitePanelProps {
   pendingLocation: LatLng | null;
   pendingLocationType: 'takeoff' | 'parking' | null;
   onLocationUsed: () => void;
+  onZoomToLocation: (lat: number, lon: number, zoom?: number) => void;
 }
 
 export default function AddSitePanel({
@@ -22,6 +23,7 @@ export default function AddSitePanel({
   pendingLocation,
   pendingLocationType,
   onLocationUsed: _onLocationUsed,
+  onZoomToLocation,
 }: AddSitePanelProps) {
   const { createSiteMutation } = useSites();
   const [formData, setFormData] = useState({
@@ -121,6 +123,14 @@ export default function AddSitePanel({
     return 'border-gray-300';
   };
 
+  const handleTakeoffSelectFromMap = () => {
+    // If there are coordinates in the takeoff fields, zoom to them first
+    if (formData.takeoff_lat !== '' && formData.takeoff_lon !== '') {
+      onZoomToLocation(Number(formData.takeoff_lat), Number(formData.takeoff_lon), 17);
+    }
+    onSelectLocation('takeoff');
+  };
+
   if (!isOpen) return null;
 
   const currentDate = format(new Date(), 'PPP');
@@ -173,7 +183,7 @@ export default function AddSitePanel({
               </label>
               <button
                 type="button"
-                onClick={() => onSelectLocation('takeoff')}
+                onClick={handleTakeoffSelectFromMap}
                 className={`text-xs px-2 py-1 rounded ${
                   activeLocationSelection === 'takeoff'
                     ? 'bg-blue-600 text-white'

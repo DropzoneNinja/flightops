@@ -37,15 +37,15 @@ const FL150_FEET = 15000;
 
 // Airspace class priority (lower number = higher priority)
 const CLASS_PRIORITY: Record<AirspaceClass, number> = {
-  A: 1,    // Class A - Highest priority
-  C: 2,    // Class C - Major/busy airports
-  CTR: 3,  // Control zones
-  D: 4,    // Class D - Controlled airports with towers
-  R: 5,    // Restricted airspace
-  RMZ: 6,  // Radio Mandatory Zone
+  R: 1,    // Restricted airspace - Highest priority
+  CTR: 2,  // Control zones
+  Q: 3,    // Danger areas
+  A: 4,    // Class A
+  C: 5,    // Class C - Major/busy airports
+  D: 6,    // Class D - Controlled airports with towers
   E: 7,    // Class E - Controlled airspace
-  Q: 8,    // Danger areas
-  G: 9,    // Class G - Uncontrolled (lowest priority)
+  G: 8,    // Class G - Uncontrolled
+  RMZ: 9,  // Radio Mandatory Zone - Lowest priority
 };
 
 /**

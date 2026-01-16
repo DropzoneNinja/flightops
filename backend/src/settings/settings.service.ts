@@ -162,7 +162,7 @@ export class SettingsService {
    */
   async resetToDefaults(): Promise<Setting[]> {
     // Delete all existing settings
-    await this.settingRepository.delete({});
+    await this.settingRepository.clear();
 
     // Reinitialize with defaults
     return this.initializeDefaultSettings();

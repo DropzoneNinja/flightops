@@ -6,6 +6,7 @@ import { SettingType, UpdateSettingData } from '../services/settings.service';
 import { preAuthorizedEmailsService, PreAuthorizedEmail } from '../services/pre-authorized-emails.service';
 import { usersService, UserData } from '../services/users.service';
 import { weatherService, WeatherApiStats } from '../services/weather.service';
+import { useSites } from '../hooks/useSites';
 
 export default function Settings() {
   const { settings, defaults, isLoading, updateManyMutation, resetToDefaultsMutation } =
@@ -29,6 +30,9 @@ export default function Settings() {
   // Weather API stats state (admin only)
   const [weatherStats, setWeatherStats] = useState<WeatherApiStats | null>(null);
   const [loadingWeatherStats, setLoadingWeatherStats] = useState(false);
+
+  // Sites management (admin only)
+  const { sites, isLoading: isLoadingSites, deleteSiteMutation } = useSites();
 
   // Group settings by category
   const settingsByCategory = useMemo(() => {
@@ -244,6 +248,18 @@ export default function Settings() {
       } catch (error) {
         console.error('Failed to reset weather stats:', error);
         alert('Failed to reset statistics. Please try again.');
+      }
+    }
+  };
+
+  const handleDeleteSite = async (siteId: string, siteName: string) => {
+    if (window.confirm(`Are you sure you want to delete "${siteName}"? This will remove both takeoff and parking locations. This cannot be undone.`)) {
+      try {
+        await deleteSiteMutation.mutateAsync(siteId);
+        alert('Site deleted successfully!');
+      } catch (error: any) {
+        console.error('Failed to delete site:', error);
+        alert(error.response?.data?.message || 'Failed to delete site. Please try again.');
       }
     }
   };
@@ -749,6 +765,99 @@ export default function Settings() {
                       </table>
                     </div>
                   </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Site Management (Admin Only) */}
+        {user?.is_admin && (
+          <div className="mb-8 bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Site Management
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Manage flight sites (takeoff and parking locations)
+              </p>
+            </div>
+
+            {/* Sites List */}
+            <div className="px-6 py-4">
+              {isLoadingSites ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="mt-2 text-gray-600">Loading sites...</p>
+                </div>
+              ) : sites.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">
+                  No sites found. Users can add sites from the map view.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Site Name
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Takeoff Location
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Parking Location
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Created
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {sites.map((site) => (
+                        <tr key={site.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {site.name}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 font-mono">
+                            {Number(site.takeoff_lat).toFixed(6)}, {Number(site.takeoff_lon).toFixed(6)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 font-mono">
+                            {Number(site.parking_lat).toFixed(6)}, {Number(site.parking_lon).toFixed(6)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {site.enabled ? (
+                              <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
+                                Enabled
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded">
+                                Disabled
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                            {new Date(site.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
+                            <button
+                              onClick={() => handleDeleteSite(site.id, site.name)}
+                              className="px-3 py-1 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
+                              title="Delete site (removes both takeoff and parking)"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
