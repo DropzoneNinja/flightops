@@ -2,6 +2,10 @@ import { useEffect, useMemo } from 'react';
 import { WeatherForecast } from '../../services/weather.service';
 import { useMultiHeightWeather } from '../../hooks/useMultiHeightWeather';
 import { formatForecastDate } from '../../utils/dateUtils';
+import { useSettings } from '../../hooks/useSettings';
+import { SettingKey } from '../../services/settings.service';
+import { formatTemperature } from '../../utils/temperatureUtils';
+import { scoreToHeatColor } from '../../utils/colorInterpolation';
 import WindArrow from './WindArrow';
 
 interface HeatbarDebugDialogProps {
@@ -43,6 +47,11 @@ export default function HeatbarDebugDialog({
   // Fetch multi-height data
   const { data, isLoading, error } = useMultiHeightWeather(siteId, dateString);
 
+  // Fetch user settings for temperature unit and gust threshold
+  const { settingsMap, isLoadingMap } = useSettings();
+  const temperatureUnit = (settingsMap[SettingKey.UNITS_TEMPERATURE] as 'celsius' | 'fahrenheit') || 'celsius';
+  const gustThreshold = (settingsMap[SettingKey.GUST_SMOOTH_MAX] as number) || 15;
+
   // Filter hourly data to sunrise-sunset range
   const filteredHours = useMemo(() => {
     if (!data || !forecast) return [];
@@ -55,6 +64,21 @@ export default function HeatbarDebugDialog({
       return hour >= sunriseHour && hour <= sunsetHour;
     });
   }, [data, forecast]);
+
+  // Helper function to get heat bar color for a given timestamp
+  const getHeatBarColor = (timestamp: string): string => {
+    if (!forecast) return 'transparent';
+
+    // Find matching hourly data by timestamp
+    const matchingHour = forecast.hourlyData.find(
+      (hour) => hour.timestamp === timestamp
+    );
+
+    if (!matchingHour) return 'transparent';
+
+    // Use overall score to determine color
+    return scoreToHeatColor(matchingHour.overallScore);
+  };
 
   if (!forecast) return null;
 
@@ -116,7 +140,7 @@ export default function HeatbarDebugDialog({
 
         {/* Body */}
         <div className="flex-1 overflow-hidden flex flex-col">
-          {isLoading && (
+          {(isLoading || isLoadingMap) && (
             <div className="text-center py-12 px-6">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               <p className="mt-4 text-gray-600">Loading multi-height data...</p>
@@ -186,10 +210,22 @@ export default function HeatbarDebugDialog({
                         style={{ minWidth: '100px' }}
                       >
                         <div className="flex flex-col items-center gap-1">
-                          <span className="font-medium text-gray-900">
-                            {Math.round(hourData.wind_120m.speed)} km/h
-                          </span>
-                          <WindArrow direction={hourData.wind_120m.direction} />
+                          {/* Line 1: Temperature */}
+                          <div className="flex items-center justify-start w-full text-xs">
+                            <span className="text-gray-700">
+                              {formatTemperature(hourData.wind_120m.temperature, temperatureUnit)}
+                            </span>
+                          </div>
+                          {/* Line 2: Wind Speed */}
+                          <div className="flex items-center justify-center w-full">
+                            <span className="font-medium text-gray-900">
+                              {Math.round(hourData.wind_120m.speed)} km/h
+                            </span>
+                          </div>
+                          {/* Line 3: Wind Arrow */}
+                          <div className="flex items-center justify-start w-full">
+                            <WindArrow direction={hourData.wind_120m.direction} />
+                          </div>
                         </div>
                       </td>
                     ))}
@@ -207,10 +243,22 @@ export default function HeatbarDebugDialog({
                         style={{ minWidth: '100px' }}
                       >
                         <div className="flex flex-col items-center gap-1">
-                          <span className="font-medium text-gray-900">
-                            {Math.round(hourData.wind_80m.speed)} km/h
-                          </span>
-                          <WindArrow direction={hourData.wind_80m.direction} />
+                          {/* Line 1: Temperature */}
+                          <div className="flex items-center justify-start w-full text-xs">
+                            <span className="text-gray-700">
+                              {formatTemperature(hourData.wind_80m.temperature, temperatureUnit)}
+                            </span>
+                          </div>
+                          {/* Line 2: Wind Speed */}
+                          <div className="flex items-center justify-center w-full">
+                            <span className="font-medium text-gray-900">
+                              {Math.round(hourData.wind_80m.speed)} km/h
+                            </span>
+                          </div>
+                          {/* Line 3: Wind Arrow */}
+                          <div className="flex items-center justify-start w-full">
+                            <WindArrow direction={hourData.wind_80m.direction} />
+                          </div>
                         </div>
                       </td>
                     ))}
@@ -221,20 +269,60 @@ export default function HeatbarDebugDialog({
                     <td className="border border-gray-300 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-900 sticky left-0 z-10" style={{ minWidth: '80px' }}>
                       33 ft
                     </td>
-                    {filteredHours.map((hourData, index) => (
-                      <td
-                        key={index}
-                        className="border border-gray-300 px-4 py-2 text-center text-sm"
-                        style={{ minWidth: '100px' }}
-                      >
-                        <div className="flex flex-col items-center gap-1">
-                          <span className="font-medium text-gray-900">
-                            {Math.round(hourData.wind_10m.speed)} km/h
-                          </span>
-                          <WindArrow direction={hourData.wind_10m.direction} />
-                        </div>
-                      </td>
-                    ))}
+                    {filteredHours.map((hourData, index) => {
+                      const hasRain = hourData.wind_10m.precipitation !== null &&
+                                     hourData.wind_10m.precipitation !== undefined &&
+                                     hourData.wind_10m.precipitation > 0;
+                      const heatColor = getHeatBarColor(hourData.timestamp);
+                      return (
+                        <td
+                          key={index}
+                          className="border border-gray-300 px-4 py-2 text-center text-sm"
+                          style={{
+                            minWidth: '100px',
+                            backgroundColor: heatColor,
+                            opacity: 0.85
+                          }}
+                        >
+                          <div className="flex flex-col items-center gap-1">
+                            {/* Line 1: Temperature | Rain Icon */}
+                            <div className="flex items-center justify-between w-full text-xs">
+                              <span className="text-gray-700">
+                                {formatTemperature(hourData.wind_10m.temperature, temperatureUnit)}
+                              </span>
+                              {hasRain && (
+                                <img
+                                  src="/rain.webp"
+                                  alt={`Rain: ${hourData.wind_10m.precipitation!.toFixed(1)} mm`}
+                                  title={`Rain: ${hourData.wind_10m.precipitation!.toFixed(1)} mm`}
+                                  className="w-4 h-4"
+                                />
+                              )}
+                            </div>
+                            {/* Line 2: Wind Speed */}
+                            <div className="flex items-center justify-center w-full">
+                              <span className="font-medium text-gray-900">
+                                {Math.round(hourData.wind_10m.speed)} km/h
+                              </span>
+                            </div>
+                            {/* Line 3: Wind Arrow | Gusts Icon */}
+                            <div className="flex items-center justify-between w-full">
+                              <WindArrow direction={hourData.wind_10m.direction} />
+                              {hourData.wind_10m.gusts !== null &&
+                               hourData.wind_10m.gusts !== undefined &&
+                               hourData.wind_10m.gusts > gustThreshold && (
+                                <img
+                                  src="/gusts.webp"
+                                  alt={`Gusts: ${hourData.wind_10m.gusts.toFixed(1)} km/h`}
+                                  title={`Gusts: ${hourData.wind_10m.gusts.toFixed(1)} km/h`}
+                                  className="w-4 h-4"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      );
+                    })}
                   </tr>
                 </tbody>
               </table>

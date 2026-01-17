@@ -1,5 +1,0 @@
-Class G is uncontrolled airspace and accounts for the majority of Australian airspace. Class G is the only class of uncontrolled airspace. An air traffic control separation service is not provided to any aircraft operating in Class G, it is up to the pilots to see and avoid each other.  A flight and radar information service is provided to IFR traffic. A flight following service is provided to VFR flights on request. Within Class G, speed is restricted to below 250 kts for all aircraft below 10,000 feet AMSL.
-
-Class G is the only airspace category in which ‘no radio’ flights may be conducted, but these are restricted to below 5,000 feet AMSL, away from airports that require the use of radio and in weather conditions than meet the standard VMC criteria.
-
-Within Class G, some aerodromes operate a Common Traffic Advisory Frequency (CTAF), which imposes a requirement for radio to be carried and used. This does not affect the operational services or requirements provided by air traffic services.

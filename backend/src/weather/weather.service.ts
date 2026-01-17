@@ -226,6 +226,11 @@ export class WeatherService {
       wind_direction_80m,
       wind_speed_120m,
       wind_direction_120m,
+      temperature_2m,
+      temperature_80m,
+      temperature_120m,
+      precipitation,
+      wind_gusts_10m,
     } = openMeteoData.hourly;
 
     return time.map((timestamp, index) => {
@@ -238,6 +243,11 @@ export class WeatherService {
         wind_direction_80m: wind_direction_80m[index],
         wind_speed_120m: wind_speed_120m[index],
         wind_direction_120m: wind_direction_120m[index],
+        temperature_2m: temperature_2m?.[index] ?? null,
+        temperature_80m: temperature_80m?.[index] ?? null,
+        temperature_120m: temperature_120m?.[index] ?? null,
+        precipitation: precipitation?.[index] ?? null,
+        wind_gusts_10m: wind_gusts_10m?.[index] ?? null,
       });
     });
   }
@@ -255,14 +265,29 @@ export class WeatherService {
         wind_10m: {
           speed: parseFloat(data.wind_speed_10m.toString()),
           direction: parseFloat(data.wind_direction_10m.toString()),
+          temperature: data.temperature_2m
+            ? parseFloat(data.temperature_2m.toString())
+            : null,
+          precipitation: data.precipitation
+            ? parseFloat(data.precipitation.toString())
+            : null,
+          gusts: data.wind_gusts_10m
+            ? parseFloat(data.wind_gusts_10m.toString())
+            : null,
         },
         wind_80m: {
           speed: parseFloat(data.wind_speed_80m.toString()),
           direction: parseFloat(data.wind_direction_80m.toString()),
+          temperature: data.temperature_80m
+            ? parseFloat(data.temperature_80m.toString())
+            : null,
         },
         wind_120m: {
           speed: parseFloat(data.wind_speed_120m.toString()),
           direction: parseFloat(data.wind_direction_120m.toString()),
+          temperature: data.temperature_120m
+            ? parseFloat(data.temperature_120m.toString())
+            : null,
         },
       })),
     };

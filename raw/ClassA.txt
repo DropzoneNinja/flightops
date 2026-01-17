@@ -1,1 +1,0 @@
-Class A is high-level enroute airspace used by high-performance jet and turbo-prop airspace. VFR flights are not generally permitted within Class A. It is very rare for RPAS / Drone operations to take place in Class A.  Separation is provided between all aircraft operating in Class A, with no speed restrictions. Clearance is required by all aircraft operating in Class A.

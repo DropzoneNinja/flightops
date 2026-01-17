@@ -44,6 +44,24 @@ export class WeatherMultiHeight {
   @Column({ type: 'decimal', precision: 5, scale: 2 })
   wind_direction_120m: number;
 
+  // Temperature data at different heights
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  temperature_2m: number | null;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  temperature_80m: number | null;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  temperature_120m: number | null;
+
+  // Precipitation data (surface level)
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  precipitation: number | null;
+
+  // Wind gust data (surface level)
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  wind_gusts_10m: number | null;
+
   @CreateDateColumn()
   created_at: Date;
 

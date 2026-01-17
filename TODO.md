@@ -1,3 +1,4 @@
-Change the height from M to feet
-Fix forecast screen when you click on launch icon
-Issue with viewing height forecast when you click heat bar
+* Fix gusty icon
+* Add Williamstown
+* Add suggested flying track
+* Change rain to a rain icon instead of mm

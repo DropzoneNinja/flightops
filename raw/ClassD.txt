@@ -1,3 +1,0 @@
-Class D airspace is used around the non-capital controlled aerodromes. Protected airspace in Class C steps are provided above Class D to allow larger aircraft to remain inside controlled airspace while arriving and departing Class D.
-
-IFR and VFR flights are permitted within Class D. Non-military IFR and VFR aircraft are limited to 250 kts indicated airspeed below 10,000 feet AMSL. Traffic information is provided to IFR about VFR traffic, and VFR flights receive information about all flights. Clearance is required by all crewed aircraft operating in Class D.

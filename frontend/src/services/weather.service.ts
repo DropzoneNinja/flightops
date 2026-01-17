@@ -27,6 +27,9 @@ export interface WeatherForecast {
 export interface MultiHeightWindData {
   speed: number;
   direction: number;
+  temperature?: number | null;
+  precipitation?: number | null;
+  gusts?: number | null;
 }
 
 export interface MultiHeightHourlyData {

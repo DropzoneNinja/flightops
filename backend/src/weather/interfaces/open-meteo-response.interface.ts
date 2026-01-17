@@ -31,6 +31,11 @@ export interface OpenMeteoMultiHeightHourlyData {
   wind_direction_80m: number[]; // Wind direction at 80 meters (degrees)
   wind_speed_120m: number[]; // Wind speed at 120 meters (km/h)
   wind_direction_120m: number[]; // Wind direction at 120 meters (degrees)
+  temperature_2m: number[]; // Temperature at 2 meters (°C)
+  temperature_80m: number[]; // Temperature at 80 meters (°C)
+  temperature_120m: number[]; // Temperature at 120 meters (°C)
+  precipitation: number[]; // Precipitation (rain + snow) in mm
+  wind_gusts_10m: number[]; // Wind gusts at 10 meters (km/h)
 }
 
 export interface OpenMeteoMultiHeightResponse {
