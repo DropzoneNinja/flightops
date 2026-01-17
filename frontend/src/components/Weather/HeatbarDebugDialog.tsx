@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { WeatherForecast } from '../../services/weather.service';
 import { useMultiHeightWeather } from '../../hooks/useMultiHeightWeather';
 import { formatForecastDate } from '../../utils/dateUtils';
@@ -19,6 +20,8 @@ export default function HeatbarDebugDialog({
   siteId,
   onClose,
 }: HeatbarDebugDialogProps) {
+  const backdropRef = useRef<HTMLDivElement>(null);
+
   // Handle Escape key and prevent body scroll
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -38,6 +41,27 @@ export default function HeatbarDebugDialog({
       document.body.style.overflow = '';
     };
   }, [forecast, onClose]);
+
+  // Prevent wheel events from reaching the map (non-passive listener)
+  // But only when scrolling on the backdrop itself, not the dialog content
+  useEffect(() => {
+    const backdrop = backdropRef.current;
+    if (!backdrop || !forecast) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Only prevent if the target is the backdrop itself (not a child element)
+      if (e.target === backdrop) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    backdrop.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      backdrop.removeEventListener('wheel', handleWheel);
+    };
+  }, [forecast]);
 
   // Extract date from forecast
   const dateString = forecast?.date
@@ -88,12 +112,15 @@ export default function HeatbarDebugDialog({
   const maxTemp = temperatures.length > 0 ? Math.max(...temperatures) : 0;
   const totalRain = forecast.hourlyData.reduce((sum, data) => sum + Number(data.rain), 0);
 
-  return (
+  const modalContent = (
     <div
+      ref={backdropRef}
       className="fixed inset-0 z-[10000] flex items-center justify-center bg-black bg-opacity-50"
-      onClick={onClose}
-      onMouseDown={(e) => e.stopPropagation()}
-      onTouchStart={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
       style={{ isolation: 'isolate', pointerEvents: 'auto' }}
     >
       <div
@@ -172,8 +199,36 @@ export default function HeatbarDebugDialog({
           )}
 
           {data && !isLoading && !error && (
-            <div className="overflow-x-auto overflow-y-auto px-6 py-4">
-              <table className="border-collapse" style={{ width: 'max-content', minWidth: '100%' }}>
+            <div className="px-6 py-4">
+              <style>{`
+                .scroll-container-horizontal {
+                  overflow-x: scroll !important;
+                  overflow-y: auto;
+                  scrollbar-width: thin;
+                  scrollbar-color: #888 #f1f1f1;
+                }
+                .scroll-container-horizontal::-webkit-scrollbar {
+                  height: 14px;
+                  -webkit-appearance: none;
+                }
+                .scroll-container-horizontal::-webkit-scrollbar-track {
+                  background-color: #f1f1f1;
+                  border-radius: 6px;
+                }
+                .scroll-container-horizontal::-webkit-scrollbar-thumb {
+                  background-color: #888;
+                  border-radius: 6px;
+                  min-width: 30px;
+                }
+                .scroll-container-horizontal::-webkit-scrollbar-thumb:hover {
+                  background-color: #555;
+                }
+              `}</style>
+              <div
+                className="scroll-container-horizontal"
+                style={{ maxHeight: '400px' }}
+              >
+                <table className="border-collapse" style={{ width: 'max-content', minWidth: '100%' }}>
                 <thead>
                   <tr>
                     <th className="border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 sticky left-0 z-10 bg-gray-100" style={{ minWidth: '80px' }}>
@@ -287,7 +342,7 @@ export default function HeatbarDebugDialog({
                           <div className="flex flex-col items-center gap-1">
                             {/* Line 1: Temperature | Rain Icon */}
                             <div className="flex items-center justify-between w-full text-xs">
-                              <span className="text-gray-700">
+                              <span className="text-gray-700 font-bold">
                                 {formatTemperature(hourData.wind_10m.temperature, temperatureUnit)}
                               </span>
                               {hasRain && (
@@ -326,6 +381,7 @@ export default function HeatbarDebugDialog({
                   </tr>
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>
@@ -342,4 +398,6 @@ export default function HeatbarDebugDialog({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
