@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
+import * as https from 'https';
+import * as http from 'http';
 import {
   OpenMeteoResponse,
   OpenMeteoMultiHeightResponse,
@@ -13,9 +15,24 @@ export class OpenMeteoService {
   private readonly BASE_URL = 'https://api.open-meteo.com/v1/forecast';
 
   constructor(private readonly weatherStatsService: WeatherStatsService) {
+    // Force IPv4 by creating custom agents
+    const httpsAgent = new https.Agent({
+      family: 4, // Force IPv4 (4 = IPv4, 6 = IPv6)
+      keepAlive: true,
+      timeout: 30000,
+    });
+
+    const httpAgent = new http.Agent({
+      family: 4, // Force IPv4
+      keepAlive: true,
+      timeout: 30000,
+    });
+
     this.axiosInstance = axios.create({
       baseURL: this.BASE_URL,
       timeout: 30000, // 30 second timeout (increased for production)
+      httpAgent,
+      httpsAgent,
       headers: {
         'User-Agent': 'FlightOps-Weather-Service/1.0',
       },
