@@ -1,9 +1,8 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
     container_name: flightops-postgres
+    user: "${UID:-1000}:${GID:-1000}"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-flightops}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
@@ -25,6 +24,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: flightops-backend
+    user: "${UID:-1000}:${GID:-1000}"
     environment:
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
@@ -48,6 +48,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: flightops-frontend
+    user: "${UID:-1000}:${GID:-1000}"
     environment:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
       TZ: ${TIMEZONE}
