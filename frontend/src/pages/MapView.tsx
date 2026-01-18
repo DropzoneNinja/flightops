@@ -13,6 +13,7 @@ import AirspaceLayerVisualization from '../components/Airspace/AirspaceLayerVisu
 import { useAirspace } from '../hooks/useAirspace';
 import { AirspaceClass } from '../services/airspace.service';
 import { FlightSite } from '../services/sites.service';
+import { api } from '../services/api';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default marker icons in React-Leaflet
@@ -177,25 +178,13 @@ export default function MapView() {
   const handleFetchWeather = async () => {
     setIsFetchingWeather(true);
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3000/weather/fetch', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        alert('Weather data fetched successfully! Refresh the page to see updated forecasts.');
-        window.location.reload();
-      } else {
-        const error = await response.json();
-        alert(`Failed to fetch weather: ${error.message || 'Unknown error'}`);
-      }
-    } catch (error) {
+      await api.post('/weather/fetch');
+      alert('Weather data fetched successfully! Refresh the page to see updated forecasts.');
+      window.location.reload();
+    } catch (error: any) {
       console.error('Weather fetch error:', error);
-      alert('Failed to fetch weather data. Check console for details.');
+      const errorMessage = error.response?.data?.message || 'Failed to fetch weather data. Please try again.';
+      alert(errorMessage);
     } finally {
       setIsFetchingWeather(false);
     }
