@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { join, basename } from 'path';
 import { Parser } from '@openaip/openair-parser';
 
 export interface AirspaceFeature {
@@ -98,8 +98,8 @@ export class AirspaceService {
         const rawContent = readFileSync(filePath, 'utf-8');
         const processedContent = this.preprocessOpenAir(rawContent);
 
-        // Write preprocessed content to temp file
-        const tempFilePath = filePath + '.processed';
+        // Write preprocessed content to temp file in /tmp (writable location)
+        const tempFilePath = join('/tmp', basename(filePath) + '.processed');
         writeFileSync(tempFilePath, processedContent, 'utf-8');
 
         parser = new Parser({
