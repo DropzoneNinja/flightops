@@ -195,13 +195,48 @@ Ensure your firewall/security groups allow:
 - Outbound HTTPS (port 443) to all destinations
 - Outbound DNS (port 53) to DNS servers
 
-**Test HTTPS connectivity:**
+**Test HTTPS connectivity using Node.js:**
 ```bash
-docker exec flightops-backend curl -I --max-time 10 \
-  https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=temperature_2m
+# Copy the test script to the container
+docker cp test-api-connection.js flightops-backend:/tmp/
+
+# Run the test
+docker exec flightops-backend node /tmp/test-api-connection.js
 ```
 
-#### 3. Corporate Proxy Required
+This will show exactly where the connection fails.
+
+#### 3. IPv6 Routing Issues
+
+**Symptoms:**
+- DNS resolves to both IPv6 and IPv4 addresses
+- Connection times out even though DNS works
+- IPv6 address returned first (e.g., `2a01:4f8:13b:2e04::2`)
+
+**Solution:**
+Many Docker hosts don't have proper IPv6 routing configured. Force IPv4 by adding to the backend environment in `docker-compose.yml`:
+
+```yaml
+backend:
+  environment:
+    # Force Node.js to prefer IPv4
+    NODE_OPTIONS: "--dns-result-order=ipv4first"
+```
+
+Or disable IPv6 in the Docker daemon (`/etc/docker/daemon.json`):
+```json
+{
+  "ipv6": false
+}
+```
+
+Then restart Docker:
+```bash
+sudo systemctl restart docker
+docker compose up -d
+```
+
+#### 4. Corporate Proxy Required
 
 **Symptoms:**
 - Network works for other services but not external APIs
@@ -217,7 +252,7 @@ backend:
     NO_PROXY: postgres,localhost,127.0.0.1
 ```
 
-#### 4. Docker Network Configuration
+#### 5. Docker Network Configuration
 
 **Check network mode:**
 ```bash

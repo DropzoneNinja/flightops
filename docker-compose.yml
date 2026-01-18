@@ -35,6 +35,8 @@ services:
       PORT: 3000
       NODE_ENV: production
       TZ: ${TIMEZONE}
+      # Force Node.js to prefer IPv4 over IPv6 (fixes ETIMEDOUT with IPv6 routing issues)
+      NODE_OPTIONS: "--dns-result-order=ipv4first"
     # DNS servers for external API access (Open-Meteo)
     dns:
       - 8.8.8.8      # Google DNS primary
