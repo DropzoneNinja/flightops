@@ -44,6 +44,9 @@ export class FlightSite {
   parking_notes: string;
 
   @Column({ type: 'text', nullable: true })
+  parking_address: string;
+
+  @Column({ type: 'text', nullable: true })
   weather_notes: string;
 
   @Column({ type: 'boolean', default: true })

@@ -416,19 +416,36 @@ export default function AirspaceLayerVisualization({
 
                 {/* Class letter in center of layer */}
                 {layer.height > 30 && ( // Only show if layer is tall enough
-                  <text
-                    x={AXIS_WIDTH + SVG_WIDTH / 2}
-                    y={layer.centerY}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize="24"
-                    fontWeight="bold"
-                    fill="white"
-                    className="pointer-events-none drop-shadow-lg"
-                    style={{ filter: 'drop-shadow(2px 2px 2px rgba(0,0,0,0.5))' }}
-                  >
-                    {layer.class}
-                  </text>
+                  <>
+                    <text
+                      x={AXIS_WIDTH + SVG_WIDTH / 2}
+                      y={layer.name.includes('NOTAM') ? layer.centerY - 8 : layer.centerY}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fontSize="24"
+                      fontWeight="bold"
+                      fill="white"
+                      className="pointer-events-none drop-shadow-lg"
+                      style={{ filter: 'drop-shadow(2px 2px 2px rgba(0,0,0,0.5))' }}
+                    >
+                      {layer.class}
+                    </text>
+                    {layer.name.includes('NOTAM') && (
+                      <text
+                        x={AXIS_WIDTH + SVG_WIDTH / 2}
+                        y={layer.centerY + 12}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize="10"
+                        fontWeight="bold"
+                        fill="white"
+                        className="pointer-events-none drop-shadow-lg"
+                        style={{ filter: 'drop-shadow(2px 2px 2px rgba(0,0,0,0.5))' }}
+                      >
+                        NOTAM
+                      </text>
+                    )}
+                  </>
                 )}
               </g>
             ))}

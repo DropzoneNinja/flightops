@@ -38,6 +38,11 @@ export interface UpdateSiteData {
   weather_notes?: string;
 }
 
+export interface GeocodingResult {
+  formattedAddress: string;
+  displayName: string;
+}
+
 export const sitesService = {
   /**
    * Get all flight sites for the current user
@@ -83,6 +88,16 @@ export const sitesService = {
    */
   async toggleEnabled(id: string): Promise<FlightSite> {
     const response = await api.patch<FlightSite>(`/sites/${id}/toggle`);
+    return response.data;
+  },
+
+  /**
+   * Reverse geocode coordinates to get nearest address
+   */
+  async reverseGeocode(lat: number, lon: number): Promise<GeocodingResult> {
+    const response = await api.get<GeocodingResult>('/sites/geocode/reverse', {
+      params: { lat, lon },
+    });
     return response.data;
   },
 };

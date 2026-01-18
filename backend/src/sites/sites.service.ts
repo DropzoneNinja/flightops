@@ -1,17 +1,23 @@
 import {
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FlightSite } from '../database/entities/flight-site.entity';
 import { CreateSiteDto, UpdateSiteDto } from './dto';
+import { GeocodingService } from './services/geocoding.service';
+import { GeocodingResponse } from './interfaces/geocoding-response.interface';
 
 @Injectable()
 export class SitesService {
+  private readonly logger = new Logger(SitesService.name);
+
   constructor(
     @InjectRepository(FlightSite)
     private readonly siteRepository: Repository<FlightSite>,
+    private readonly geocodingService: GeocodingService,
   ) {}
 
   /**
@@ -85,5 +91,57 @@ export class SitesService {
     const site = await this.findOne(id, userId, isAdmin); // This checks ownership
     site.enabled = !site.enabled;
     return this.siteRepository.save(site);
+  }
+
+  /**
+   * Reverse geocode parking coordinates to get nearest address
+   * Uses database caching to avoid repeated API calls
+   */
+  async reverseGeocode(
+    userId: string,
+    lat: number,
+    lon: number,
+  ): Promise<GeocodingResponse> {
+    this.logger.log(`Reverse geocoding for user ${userId}: (${lat}, ${lon})`);
+
+    // Query database for FlightSite with matching parking coordinates
+    const site = await this.siteRepository.findOne({
+      where: {
+        user_id: userId,
+        parking_lat: lat,
+        parking_lon: lon,
+      },
+    });
+
+    // If site found and has cached address, return it
+    if (site && site.parking_address) {
+      this.logger.log(`Using cached address from database for site: ${site.name}`);
+      return {
+        formattedAddress: site.parking_address,
+        displayName: site.parking_address,
+      };
+    }
+
+    // No cache found, call geocoding API
+    this.logger.log('No cached address found, calling Nominatim API');
+    try {
+      const result = await this.geocodingService.reverseGeocode(lat, lon);
+
+      // If site exists, update it with the fetched address
+      if (site) {
+        site.parking_address = result.formattedAddress;
+        await this.siteRepository.save(site);
+        this.logger.log(`Cached address for site: ${site.name}`);
+      } else {
+        this.logger.warn(
+          `No site found for coordinates (${lat}, ${lon}), address not cached`,
+        );
+      }
+
+      return result;
+    } catch (error) {
+      this.logger.error(`Reverse geocoding failed: ${error.message}`);
+      throw new Error('Unable to fetch address for coordinates');
+    }
   }
 }

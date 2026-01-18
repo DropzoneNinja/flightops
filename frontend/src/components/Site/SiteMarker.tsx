@@ -9,6 +9,7 @@ import WeatherForecastBars from '../Weather/WeatherForecastBars';
 import HourlyWeatherDialog from '../Weather/HourlyWeatherDialog';
 import HeatbarDebugDialog from '../Weather/HeatbarDebugDialog';
 import { WeatherForecast } from '../../services/weather.service';
+import ParkingAddressModal from './ParkingAddressModal';
 
 // Custom marker icons for takeoff and parking
 const createTakeoffIcon = (isAnimating: boolean = false) => {
@@ -69,6 +70,7 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
   const { forecasts, isLoading: isLoadingWeather } = useWeather(site.id);
   const { settingsMap } = useSettings();
   const [selectedForecast, setSelectedForecast] = useState<WeatherForecast | null>(null);
+  const [showParkingModal, setShowParkingModal] = useState(false);
   const markerRef = useRef<L.Marker | null>(null);
   const rootRef = useRef<Root | null>(null);
 
@@ -154,6 +156,38 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
     }
   };
 
+  const handleParkingClick = async (e: L.LeafletMouseEvent) => {
+    // Prevent default popup behavior
+    e.originalEvent.stopPropagation();
+
+    // Format coordinates for clipboard
+    const coordsString = `${parkingLat.toFixed(6)}, ${parkingLon.toFixed(6)}`;
+
+    // Immediately copy to clipboard
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(coordsString);
+        console.log('Coordinates copied to clipboard:', coordsString);
+      } else {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = coordsString;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        console.log('Coordinates copied to clipboard (fallback):', coordsString);
+      }
+    } catch (err) {
+      console.error('Failed to copy coordinates:', err);
+    }
+
+    // Open modal
+    setShowParkingModal(true);
+  };
+
   // Line connecting takeoff and parking
   const positions: [number, number][] = [
     [takeoffLat, takeoffLon],
@@ -195,6 +229,14 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
         />
       )}
 
+      {/* Parking Address Modal */}
+      <ParkingAddressModal
+        lat={parkingLat}
+        lon={parkingLon}
+        isOpen={showParkingModal}
+        onClose={() => setShowParkingModal(false)}
+      />
+
       {/* Line connecting takeoff to parking */}
       <Polyline
         positions={positions}
@@ -235,6 +277,9 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
           position={[parkingLat, parkingLon]}
           icon={parkingIcon}
           zIndexOffset={PARKING_Z_INDEX}
+          eventHandlers={{
+            click: handleParkingClick,
+          }}
         />
       )}
     </>
