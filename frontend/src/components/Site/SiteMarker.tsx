@@ -23,6 +23,26 @@ const createTakeoffIcon = (isAnimating: boolean = false) => {
   });
 };
 
+const createQuestionMarkIcon = (isAnimating: boolean = false) => {
+  return new L.DivIcon({
+    className: isAnimating ? 'takeoff-icon-fade' : '',
+    html: `<div style="
+      width: 64px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      font-weight: bold;
+      color: #ff6b00;
+      text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+    ">?</div>`,
+    iconSize: [64, 64],
+    iconAnchor: [32, 32],
+    popupAnchor: [0, -32],
+  });
+};
+
 const parkingIcon = new L.Icon({
   iconUrl: '/icon-park.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
@@ -198,7 +218,10 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
       {currentZoom >= parkingIconZoomLevel && (
         <Marker
           position={[takeoffLat, takeoffLon]}
-          icon={createTakeoffIcon(isSelectedForAirspace)}
+          icon={site.name.startsWith('Potential')
+            ? createQuestionMarkIcon(isSelectedForAirspace)
+            : createTakeoffIcon(isSelectedForAirspace)
+          }
           zIndexOffset={TAKEOFF_Z_INDEX}
           eventHandlers={{
             click: handleMarkerClick,

@@ -106,8 +106,8 @@ export default function MapView() {
         console.error('Failed to parse stored airspace classes:', e);
       }
     }
-    // Default classes: A, C, CTR, D, E, Q, R (G and RMZ disabled by default)
-    return new Set(['A', 'C', 'CTR', 'D', 'E', 'Q', 'R']);
+    // Default classes: A, C, CTR, D, Q, R (G and RMZ disabled by default)
+    return new Set(['A', 'C', 'CTR', 'D', 'Q', 'R']);
   });
   const [selectedSiteForAirspace, setSelectedSiteForAirspace] = useState<FlightSite | null>(null);
 
