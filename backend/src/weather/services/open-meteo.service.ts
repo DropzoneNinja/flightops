@@ -63,11 +63,17 @@ export class OpenMeteoService {
 
       return response.data;
     } catch (error) {
+      const errorDetails = {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status,
+      };
       this.logger.error(
-        `Failed to fetch forecast for (${latitude}, ${longitude}): ${error.message}`,
+        `Failed to fetch forecast for (${latitude}, ${longitude}): ${JSON.stringify(errorDetails)}`,
       );
       throw new Error(
-        `Open-Meteo API error: ${error.response?.data?.reason || error.message}`,
+        `Open-Meteo API error: ${error.response?.data?.reason || error.message || 'Unknown error'}`,
       );
     }
   }
@@ -166,11 +172,17 @@ export class OpenMeteoService {
 
       return response.data;
     } catch (error) {
+      const errorDetails = {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status,
+      };
       this.logger.error(
-        `Failed to fetch multi-height forecast: ${error.message}`,
+        `Failed to fetch multi-height forecast: ${JSON.stringify(errorDetails)}`,
       );
       throw new Error(
-        `Open-Meteo API error: ${error.response?.data?.reason || error.message}`,
+        `Open-Meteo API error: ${error.response?.data?.reason || error.message || 'Unknown error'}`,
       );
     }
   }
