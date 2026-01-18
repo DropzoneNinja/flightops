@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class SeedDefaultSettings1737147000000 implements MigrationInterface {
-  name = 'SeedDefaultSettings1737147000000';
+export class SeedDefaultSettings1767783646822 implements MigrationInterface {
+  name = 'SeedDefaultSettings1767783646822';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Default settings to seed

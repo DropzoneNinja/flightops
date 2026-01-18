@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddTemperatureAndPrecipitationToMultiHeight1737145000000 implements MigrationInterface {
-    name = 'AddTemperatureAndPrecipitationToMultiHeight1737145000000'
+export class AddTemperatureAndPrecipitationToMultiHeight1767770050010 implements MigrationInterface {
+    name = 'AddTemperatureAndPrecipitationToMultiHeight1767770050010'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         // Add new columns to weather_multi_height table

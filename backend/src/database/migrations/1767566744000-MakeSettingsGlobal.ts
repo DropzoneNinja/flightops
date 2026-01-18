@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class MakeSettingsGlobal1736300000000 implements MigrationInterface {
-  name = 'MakeSettingsGlobal1736300000000';
+export class MakeSettingsGlobal1767566744000 implements MigrationInterface {
+  name = 'MakeSettingsGlobal1767566744000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // First, delete all duplicate settings, keeping only one set of global settings
