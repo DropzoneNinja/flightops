@@ -92,6 +92,20 @@ export default function ParkingAddressModal({
     }
   };
 
+  const openInAppleMaps = () => {
+    // Prefer address if available, otherwise use coordinates
+    const query = address || coordsString;
+    const url = `http://maps.apple.com/?q=${encodeURIComponent(query)}`;
+    window.open(url, '_blank');
+  };
+
+  const openInGoogleMaps = () => {
+    // Prefer address if available, otherwise use coordinates
+    const query = address || coordsString;
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+    window.open(url, '_blank');
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -186,7 +200,31 @@ export default function ParkingAddressModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+          <div className="flex gap-2">
+            <button
+              onClick={openInAppleMaps}
+              disabled={isLoading}
+              className="px-4 py-2 bg-gray-800 text-white text-sm font-medium rounded hover:bg-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              title="Open in Apple Maps"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm4.95 17.4c-.9 1.5-1.8 3-3.15 3-1.35 0-1.8-.9-3.3-.9s-2.1.9-3.3.9c-1.35 0-2.25-1.5-3.15-3-1.35-2.1-2.25-5.85-1.05-8.4.6-1.35 1.95-2.1 3.3-2.1 1.35 0 2.1.9 3.3.9 1.2 0 1.95-.9 3.45-.9 1.2 0 2.55.75 3.3 1.95-2.85 1.65-2.4 5.85.6 7.05-.45 1.2-1.05 2.4-1.95 3.45z"/>
+              </svg>
+              Apple Maps
+            </button>
+            <button
+              onClick={openInGoogleMaps}
+              disabled={isLoading}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              title="Open in Google Maps"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 0C7.031 0 3 4.032 3 9c0 6.75 9 15 9 15s9-8.25 9-15c0-4.968-4.031-9-9-9zm0 12c-1.657 0-3-1.343-3-3s1.343-3 3-3 3 1.343 3 3-1.343 3-3 3z"/>
+              </svg>
+              Google Maps
+            </button>
+          </div>
           <button
             onClick={onClose}
             className="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded hover:bg-gray-300 transition-colors"
