@@ -135,3 +135,175 @@ docker exec -it flightops-postgres psql -U flightops -d flightops_dev -c "SELECT
 ```bash
 docker exec -it flightops-postgres psql -U flightops -d flightops_dev -c "\dt"
 ```
+
+## Troubleshooting Network Connectivity Issues
+
+If you're experiencing timeout errors when fetching weather data (ETIMEDOUT), follow these steps:
+
+### Quick Diagnostics
+
+Run the network diagnostics script:
+```bash
+./docker-network-test.sh
+```
+
+This will check:
+- Container status
+- DNS resolution
+- External network connectivity
+- HTTPS access to Open-Meteo API
+- Docker network configuration
+
+### Common Issues and Solutions
+
+#### 1. DNS Resolution Failures
+
+**Symptoms:**
+- `ETIMEDOUT` errors in logs
+- `DNS resolution failed` errors
+- Cannot resolve `api.open-meteo.com`
+
+**Solution:**
+The `docker-compose.yml` has been configured with multiple DNS servers:
+- Google DNS: 8.8.8.8, 8.8.4.4
+- Cloudflare DNS: 1.1.1.1
+
+After updating `docker-compose.yml`, restart the backend:
+```bash
+docker compose down
+docker compose up -d
+```
+
+**Manual DNS test:**
+```bash
+# Test DNS resolution from inside the container
+docker exec flightops-backend nslookup api.open-meteo.com
+
+# Should return IP addresses like:
+# Name:      api.open-meteo.com
+# Address: 188.245.101.164
+```
+
+#### 2. Firewall/Security Group Blocking
+
+**Symptoms:**
+- DNS works but HTTPS requests timeout
+- Can ping external IPs but not reach HTTPS endpoints
+
+**Solution:**
+Ensure your firewall/security groups allow:
+- Outbound HTTPS (port 443) to all destinations
+- Outbound DNS (port 53) to DNS servers
+
+**Test HTTPS connectivity:**
+```bash
+docker exec flightops-backend curl -I --max-time 10 \
+  https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=temperature_2m
+```
+
+#### 3. Corporate Proxy Required
+
+**Symptoms:**
+- Network works for other services but not external APIs
+- Using corporate/enterprise network
+
+**Solution:**
+Add proxy settings to `docker-compose.yml` backend service:
+```yaml
+backend:
+  environment:
+    HTTP_PROXY: http://proxy.company.com:8080
+    HTTPS_PROXY: http://proxy.company.com:8080
+    NO_PROXY: postgres,localhost,127.0.0.1
+```
+
+#### 4. Docker Network Configuration
+
+**Check network mode:**
+```bash
+docker inspect flightops-backend | grep NetworkMode
+```
+
+**Verify bridge network allows external access:**
+```bash
+docker network inspect flightops-network
+```
+
+**Test basic connectivity:**
+```bash
+# Test if container can reach internet
+docker exec flightops-backend ping -c 3 8.8.8.8
+
+# Test if container can resolve and reach external hosts
+docker exec flightops-backend wget --spider https://www.google.com
+```
+
+### Viewing Weather Fetch Logs
+
+Monitor weather fetching in real-time:
+```bash
+docker logs -f flightops-backend | grep -E "(WeatherProcessor|OpenMeteo)"
+```
+
+Look for these log patterns:
+- `✓ Successfully fetched forecast` - API call succeeded
+- `✗ Failed to fetch forecast` - API call failed (check error details)
+- `Connection timeout` - Network connectivity issue
+- `DNS resolution failed` - DNS configuration issue
+
+### Testing Weather Fetch Manually
+
+After fixing network issues, test weather fetch:
+
+```bash
+# Get an admin JWT token first (see login endpoint)
+# Then trigger weather fetch:
+curl -X POST http://your-server:5173/api/weather/fetch \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+Watch the logs to verify it works:
+```bash
+docker logs -f flightops-backend
+```
+
+### Advanced Diagnostics
+
+**Check container's network interfaces:**
+```bash
+docker exec flightops-backend ip addr show
+```
+
+**Check container's routing table:**
+```bash
+docker exec flightops-backend ip route
+```
+
+**Check container's actual DNS config:**
+```bash
+docker exec flightops-backend cat /etc/resolv.conf
+```
+
+**Test with verbose curl:**
+```bash
+docker exec flightops-backend curl -v --max-time 30 \
+  'https://api.open-meteo.com/v1/forecast?latitude=-37.96&longitude=145.25&hourly=temperature_2m'
+```
+
+### Production Deployment Checklist
+
+Before deploying to production, verify:
+- [ ] DNS servers configured in `docker-compose.yml`
+- [ ] Outbound HTTPS (port 443) allowed in firewall
+- [ ] Proxy settings configured if required
+- [ ] Network diagnostics script runs successfully
+- [ ] Manual weather fetch works
+- [ ] Logs show successful API calls
+
+### Still Having Issues?
+
+1. Check Docker daemon configuration (`/etc/docker/daemon.json`)
+2. Restart Docker daemon: `sudo systemctl restart docker`
+3. Rebuild containers: `docker compose build --no-cache`
+4. Check system-wide DNS: `cat /etc/resolv.conf` on host
+5. Try changing DNS servers to different providers

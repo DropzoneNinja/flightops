@@ -15,8 +15,49 @@ export class OpenMeteoService {
   constructor(private readonly weatherStatsService: WeatherStatsService) {
     this.axiosInstance = axios.create({
       baseURL: this.BASE_URL,
-      timeout: 10000, // 10 second timeout
+      timeout: 30000, // 30 second timeout (increased for production)
+      headers: {
+        'User-Agent': 'FlightOps-Weather-Service/1.0',
+      },
     });
+
+    // Log axios request/response for debugging network issues
+    this.axiosInstance.interceptors.request.use(
+      (config) => {
+        this.logger.debug(`Requesting: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+        return config;
+      },
+      (error) => {
+        this.logger.error(`Request setup failed: ${error.message}`);
+        return Promise.reject(error);
+      },
+    );
+
+    this.axiosInstance.interceptors.response.use(
+      (response) => {
+        this.logger.debug(`Response received: ${response.status} ${response.statusText}`);
+        return response;
+      },
+      (error) => {
+        if (error.code === 'ETIMEDOUT') {
+          this.logger.error(
+            `Connection timeout - unable to reach ${this.BASE_URL}. ` +
+            `Check network connectivity and DNS resolution.`,
+          );
+        } else if (error.code === 'ENOTFOUND') {
+          this.logger.error(
+            `DNS resolution failed for ${this.BASE_URL}. ` +
+            `Check DNS configuration in Docker.`,
+          );
+        } else if (error.code === 'ECONNREFUSED') {
+          this.logger.error(
+            `Connection refused by ${this.BASE_URL}. ` +
+            `Check firewall settings.`,
+          );
+        }
+        return Promise.reject(error);
+      },
+    );
   }
 
   /**

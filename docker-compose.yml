@@ -35,6 +35,11 @@ services:
       PORT: 3000
       NODE_ENV: production
       TZ: ${TIMEZONE}
+    # DNS servers for external API access (Open-Meteo)
+    dns:
+      - 8.8.8.8      # Google DNS primary
+      - 8.8.4.4      # Google DNS secondary
+      - 1.1.1.1      # Cloudflare DNS
     depends_on:
       postgres:
         condition: service_healthy
