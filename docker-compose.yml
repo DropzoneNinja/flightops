@@ -10,7 +10,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-flightops}
       TZ: ${TIMEZONE}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flightops}"]
       interval: 10s
@@ -58,9 +58,6 @@ services:
     networks:
       - flightops-network
     restart: unless-stopped
-
-volumes:
-  postgres_data:
 
 networks:
   flightops-network:

@@ -39,6 +39,57 @@ SELECT email, is_admin FROM users WHERE email = 'user@example.com';
   - Site enable/disable functionality
   - Site deletion functionality
 
+## Pre-Authorizing User Email Addresses
+
+Pre-authorized emails allow specific users to register without needing an existing authorization. This is useful for controlling who can create accounts.
+
+### Step 1: Connect to the PostgreSQL container
+
+```bash
+docker exec -it flightops-postgres psql -U flightops -d flightops_dev
+```
+
+### Step 2: Add the pre-authorized email
+
+**Basic (email only):**
+```sql
+INSERT INTO pre_authorized_emails (email) VALUES ('user@example.com');
+```
+
+**With notes:**
+```sql
+INSERT INTO pre_authorized_emails (email, notes)
+VALUES ('user@example.com', 'Authorized for testing');
+```
+
+### Step 3: Verify the entry was added
+
+```sql
+SELECT email, notes, used, created_at FROM pre_authorized_emails WHERE email = 'user@example.com';
+```
+
+### Step 4: Exit the PostgreSQL shell
+
+```sql
+\q
+```
+
+### Important Notes:
+- Replace `user@example.com` with the actual email address
+- Once a user registers with a pre-authorized email, the `used` flag will be set to `true`
+- Email addresses must be unique (case-sensitive)
+- You can add notes to track why an email was pre-authorized
+
+### List all pre-authorized emails
+```bash
+docker exec -it flightops-postgres psql -U flightops -d flightops_dev -c "SELECT email, notes, used, created_at FROM pre_authorized_emails ORDER BY created_at DESC;"
+```
+
+### Remove a pre-authorized email
+```bash
+docker exec -it flightops-postgres psql -U flightops -d flightops_dev -c "DELETE FROM pre_authorized_emails WHERE email = 'user@example.com';"
+```
+
 ## Database Connection Details
 
 **Note**: The PostgreSQL database is only accessible within the Docker network for security. It does not expose any external ports.
