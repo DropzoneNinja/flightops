@@ -124,6 +124,7 @@ export default function MapView() {
   const [selectedSiteForPlot, setSelectedSiteForPlot] = useState<FlightSite | null>(null);
   const [currentPlotPoints, setCurrentPlotPoints] = useState<Array<{ lat: number; lon: number }>>([]);
   const [isPlotClosed, setIsPlotClosed] = useState(false);
+  const [showPlotLabels, setShowPlotLabels] = useState(true);
 
   // Update state when settings are loaded
   useEffect(() => {
@@ -365,6 +366,10 @@ export default function MapView() {
     setSelectedPlotNode({ nodeIndex, lat, lon });
   };
 
+  const handleToggleLabels = () => {
+    setShowPlotLabels((prev) => !prev);
+  };
+
   return (
     <div className="h-screen flex flex-col">
       {/* Custom styles for crosshair and pulse animation */}
@@ -554,6 +559,7 @@ export default function MapView() {
                     isEditing={false}
                     distanceUnit={(settingsMap['units.distance'] as 'km' | 'mi') || 'km'}
                     averageSpeed={(settingsMap['plot.average_speed'] as number) || 30}
+                    showLabels={showPlotLabels}
                     onNodeClick={handlePlotNodeClick}
                   />
                   <TotalDistanceMarker
@@ -575,6 +581,7 @@ export default function MapView() {
                   isEditing={true}
                   distanceUnit={(settingsMap['units.distance'] as 'km' | 'mi') || 'km'}
                   averageSpeed={(settingsMap['plot.average_speed'] as number) || 30}
+                  showLabels={showPlotLabels}
                 />
                 {isPlotClosed && (
                   <TotalDistanceMarker
@@ -628,11 +635,13 @@ export default function MapView() {
               JSON.stringify(currentPlotPoints) !==
               JSON.stringify(selectedSiteForPlot.plot_data?.points || [])
             }
+            showLabels={showPlotLabels}
             onSave={handleSavePlot}
             onComplete={handleCompleteClick}
             onDeleteLastPoint={handleDeleteLastPoint}
             onClear={handleClearPlot}
             onDeletePlot={handleDeletePlot}
+            onToggleLabels={handleToggleLabels}
             onClose={handleClosePlotControls}
             isSaving={updateSiteMutation.isPending}
           />

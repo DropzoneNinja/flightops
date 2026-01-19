@@ -5,11 +5,13 @@ interface PlotControlsProps {
   currentPoints: Array<{ lat: number; lon: number }>;
   isClosed: boolean;
   hasUnsavedChanges: boolean;
+  showLabels: boolean;
   onSave: () => void;
   onComplete: () => void;
   onDeleteLastPoint: () => void;
   onClear: () => void;
   onDeletePlot: () => void;
+  onToggleLabels: () => void;
   onClose: () => void;
   isSaving: boolean;
 }
@@ -28,11 +30,13 @@ export default function PlotControls({
   currentPoints,
   isClosed,
   hasUnsavedChanges,
+  showLabels,
   onSave,
   onComplete,
   onDeleteLastPoint,
   onClear,
   onDeletePlot,
+  onToggleLabels,
   onClose,
   isSaving,
 }: PlotControlsProps) {
@@ -98,6 +102,14 @@ export default function PlotControls({
           className="w-full px-3 py-2 bg-yellow-600 text-white rounded-md text-sm font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Delete Last Point
+        </button>
+
+        <button
+          onClick={onToggleLabels}
+          disabled={isSaving}
+          className="w-full px-3 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {showLabels ? 'Hide Labels' : 'Show Labels'}
         </button>
 
         <button

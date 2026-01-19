@@ -8,6 +8,7 @@ interface PlotOverlayProps {
   isEditing: boolean;
   distanceUnit: 'km' | 'mi';
   averageSpeed: number;
+  showLabels?: boolean;
   onNodeClick?: (nodeIndex: number, lat: number, lon: number) => void;
 }
 
@@ -28,6 +29,7 @@ export default function PlotOverlay({
   isEditing,
   distanceUnit,
   averageSpeed,
+  showLabels = true,
   onNodeClick,
 }: PlotOverlayProps) {
   if (points.length === 0) return null;
@@ -75,6 +77,7 @@ export default function PlotOverlay({
 
   // Create line segments with distance and time labels
   const segments = [];
+
   for (let i = 0; i < points.length - 1; i++) {
     const p1 = points[i];
     const p2 = points[i + 1];
@@ -102,18 +105,24 @@ export default function PlotOverlay({
           weight: 3,
           opacity: 0.8,
         }}
-      />,
-      <Marker
-        key={`label-${i}`}
-        position={[midLat, midLon]}
-        icon={createDistanceAndTimeLabelIcon(
-          formatDistance(distance, distanceUnit),
-          formatTime(cumulativeTime),
-          formatTime(segmentTime)
-        )}
-        zIndexOffset={3100}
       />
     );
+
+    // Show label only if labels are enabled
+    if (showLabels) {
+      segments.push(
+        <Marker
+          key={`label-${i}`}
+          position={[midLat, midLon]}
+          icon={createDistanceAndTimeLabelIcon(
+            formatDistance(distance, distanceUnit),
+            formatTime(cumulativeTime),
+            formatTime(segmentTime)
+          )}
+          zIndexOffset={3100}
+        />
+      );
+    }
 
     // Add direction arrow only for saved plots (not editing)
     if (!isEditing) {
@@ -157,18 +166,24 @@ export default function PlotOverlay({
           weight: 3,
           opacity: 0.8,
         }}
-      />,
-      <Marker
-        key="label-closing"
-        position={[midLat, midLon]}
-        icon={createDistanceAndTimeLabelIcon(
-          formatDistance(distance, distanceUnit),
-          formatTime(cumulativeTime),
-          formatTime(segmentTime)
-        )}
-        zIndexOffset={3100}
       />
     );
+
+    // Show label only if labels are enabled
+    if (showLabels) {
+      segments.push(
+        <Marker
+          key="label-closing"
+          position={[midLat, midLon]}
+          icon={createDistanceAndTimeLabelIcon(
+            formatDistance(distance, distanceUnit),
+            formatTime(cumulativeTime),
+            formatTime(segmentTime)
+          )}
+          zIndexOffset={3100}
+        />
+      );
+    }
 
     // Add direction arrow only for saved plots (not editing)
     if (!isEditing) {
