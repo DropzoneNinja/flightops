@@ -39,6 +39,9 @@ export enum SettingKey {
   UNITS_WIND_SPEED = 'units.wind_speed',
   UNITS_DISTANCE = 'units.distance',
 
+  // Plot Settings
+  PLOT_AVERAGE_SPEED = 'plot.average_speed',
+
   // Map Display Settings
   SHOW_ZOOM_INDICATOR = 'map.show_zoom_indicator',
   PARKING_ICON_ZOOM_LEVEL = 'map.parking_icon_zoom_level',
@@ -206,6 +209,15 @@ export const DEFAULT_SETTINGS: DefaultSetting[] = [
     type: SettingType.STRING,
     description: 'Distance unit (km or mi)',
     category: 'Units',
+  },
+
+  // Plot Settings
+  {
+    key: SettingKey.PLOT_AVERAGE_SPEED,
+    value: 30,
+    type: SettingType.NUMBER,
+    description: 'Average speed for plot time calculations (km/h)',
+    category: 'Plot',
   },
 
   // Map Display Settings

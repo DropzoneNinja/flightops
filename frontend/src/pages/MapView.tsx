@@ -10,6 +10,9 @@ import AddSitePanel from '../components/Site/AddSitePanel';
 import AirspaceOverlay from '../components/Airspace/AirspaceOverlay';
 import AirspaceClassFilter from '../components/Airspace/AirspaceClassFilter';
 import AirspaceLayerVisualization from '../components/Airspace/AirspaceLayerVisualization';
+import PlotOverlay from '../components/Plot/PlotOverlay';
+import TotalDistanceMarker from '../components/Plot/TotalDistanceMarker';
+import PlotControls from '../components/Plot/PlotControls';
 import { useAirspace } from '../hooks/useAirspace';
 import { AirspaceClass } from '../services/airspace.service';
 import { FlightSite } from '../services/sites.service';
@@ -80,7 +83,7 @@ function MapController({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null
 }
 
 export default function MapView() {
-  const { sites, isLoading } = useSites();
+  const { sites, isLoading, updateSiteMutation } = useSites();
   const { logout, user } = useAuth();
   const { settingsMap, isLoadingMap } = useSettings();
   const { airspace } = useAirspace();
@@ -110,6 +113,17 @@ export default function MapView() {
     return new Set(['A', 'C', 'CTR', 'D', 'Q', 'R']);
   });
   const [selectedSiteForAirspace, setSelectedSiteForAirspace] = useState<FlightSite | null>(null);
+  const [selectedPlotNode, setSelectedPlotNode] = useState<{
+    nodeIndex: number;
+    lat: number;
+    lon: number;
+  } | null>(null);
+
+  // Plot state
+  const [isPlottingMode, setIsPlottingMode] = useState(false);
+  const [selectedSiteForPlot, setSelectedSiteForPlot] = useState<FlightSite | null>(null);
+  const [currentPlotPoints, setCurrentPlotPoints] = useState<Array<{ lat: number; lon: number }>>([]);
+  const [isPlotClosed, setIsPlotClosed] = useState(false);
 
   // Update state when settings are loaded
   useEffect(() => {
@@ -146,6 +160,12 @@ export default function MapView() {
   }, [enabledAirspaceClasses]);
 
   const handleMapClick = (latlng: LatLng) => {
+    // Plot mode takes priority
+    if (isPlottingMode && selectedSiteForPlot && !isPlotClosed) {
+      setCurrentPlotPoints((prev) => [...prev, { lat: latlng.lat, lon: latlng.lng }]);
+      return;
+    }
+
     // Only handle clicks when actively selecting a location
     if (activeLocationSelection) {
       setPendingLocation(latlng);
@@ -203,16 +223,146 @@ export default function MapView() {
   };
 
   const handleTakeoffClick = (site: FlightSite) => {
+    // If in plotting mode and switching to different site, cancel current plot
+    if (isPlottingMode && selectedSiteForPlot && selectedSiteForPlot.id !== site.id) {
+      const hasUnsavedChanges =
+        JSON.stringify(currentPlotPoints) !==
+        JSON.stringify(selectedSiteForPlot?.plot_data?.points || []);
+
+      if (hasUnsavedChanges && currentPlotPoints.length > 0) {
+        if (!confirm('Switching sites will cancel your current plot. Continue?')) {
+          return;
+        }
+      }
+
+      // Cancel plotting
+      setIsPlottingMode(false);
+      setSelectedSiteForPlot(null);
+      setCurrentPlotPoints([]);
+      setIsPlotClosed(false);
+    }
+
     // Turn on airspace if not already showing
     if (!showAirspace) {
       setShowAirspace(true);
     }
+    // Clear selected plot node when switching sites
+    setSelectedPlotNode(null);
     // Set selected site (one visualization at a time)
     setSelectedSiteForAirspace(site);
   };
 
   const handleCloseAirspaceVisualization = () => {
     setSelectedSiteForAirspace(null);
+    setSelectedPlotNode(null);
+  };
+
+  // Plot handlers
+  const handlePlotClick = () => {
+    if (!selectedSiteForAirspace) return;
+
+    setIsPlottingMode(true);
+    setSelectedSiteForPlot(selectedSiteForAirspace);
+    // Clear selected plot node when entering plotting mode
+    setSelectedPlotNode(null);
+
+    // Load existing plot if available
+    if (selectedSiteForAirspace.plot_data?.points) {
+      setCurrentPlotPoints(selectedSiteForAirspace.plot_data.points);
+      setIsPlotClosed(true);
+    } else {
+      setCurrentPlotPoints([]);
+      setIsPlotClosed(false);
+    }
+  };
+
+  const handleSavePlot = async () => {
+    if (!selectedSiteForPlot || currentPlotPoints.length < 2 || !isPlotClosed) return;
+
+    try {
+      await updateSiteMutation.mutateAsync({
+        id: selectedSiteForPlot.id,
+        data: {
+          plot_data: { points: currentPlotPoints },
+        },
+      });
+
+      // Exit plotting mode
+      setIsPlottingMode(false);
+      setSelectedSiteForPlot(null);
+      setCurrentPlotPoints([]);
+      setIsPlotClosed(false);
+    } catch (error: any) {
+      console.error('Failed to save plot:', error);
+      alert(error.response?.data?.message || 'Failed to save plot. Please try again.');
+    }
+  };
+
+  const handleDeleteLastPoint = () => {
+    if (currentPlotPoints.length === 0 || isPlotClosed) return;
+
+    setCurrentPlotPoints((prev) => prev.slice(0, -1));
+  };
+
+  const handleClearPlot = () => {
+    if (confirm('Are you sure you want to clear all points?')) {
+      setCurrentPlotPoints([]);
+      setIsPlotClosed(false);
+    }
+  };
+
+  const handleDeletePlot = async () => {
+    if (!selectedSiteForPlot) return;
+
+    if (confirm('Are you sure you want to delete this plot?')) {
+      try {
+        await updateSiteMutation.mutateAsync({
+          id: selectedSiteForPlot.id,
+          data: {
+            plot_data: null,
+          },
+        });
+
+        // Exit plotting mode
+        setIsPlottingMode(false);
+        setSelectedSiteForPlot(null);
+        setCurrentPlotPoints([]);
+        setIsPlotClosed(false);
+      } catch (error: any) {
+        console.error('Failed to delete plot:', error);
+        alert(error.response?.data?.message || 'Failed to delete plot. Please try again.');
+      }
+    }
+  };
+
+  const handleClosePlotControls = () => {
+    const hasUnsavedChanges =
+      JSON.stringify(currentPlotPoints) !==
+      JSON.stringify(selectedSiteForPlot?.plot_data?.points || []);
+
+    if (hasUnsavedChanges && currentPlotPoints.length > 0) {
+      if (confirm('You have unsaved changes. Do you want to exit without saving?')) {
+        setIsPlottingMode(false);
+        setSelectedSiteForPlot(null);
+        setCurrentPlotPoints([]);
+        setIsPlotClosed(false);
+      }
+    } else {
+      setIsPlottingMode(false);
+      setSelectedSiteForPlot(null);
+      setCurrentPlotPoints([]);
+      setIsPlotClosed(false);
+    }
+  };
+
+  const handleCompleteClick = () => {
+    if (currentPlotPoints.length >= 3 && !isPlotClosed) {
+      setIsPlotClosed(true);
+    }
+  };
+
+  const handlePlotNodeClick = (nodeIndex: number, lat: number, lon: number) => {
+    setSelectedPlotNode({ nodeIndex, lat, lon });
   };
 
   return (
@@ -274,6 +424,20 @@ export default function MapView() {
               >
                 {showAirspace ? 'Hide Airspace' : 'Show Airspace'}
               </button>
+              <button
+                onClick={handlePlotClick}
+                disabled={!selectedSiteForAirspace}
+                className={`px-4 py-2 text-white rounded-md text-sm font-medium transition-colors ${
+                  isPlottingMode
+                    ? 'bg-orange-600 hover:bg-orange-700'
+                    : selectedSiteForAirspace
+                    ? 'bg-blue-600 hover:bg-blue-700'
+                    : 'bg-gray-400 cursor-not-allowed'
+                }`}
+                title={!selectedSiteForAirspace ? 'Select a takeoff icon to enable plotting' : ''}
+              >
+                {isPlottingMode ? 'Plotting...' : 'Plot'}
+              </button>
               {user?.is_admin && (
                 <>
                   <button
@@ -315,8 +479,16 @@ export default function MapView() {
           <MapContainer
             center={[-37.8136, 144.9631]} // Default center (Melbourne, Australia)
             zoom={9}
-            className={`h-full w-full ${activeLocationSelection ? 'cursor-crosshair' : ''}`}
-            style={activeLocationSelection ? { cursor: 'crosshair' } : {}}
+            className={`h-full w-full ${
+              activeLocationSelection || (isPlottingMode && !isPlotClosed)
+                ? 'cursor-crosshair'
+                : ''
+            }`}
+            style={
+              activeLocationSelection || (isPlottingMode && !isPlotClosed)
+                ? { cursor: 'crosshair' }
+                : {}
+            }
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -361,6 +533,58 @@ export default function MapView() {
                 </Popup>
               </Marker>
             )}
+
+            {/* Plot overlay - show saved plots only for selected site */}
+            {sites.map((site) => {
+              // Skip if no plot data
+              if (!site.plot_data?.points || site.plot_data.points.length < 2) return null;
+
+              // Only show plot if this site is selected for airspace (takeoff icon highlighted)
+              if (selectedSiteForAirspace?.id !== site.id) return null;
+
+              // Don't render if this is the site being actively edited
+              if (isPlottingMode && selectedSiteForPlot?.id === site.id) return null;
+
+              return (
+                <>
+                  <PlotOverlay
+                    key={`plot-${site.id}`}
+                    points={site.plot_data.points}
+                    isClosed={true}
+                    isEditing={false}
+                    distanceUnit={(settingsMap['units.distance'] as 'km' | 'mi') || 'km'}
+                    averageSpeed={(settingsMap['plot.average_speed'] as number) || 30}
+                    onNodeClick={handlePlotNodeClick}
+                  />
+                  <TotalDistanceMarker
+                    key={`plot-total-${site.id}`}
+                    points={site.plot_data.points}
+                    distanceUnit={(settingsMap['units.distance'] as 'km' | 'mi') || 'km'}
+                    averageSpeed={(settingsMap['plot.average_speed'] as number) || 30}
+                  />
+                </>
+              );
+            })}
+
+            {/* Current plot being edited */}
+            {isPlottingMode && selectedSiteForPlot && currentPlotPoints.length > 0 && (
+              <>
+                <PlotOverlay
+                  points={currentPlotPoints}
+                  isClosed={isPlotClosed}
+                  isEditing={true}
+                  distanceUnit={(settingsMap['units.distance'] as 'km' | 'mi') || 'km'}
+                  averageSpeed={(settingsMap['plot.average_speed'] as number) || 30}
+                />
+                {isPlotClosed && (
+                  <TotalDistanceMarker
+                    points={currentPlotPoints}
+                    distanceUnit={(settingsMap['units.distance'] as 'km' | 'mi') || 'km'}
+                    averageSpeed={(settingsMap['plot.average_speed'] as number) || 30}
+                  />
+                )}
+              </>
+            )}
           </MapContainer>
         )}
 
@@ -390,6 +614,27 @@ export default function MapView() {
             site={selectedSiteForAirspace}
             airspace={airspace}
             onClose={handleCloseAirspaceVisualization}
+            selectedPlotNode={selectedPlotNode}
+          />
+        )}
+
+        {/* Plot controls */}
+        {isPlottingMode && selectedSiteForPlot && (
+          <PlotControls
+            site={selectedSiteForPlot}
+            currentPoints={currentPlotPoints}
+            isClosed={isPlotClosed}
+            hasUnsavedChanges={
+              JSON.stringify(currentPlotPoints) !==
+              JSON.stringify(selectedSiteForPlot.plot_data?.points || [])
+            }
+            onSave={handleSavePlot}
+            onComplete={handleCompleteClick}
+            onDeleteLastPoint={handleDeleteLastPoint}
+            onClear={handleClearPlot}
+            onDeletePlot={handleDeletePlot}
+            onClose={handleClosePlotControls}
+            isSaving={updateSiteMutation.isPending}
           />
         )}
       </div>

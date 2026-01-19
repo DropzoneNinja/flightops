@@ -1,5 +1,9 @@
 import { api } from './api';
 
+export interface PlotData {
+  points: Array<{ lat: number; lon: number }>;
+}
+
 export interface FlightSite {
   id: string;
   user_id: string;
@@ -11,6 +15,8 @@ export interface FlightSite {
   takeoff_notes?: string;
   parking_notes?: string;
   weather_notes?: string;
+  parking_address?: string;
+  plot_data?: PlotData | null;
   enabled: boolean;
   created_at: string;
   updated_at: string;
@@ -25,6 +31,7 @@ export interface CreateSiteData {
   takeoff_notes?: string;
   parking_notes?: string;
   weather_notes?: string;
+  plot_data?: PlotData | null;
 }
 
 export interface UpdateSiteData {
@@ -36,6 +43,7 @@ export interface UpdateSiteData {
   takeoff_notes?: string;
   parking_notes?: string;
   weather_notes?: string;
+  plot_data?: PlotData | null;
 }
 
 export interface GeocodingResult {

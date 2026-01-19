@@ -7,6 +7,11 @@ interface AirspaceLayerVisualizationProps {
   site: FlightSite;
   airspace: AirspaceGeoJSON;
   onClose: () => void;
+  selectedPlotNode?: {
+    nodeIndex: number;
+    lat: number;
+    lon: number;
+  } | null;
 }
 
 interface AirspaceLayer {
@@ -95,6 +100,7 @@ export default function AirspaceLayerVisualization({
   site,
   airspace,
   onClose,
+  selectedPlotNode,
 }: AirspaceLayerVisualizationProps) {
   // State for modal
   const [selectedClass, setSelectedClass] = useState<{
@@ -107,10 +113,13 @@ export default function AirspaceLayerVisualization({
 
   // Calculate layers for this site
   const layers = useMemo(() => {
-    const point: [number, number] = [
-      parseFloat(site.takeoff_lon.toString()),
-      parseFloat(site.takeoff_lat.toString()),
-    ];
+    // Use plot node coordinates if available, otherwise use takeoff coordinates
+    const point: [number, number] = selectedPlotNode
+      ? [selectedPlotNode.lon, selectedPlotNode.lat]
+      : [
+          parseFloat(site.takeoff_lon.toString()),
+          parseFloat(site.takeoff_lat.toString()),
+        ];
 
     console.log(`🎯 [AirspaceLayerVisualization] Checking airspace for ${site.name}`);
     console.log(`   Point: [${point[0]}, ${point[1]}] (lon, lat)`);
@@ -234,7 +243,7 @@ export default function AirspaceLayerVisualization({
     });
 
     return mergedLayers;
-  }, [site, airspace]);
+  }, [site, airspace, selectedPlotNode]);
 
   // SVG dimensions configuration
   const SVG_HEIGHT = 400;
@@ -315,7 +324,10 @@ export default function AirspaceLayerVisualization({
             </svg>
           </button>
         </div>
-        <p className="text-xs text-gray-600 mb-2">{site.name}</p>
+        <p className="text-xs text-gray-600 mb-2">
+          {site.name}
+          {selectedPlotNode && ` - Node ${selectedPlotNode.nodeIndex + 1}`}
+        </p>
         <p className="text-sm text-gray-500 text-center py-4">
           No airspace at this location
         </p>
@@ -355,7 +367,10 @@ export default function AirspaceLayerVisualization({
         </div>
 
         {/* Site name */}
-        <p className="text-xs text-gray-600 mb-4">{site.name}</p>
+        <p className="text-xs text-gray-600 mb-4">
+          {site.name}
+          {selectedPlotNode && ` - Node ${selectedPlotNode.nodeIndex + 1}`}
+        </p>
 
         {/* SVG Bar Graph */}
         {svgData && (
