@@ -108,4 +108,37 @@ export const weatherService = {
   async resetStats(): Promise<void> {
     await api.delete('/weather/stats');
   },
+
+  /**
+   * Connect to weather update event stream
+   * Returns EventSource instance - caller should close() when done
+   * @param onUpdate Callback when weather is updated for a site
+   */
+  connectToWeatherUpdates(onUpdate: (siteId: string) => void): EventSource {
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+    // Note: EventSource doesn't support custom headers,
+    // so auth relies on cookies being sent via withCredentials
+    const eventSource = new EventSource(
+      `${baseUrl}/weather/events`,
+      {
+        withCredentials: true,
+      }
+    );
+
+    eventSource.addEventListener('weather-update', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        onUpdate(data.siteId);
+      } catch (error) {
+        console.error('Failed to parse weather update event:', error);
+      }
+    });
+
+    eventSource.onerror = (error) => {
+      console.error('Weather SSE connection error:', error);
+    };
+
+    return eventSource;
+  },
 };

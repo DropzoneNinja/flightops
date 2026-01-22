@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   Logger,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThanOrEqual, LessThanOrEqual, Between } from 'typeorm';
@@ -13,6 +15,8 @@ import { OpenMeteoService } from './services/open-meteo.service';
 import { OpenMeteoMultiHeightResponse } from './interfaces/open-meteo-response.interface';
 import { SettingsService } from '../settings/settings.service';
 import { SettingKey } from '../settings/constants/default-settings';
+import { WeatherProcessorService } from './services/weather-processor.service';
+import { WeatherEventsService } from './weather-events.service';
 
 @Injectable()
 export class WeatherService {
@@ -29,11 +33,70 @@ export class WeatherService {
     private readonly siteRepository: Repository<FlightSite>,
     private readonly openMeteoService: OpenMeteoService,
     private readonly settingsService: SettingsService,
+    @Inject(forwardRef(() => WeatherProcessorService))
+    private readonly weatherProcessorService: WeatherProcessorService,
+    private readonly weatherEventsService: WeatherEventsService,
   ) {}
+
+  /**
+   * Check if weather data for a site needs refreshing
+   * Compares the last update timestamp with WEATHER_REFRESH_FREQUENCY setting
+   * @param siteId Flight site ID
+   * @returns true if data is stale or missing
+   */
+  async needsRefresh(siteId: string): Promise<boolean> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Get forecast days from settings
+    const forecastDays = await this.settingsService.getValue(
+      SettingKey.WEATHER_FORECAST_DAYS,
+    ) as number;
+
+    const endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + forecastDays);
+
+    // Find the most recently updated forecast for this site
+    const forecasts = await this.forecastRepository.find({
+      where: {
+        site: { id: siteId },
+        forecast_date: Between(today, endDate),
+      },
+      order: { updated_at: 'DESC' },
+      take: 1,
+    });
+
+    // If no forecasts exist, needs refresh
+    if (forecasts.length === 0) {
+      this.logger.log(`No forecast data exists for site ${siteId}`);
+      return true;
+    }
+
+    const latestForecast = forecasts[0];
+    const now = new Date();
+    const lastUpdate = new Date(latestForecast.updated_at);
+    const minutesSinceUpdate = (now.getTime() - lastUpdate.getTime()) / 1000 / 60;
+
+    // Get refresh frequency from settings (in hours)
+    const refreshFrequencyHours = await this.settingsService.getValue(
+      SettingKey.WEATHER_REFRESH_FREQUENCY,
+    ) as number;
+    const refreshFrequencyMinutes = refreshFrequencyHours * 60;
+
+    const isStale = minutesSinceUpdate >= refreshFrequencyMinutes;
+
+    this.logger.log(
+      `Site ${siteId}: Last update ${minutesSinceUpdate.toFixed(1)} minutes ago. ` +
+      `Refresh threshold: ${refreshFrequencyMinutes} minutes. Stale: ${isStale}`,
+    );
+
+    return isStale;
+  }
 
   /**
    * Get forecast data for a site (based on WEATHER_FORECAST_DAYS setting)
    * Returns forecast with hourly data included
+   * Checks cache freshness and triggers async refresh if needed
    */
   async getForecastBySite(siteId: string, _userId: string) {
     // Verify the site exists (all authenticated users can view weather data)
@@ -43,6 +106,31 @@ export class WeatherService {
 
     if (!site) {
       throw new NotFoundException('Site not found');
+    }
+
+    // Check if we need to refresh data
+    const needsRefresh = await this.needsRefresh(siteId);
+
+    if (needsRefresh) {
+      this.logger.log(`Weather data stale for site ${siteId}, triggering refresh`);
+
+      const forecastDays = await this.settingsService.getValue(
+        SettingKey.WEATHER_FORECAST_DAYS,
+      ) as number;
+
+      // Trigger async refresh (don't wait - serve cached data immediately)
+      this.weatherProcessorService
+        .processSiteWeather(siteId, forecastDays)
+        .then(() => {
+          this.logger.log(`Successfully refreshed weather for site ${siteId}`);
+          // Emit event to connected clients for real-time updates
+          this.weatherEventsService.emitWeatherUpdate(siteId);
+        })
+        .catch((error) => {
+          this.logger.error(
+            `Failed to refresh weather for site ${siteId}: ${error.message}`,
+          );
+        });
     }
 
     // Get forecast days from settings

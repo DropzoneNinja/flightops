@@ -1,8 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, forwardRef, Inject } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { WeatherProcessorService } from '../services/weather-processor.service';
 import { SettingsService } from '../../settings/settings.service';
 import { SettingKey } from '../../settings/constants/default-settings';
+import { FlightSite } from '../../database/entities/flight-site.entity';
+import { WeatherService } from '../weather.service';
 
 @Injectable()
 export class WeatherFetchJob {
@@ -12,12 +16,17 @@ export class WeatherFetchJob {
   constructor(
     private readonly weatherProcessor: WeatherProcessorService,
     private readonly settingsService: SettingsService,
+    @Inject(forwardRef(() => WeatherService))
+    private readonly weatherService: WeatherService,
+    @InjectRepository(FlightSite)
+    private readonly siteRepository: Repository<FlightSite>,
   ) {}
 
   /**
    * Scheduled job to fetch weather data for all enabled sites
    * Runs every hour by default
    * Uses WEATHER_FORECAST_DAYS setting to determine how many days to fetch
+   * Checks cache freshness using WEATHER_REFRESH_FREQUENCY setting
    */
   @Cron(CronExpression.EVERY_HOUR)
   async handleWeatherFetch(): Promise<void> {
@@ -31,13 +40,44 @@ export class WeatherFetchJob {
       this.isRunning = true;
       this.logger.log('Starting scheduled weather fetch job');
 
+      const refreshFrequencyHours = await this.settingsService.getValue(
+        SettingKey.WEATHER_REFRESH_FREQUENCY,
+      ) as number;
+
+      this.logger.log(`Weather refresh frequency: ${refreshFrequencyHours} hour(s)`);
+
+      // Get all enabled sites
+      const enabledSites = await this.siteRepository.find({
+        where: { enabled: true },
+      });
+
+      this.logger.log(`Found ${enabledSites.length} enabled sites to check`);
+
       const forecastDays = await this.settingsService.getValue(
         SettingKey.WEATHER_FORECAST_DAYS,
       ) as number;
 
-      await this.weatherProcessor.processAllEnabledSites(forecastDays);
+      // Check each site and only fetch if stale
+      let refreshedCount = 0;
+      let skippedCount = 0;
 
-      this.logger.log('Successfully completed scheduled weather fetch job');
+      for (const site of enabledSites) {
+        const needsRefresh = await this.weatherService.needsRefresh(site.id);
+
+        if (needsRefresh) {
+          this.logger.log(`Refreshing weather for site: ${site.name} (${site.id})`);
+          await this.weatherProcessor.processSiteWeather(site.id, forecastDays);
+          refreshedCount++;
+        } else {
+          this.logger.log(`Skipping site ${site.name} - data still fresh`);
+          skippedCount++;
+        }
+      }
+
+      this.logger.log(
+        `Successfully completed scheduled weather fetch job. ` +
+        `Refreshed: ${refreshedCount}, Skipped: ${skippedCount}`,
+      );
     } catch (error) {
       this.logger.error(`Weather fetch job failed: ${error.message}`, error.stack);
     } finally {

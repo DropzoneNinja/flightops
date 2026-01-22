@@ -14,6 +14,8 @@ import { WeatherStatsService } from './services/weather-stats.service';
 import { WeatherFetchJob } from './jobs/weather-fetch.job';
 import { WeatherService } from './weather.service';
 import { WeatherController } from './weather.controller';
+import { WeatherEventsService } from './weather-events.service';
+import { WeatherEventsController } from './weather-events.controller';
 
 @Module({
   imports: [
@@ -26,7 +28,7 @@ import { WeatherController } from './weather.controller';
     ]),
     SettingsModule, // Import settings for threshold access
   ],
-  controllers: [WeatherController],
+  controllers: [WeatherController, WeatherEventsController],
   providers: [
     WeatherService,
     OpenMeteoService,
@@ -35,6 +37,7 @@ import { WeatherController } from './weather.controller';
     WeatherProcessorService,
     WeatherStatsService,
     WeatherFetchJob,
+    WeatherEventsService,
   ],
   exports: [
     WeatherService,
@@ -43,6 +46,7 @@ import { WeatherController } from './weather.controller';
     WeatherScoringService,
     WeatherProcessorService,
     WeatherFetchJob,
+    WeatherEventsService,
   ],
 })
 export class WeatherModule {}

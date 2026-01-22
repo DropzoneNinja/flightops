@@ -10,8 +10,14 @@ export interface EndpointStats {
 
 export interface WeatherApiStats {
   endpointCounts: EndpointStats[];
-  maxPerDay: number;
-  maxPerHour: number;
+  maxPerDay: {
+    date: string;
+    count: number;
+  };
+  maxPerHour: {
+    hour: string;
+    count: number;
+  };
   totalCalls: number;
 }
 
@@ -66,7 +72,14 @@ export class WeatherStatsService {
       const count = callsByDay.get(day) || 0;
       callsByDay.set(day, count + 1);
     });
-    const maxPerDay = Math.max(...Array.from(callsByDay.values()), 0);
+
+    // Find the day with maximum calls
+    let maxDayEntry: [string, number] = ['', 0];
+    if (callsByDay.size > 0) {
+      maxDayEntry = Array.from(callsByDay.entries()).reduce((max, entry) =>
+        entry[1] > max[1] ? entry : max
+      );
+    }
 
     // Calculate max per hour
     const callsByHour = new Map<string, number>();
@@ -75,12 +88,25 @@ export class WeatherStatsService {
       const count = callsByHour.get(hour) || 0;
       callsByHour.set(hour, count + 1);
     });
-    const maxPerHour = Math.max(...Array.from(callsByHour.values()), 0);
+
+    // Find the hour with maximum calls
+    let maxHourEntry: [string, number] = ['', 0];
+    if (callsByHour.size > 0) {
+      maxHourEntry = Array.from(callsByHour.entries()).reduce((max, entry) =>
+        entry[1] > max[1] ? entry : max
+      );
+    }
 
     return {
       endpointCounts,
-      maxPerDay,
-      maxPerHour,
+      maxPerDay: {
+        date: maxDayEntry[0],
+        count: maxDayEntry[1],
+      },
+      maxPerHour: {
+        hour: maxHourEntry[0],
+        count: maxHourEntry[1],
+      },
       totalCalls: logs.length,
     };
   }
