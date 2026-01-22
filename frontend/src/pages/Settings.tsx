@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -32,7 +32,13 @@ export default function Settings() {
   const [loadingWeatherStats, setLoadingWeatherStats] = useState(false);
 
   // Sites management (admin only)
-  const { sites, isLoading: isLoadingSites, deleteSiteMutation } = useSites();
+  const { sites, isLoading: isLoadingSites, deleteSiteMutation, updateSiteMutation, toggleSiteEnabledMutation } = useSites();
+
+  // Site name inline editing state (admin only)
+  const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
+  const [editingSiteName, setEditingSiteName] = useState('');
+  const [editSiteError, setEditSiteError] = useState<string | null>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   // Group settings by category
   const settingsByCategory = useMemo(() => {
@@ -263,6 +269,76 @@ export default function Settings() {
       }
     }
   };
+
+  // Inline editing handlers for site names
+  const handleStartEditing = (siteId: string, currentName: string) => {
+    setEditingSiteId(siteId);
+    setEditingSiteName(currentName);
+    setEditSiteError(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSiteId(null);
+    setEditingSiteName('');
+    setEditSiteError(null);
+  };
+
+  const handleSaveSiteName = async (siteId: string) => {
+    const trimmedName = editingSiteName.trim();
+
+    // Validate name
+    if (trimmedName.length === 0) {
+      setEditSiteError('Site name cannot be empty');
+      return;
+    }
+
+    if (trimmedName.length > 255) {
+      setEditSiteError('Site name cannot exceed 255 characters');
+      return;
+    }
+
+    try {
+      await updateSiteMutation.mutateAsync({
+        id: siteId,
+        data: { name: trimmedName },
+      });
+      // Success - clear edit state
+      handleCancelEdit();
+    } catch (error: any) {
+      console.error('Failed to update site name:', error);
+      setEditSiteError(
+        error.response?.data?.message || 'Failed to update site name. Please try again.'
+      );
+    }
+  };
+
+  const handleSiteNameKeyDown = (event: React.KeyboardEvent<HTMLInputElement>, siteId: string) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSaveSiteName(siteId);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      handleCancelEdit();
+    }
+  };
+
+  // Toggle site status handler
+  const handleToggleSiteStatus = async (siteId: string) => {
+    try {
+      await toggleSiteEnabledMutation.mutateAsync(siteId);
+    } catch (error: any) {
+      console.error('Failed to toggle site status:', error);
+      alert(error.response?.data?.message || 'Failed to toggle site status. Please try again.');
+    }
+  };
+
+  // Auto-focus and select text when entering edit mode
+  useEffect(() => {
+    if (editingSiteId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingSiteId]);
 
   if (isLoading) {
     return (
@@ -823,7 +899,33 @@ export default function Settings() {
                       {sites.map((site) => (
                         <tr key={site.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {site.name}
+                            {editingSiteId === site.id ? (
+                              <div>
+                                <input
+                                  ref={editInputRef}
+                                  type="text"
+                                  value={editingSiteName}
+                                  onChange={(e) => setEditingSiteName(e.target.value)}
+                                  onKeyDown={(e) => handleSiteNameKeyDown(e, site.id)}
+                                  onBlur={() => handleSaveSiteName(site.id)}
+                                  disabled={updateSiteMutation.isPending}
+                                  className="w-full px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                />
+                                {editSiteError && (
+                                  <div className="text-xs text-red-600 mt-1">
+                                    {editSiteError}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span
+                                onClick={() => handleStartEditing(site.id, site.name)}
+                                className="cursor-pointer hover:text-blue-600 hover:underline"
+                                title="Click to edit site name"
+                              >
+                                {site.name}
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 font-mono">
                             {Number(site.takeoff_lat).toFixed(6)}, {Number(site.takeoff_lon).toFixed(6)}
@@ -833,13 +935,23 @@ export default function Settings() {
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             {site.enabled ? (
-                              <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
-                                Enabled
-                              </span>
+                              <button
+                                onClick={() => handleToggleSiteStatus(site.id)}
+                                disabled={toggleSiteEnabledMutation.isPending}
+                                className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded cursor-pointer hover:bg-green-200 hover:shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Click to disable this site"
+                              >
+                                {toggleSiteEnabledMutation.isPending ? 'Toggling...' : 'Enabled'}
+                              </button>
                             ) : (
-                              <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded">
-                                Disabled
-                              </span>
+                              <button
+                                onClick={() => handleToggleSiteStatus(site.id)}
+                                disabled={toggleSiteEnabledMutation.isPending}
+                                className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded cursor-pointer hover:bg-gray-200 hover:shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Click to enable this site"
+                              >
+                                {toggleSiteEnabledMutation.isPending ? 'Toggling...' : 'Disabled'}
+                              </button>
                             )}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">

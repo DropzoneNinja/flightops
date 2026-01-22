@@ -513,7 +513,7 @@ export default function MapView() {
             )}
 
             {/* Render site markers */}
-            {sites.map((site) => (
+            {sites.filter(site => site.enabled).map((site) => (
               <SiteMarker
                 key={site.id}
                 site={site}
@@ -540,7 +540,7 @@ export default function MapView() {
             )}
 
             {/* Plot overlay - show saved plots only for selected site */}
-            {sites.map((site) => {
+            {sites.filter(site => site.enabled).map((site) => {
               // Skip if no plot data
               if (!site.plot_data?.points || site.plot_data.points.length < 2) return null;
 
