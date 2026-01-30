@@ -10,6 +10,8 @@ export interface OpenMeteoHourlyData {
   wind_direction_10m: number[]; // Wind direction at 10 meters (degrees)
   wind_gusts_10m: number[]; // Wind gusts at 10 meters (km/h)
   precipitation: number[]; // Precipitation (rain + snow) in mm
+  cloud_cover: number[]; // Total cloud cover (%)
+  cloud_cover_low: number[]; // Low-level cloud cover 0-3km (%)
 }
 
 export interface OpenMeteoResponse {
@@ -36,6 +38,8 @@ export interface OpenMeteoMultiHeightHourlyData {
   temperature_120m: number[]; // Temperature at 120 meters (°C)
   precipitation: number[]; // Precipitation (rain + snow) in mm
   wind_gusts_10m: number[]; // Wind gusts at 10 meters (km/h)
+  cloud_cover: number[]; // Total cloud cover (%)
+  cloud_cover_low: number[]; // Low-level cloud cover 0-3km (%)
 }
 
 export interface OpenMeteoMultiHeightResponse {

@@ -7,6 +7,7 @@ export interface WeatherScores {
   gust_score: number;
   gust_spread_score: number;
   rain_score: number;
+  cloud_score: number;
   overall_score: number;
 }
 
@@ -41,12 +42,16 @@ export class WeatherScoringService {
    * @param windSpeed Wind speed in km/h
    * @param gustSpeed Gust speed in km/h
    * @param rain Precipitation in mm/hr
+   * @param cloudBase Cloud base in feet (optional)
+   * @param cloudCover Cloud cover percentage (optional)
    * @returns Weather safety scores (0-100)
    */
   async calculateScores(
     windSpeed: number,
     gustSpeed: number,
     rain: number,
+    cloudBase: number | null = null,
+    cloudCover: number | null = null,
   ): Promise<WeatherScores> {
     // Get global thresholds (or defaults)
     const thresholds = await this.settingsService.getSettingsMap();
@@ -82,16 +87,46 @@ export class WeatherScoringService {
       Number(thresholds[SettingKey.GUST_SPREAD_MARGINAL_MAX]),
     );
 
-    // Weighted sum formula: wind (40%) + gust (30%) + spread (20%) + rain (10%)
+    // Calculate cloud score
+    const cloud_score = this.calculateCloudScore(
+      cloudBase,
+      cloudCover,
+      Number(thresholds[SettingKey.CLOUD_BASE_MIN_SAFE]),
+      Number(thresholds[SettingKey.CLOUD_COVER_MAX_SAFE]),
+    );
+
+    // Hard safety check: If cloud ceiling is too low with high cloud cover, overall score must be 0
+    const minSafeCloudBase = Number(thresholds[SettingKey.CLOUD_BASE_MIN_SAFE]);
+    const maxSafeCloudCover = Number(thresholds[SettingKey.CLOUD_COVER_MAX_SAFE]);
+    const hasUnsafeCloudConditions =
+      cloudBase !== null &&
+      cloudCover !== null &&
+      cloudBase < minSafeCloudBase &&
+      cloudCover > maxSafeCloudCover;
+
+    // If unsafe cloud conditions detected, return 0 overall score
+    if (hasUnsafeCloudConditions) {
+      return {
+        wind_score: Math.round(wind_score),
+        gust_score: Math.round(gust_score),
+        gust_spread_score: Math.round(gust_spread_score),
+        rain_score: Math.round(rain_score),
+        cloud_score: 0,
+        overall_score: 0,
+      };
+    }
+
+    // Weighted sum formula: wind (35%) + gust (25%) + spread (20%) + rain (10%) + cloud (10%)
     const overall_score = Math.round(
       Math.max(
         0,
         Math.min(
           100,
-          wind_score * 0.4 +
-            gust_score * 0.3 +
+          wind_score * 0.35 +
+            gust_score * 0.25 +
             gust_spread_score * 0.2 +
-            rain_score * 0.1,
+            rain_score * 0.1 +
+            cloud_score * 0.1,
         ),
       ),
     );
@@ -101,6 +136,7 @@ export class WeatherScoringService {
       gust_score: Math.round(gust_score),
       gust_spread_score: Math.round(gust_spread_score),
       rain_score: Math.round(rain_score),
+      cloud_score: Math.round(cloud_score),
       overall_score,
     };
   }
@@ -243,6 +279,66 @@ export class WeatherScoringService {
     }
 
     // Dry: 0 mm/hr
+    return 100;
+  }
+
+  /**
+   * Calculate cloud score based on cloud base and cloud cover
+   *
+   * Cloud Scoring:
+   * - Hard safety rule: cloud_base < 1000ft AND cloud_cover > 80% → No flying (0)
+   * - cloud_base < 1000ft → Low ceiling warning (20-50)
+   * - cloud_base 1000-2000ft → Marginal ceiling (50-80)
+   * - cloud_base > 2000ft → Good ceiling (80-100)
+   * - If no cloud data available → Neutral score (100)
+   */
+  private calculateCloudScore(
+    cloudBase: number | null,
+    cloudCover: number | null,
+    minSafeCloudBase: number,
+    maxSafeCloudCover: number,
+  ): number {
+    // If no cloud data available, return neutral score
+    if (cloudBase === null && cloudCover === null) {
+      return 100;
+    }
+
+    // Hard safety rule: cloud base < 1000ft AND cloud cover > 80%
+    if (cloudBase !== null && cloudCover !== null) {
+      if (cloudBase < minSafeCloudBase && cloudCover > maxSafeCloudCover) {
+        return 0; // No flying - low ceiling with high cloud cover
+      }
+    }
+
+    // If only cloud cover is available
+    if (cloudBase === null && cloudCover !== null) {
+      // High cloud cover can reduce visibility and create flat light
+      if (cloudCover > 90) return 50;
+      if (cloudCover > 70) return 70;
+      return 100;
+    }
+
+    // If only cloud base is available or both are available
+    if (cloudBase !== null) {
+      // Very low ceiling (< 500ft) - likely fog
+      if (cloudBase < 500) {
+        return 10; // Dangerous - likely fog
+      }
+
+      // Low ceiling (500-1000ft)
+      if (cloudBase < minSafeCloudBase) {
+        return this.linearInterpolate(cloudBase, 500, minSafeCloudBase, 10, 50);
+      }
+
+      // Marginal ceiling (1000-2000ft)
+      if (cloudBase < 2000) {
+        return this.linearInterpolate(cloudBase, minSafeCloudBase, 2000, 50, 80);
+      }
+
+      // Good ceiling (> 2000ft)
+      return 100;
+    }
+
     return 100;
   }
 

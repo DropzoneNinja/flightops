@@ -16,12 +16,16 @@ Inputs (per hour)
 * Gust speed (km/h)
 * Gust spread = gust − wind (km/h)
 * Rain (mm/hr)
+* Cloud cover (%)
+* Cloud base (feet)
 
 Mandatory Rules
 * Any hour with rain > 0.5 mm/hr must score 0
 * Any hour with wind ≥ 25 km/h must score 0
 * Any hour with gust ≥ 29 km/h must score 0
 * Any hour with gust spread ≥ 11 km/h must score ≤ 20
+* Any hour with cloud_base < 1000 ft AND cloud_cover > 80% must score 0
+* Any hour with cloud_base < 500 ft must score ≤ 10 (fog conditions)
 
 2️⃣ Weighted Component Scoring
 
@@ -30,6 +34,7 @@ Break the score into independent components, each normalised to 0–100:
 * Gust score
 * Gust spread (turbulence) score
 * Rain score
+* Cloud score
 
 Define:
 * Exact mathematical functions (piecewise or linear)
@@ -38,15 +43,24 @@ Define:
 Required Weighting
 
 Provide a final weighted score using:
-* Wind speed: 40%
-* Gust speed: 30%
+* Wind speed: 35%
+* Gust speed: 25%
 * Gust spread: 20%
 * Rain: 10%
+* Cloud: 10%
 
 The final score must be:
 * final_score = sum(component_score × weight)
 
 Clamp the output strictly to 0–100.
+
+Cloud Scoring Rules:
+* cloud_base < 500 ft → score = 10 (fog/dangerous)
+* cloud_base 500-1000 ft → score = 10-50 (linear interpolation, low ceiling)
+* cloud_base 1000-2000 ft → score = 50-80 (linear interpolation, marginal ceiling)
+* cloud_base > 2000 ft → score = 100 (good ceiling)
+* cloud_base < 1000 ft AND cloud_cover > 80% → score = 0 (hard safety rule)
+* If no cloud data available → score = 100 (neutral)
 
 3️⃣ Colour Mapping Rules (Heat Bars)
 

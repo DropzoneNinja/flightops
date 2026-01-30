@@ -30,6 +30,10 @@ export enum SettingKey {
   RAIN_DRY = 'thresholds.rain.dry',
   RAIN_DRIZZLE_MAX = 'thresholds.rain.drizzle_max',
 
+  // Cloud Thresholds
+  CLOUD_BASE_MIN_SAFE = 'thresholds.cloud.base_min_safe',
+  CLOUD_COVER_MAX_SAFE = 'thresholds.cloud.cover_max_safe',
+
   // Weather Update Settings
   WEATHER_REFRESH_FREQUENCY = 'weather.refresh_frequency',
   WEATHER_FORECAST_DAYS = 'weather.forecast_days',
@@ -170,6 +174,22 @@ export const DEFAULT_SETTINGS: DefaultSetting[] = [
     type: SettingType.NUMBER,
     description: 'Maximum rain for drizzle conditions (mm/hr)',
     category: 'Rain Thresholds',
+  },
+
+  // Cloud Thresholds
+  {
+    key: SettingKey.CLOUD_BASE_MIN_SAFE,
+    value: 1000,
+    type: SettingType.NUMBER,
+    description: 'Minimum safe cloud base height (feet)',
+    category: 'Cloud Thresholds',
+  },
+  {
+    key: SettingKey.CLOUD_COVER_MAX_SAFE,
+    value: 80,
+    type: SettingType.NUMBER,
+    description: 'Maximum safe cloud cover with low ceiling (%)',
+    category: 'Cloud Thresholds',
   },
 
   // Weather Update Settings

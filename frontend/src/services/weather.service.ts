@@ -8,10 +8,13 @@ export interface HourlyWeatherData {
   gustSpeed: number;
   gustSpread: number;
   rain: number;
+  cloudCover?: number | null;
+  cloudBase?: number | null;
   windScore: number;
   gustScore: number;
   gustSpreadScore: number;
   rainScore: number;
+  cloudScore: number;
   overallScore: number;
 }
 
@@ -30,10 +33,14 @@ export interface MultiHeightWindData {
   temperature?: number | null;
   precipitation?: number | null;
   gusts?: number | null;
+  fog?: boolean;
 }
 
 export interface MultiHeightHourlyData {
   timestamp: string;
+  cloud_base?: number | null;
+  cloud_cover?: number | null;
+  has_fog?: boolean;
   wind_10m: MultiHeightWindData;
   wind_80m: MultiHeightWindData;
   wind_120m: MultiHeightWindData;

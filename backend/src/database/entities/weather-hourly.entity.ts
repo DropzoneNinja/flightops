@@ -41,6 +41,12 @@ export class WeatherHourly {
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
   rain: number;
 
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  cloud_cover: number | null;
+
+  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
+  cloud_base: number | null;
+
   @Column({ type: 'integer' })
   wind_score: number;
 
@@ -52,6 +58,9 @@ export class WeatherHourly {
 
   @Column({ type: 'integer' })
   rain_score: number;
+
+  @Column({ type: 'integer', default: 100 })
+  cloud_score: number;
 
   @Column({ type: 'integer' })
   overall_score: number;

@@ -63,9 +63,11 @@
 
 ### 🌦️ Weather Visualization
 - **3-day forecast heat bars** for each site (green → yellow → red)
-- Detailed hourly weather breakdown with temperature, wind, gusts, and rain
+- Detailed hourly weather breakdown with temperature, wind, gusts, rain, and cloud data
 - Visual heat bars showing optimal, marginal, and unsafe flying conditions
+- **Fog indicators** in Multi-Height Wind Data display showing low cloud/fog at specific altitudes
 - Real-time weather updates via scheduled background jobs
+- Cloud ceiling and visibility warnings
 
 ### 📍 Site Management
 - Add new flight sites with coordinates (takeoff and parking locations)
@@ -91,7 +93,16 @@
 
 ## 🌦️ Weather Scoring System
 
-FlightOps implements a comprehensive PPG (Paramotor) weather scoring system based on industry safety standards. The system is designed to be conservative and trike-safe by default, with all thresholds configurable via the settings page.
+FlightOps implements a comprehensive PPG (Paramotor) weather scoring system based on industry safety standards. The system analyzes wind, gusts, turbulence, precipitation, and cloud conditions to provide accurate safety assessments. The system is designed to be conservative and trike-safe by default, with all thresholds configurable via the settings page.
+
+### Overall Scoring Formula
+
+The final safety score (0-100) is calculated using weighted components:
+- **Wind Speed**: 35%
+- **Gust Speed**: 25%
+- **Gust Spread** (turbulence): 20%
+- **Rain**: 10%
+- **Cloud Ceiling**: 10%
 
 ### Wind Speed (km/h)
 
@@ -129,6 +140,20 @@ FlightOps implements a comprehensive PPG (Paramotor) weather scoring system base
 | >0.5 | Rain | 🔴 Red |
 
 > **Note:** Any hour with rain >0.5 mm/hr is automatically marked as unsafe for flying.
+
+### Cloud Ceiling & Visibility
+
+| Cloud Base | Cloud Cover | Condition | Color | Description |
+|------------|-------------|-----------|-------|-------------|
+| >2000 ft | Any | Good Ceiling | 🟢 Green | Safe flying altitude clearance |
+| 1000-2000 ft | Any | Marginal | 🟡 Yellow | Limited vertical space |
+| 500-1000 ft | Any | Low Ceiling | 🟠 Orange | Restricted flight operations |
+| <500 ft | Any | Fog/Dangerous | 🔴 Red | Zero visibility conditions |
+| <1000 ft | >80% | No Flying | 🔴 Red | Low ceiling + high cloud cover |
+
+> **Safety Rule:** Any hour with cloud base <1000 ft AND cloud cover >80% is automatically marked as unsafe for flying. Cloud base <500 ft indicates fog conditions.
+
+> **Multi-Height Display:** Fog indicators (🌫️) appear in the Multi-Height Wind Data grid at affected altitude levels when cloud base is below that level.
 
 ---
 

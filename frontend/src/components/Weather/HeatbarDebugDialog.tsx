@@ -266,8 +266,8 @@ export default function HeatbarDebugDialog({
                       >
                         <div className="flex flex-col items-center gap-1">
                           {/* Line 1: Temperature */}
-                          <div className="flex items-center justify-start w-full text-xs">
-                            <span className="text-gray-700">
+                          <div className="flex items-center justify-between w-full text-xs">
+                            <span className="text-black font-bold">
                               {formatTemperature(hourData.wind_120m.temperature, temperatureUnit)}
                             </span>
                           </div>
@@ -277,9 +277,17 @@ export default function HeatbarDebugDialog({
                               {Math.round(hourData.wind_120m.speed)} km/h
                             </span>
                           </div>
-                          {/* Line 3: Wind Arrow */}
-                          <div className="flex items-center justify-start w-full">
+                          {/* Line 3: Wind Arrow | Fog Icon */}
+                          <div className="flex items-center justify-between w-full">
                             <WindArrow direction={hourData.wind_120m.direction} />
+                            {hourData.wind_120m.fog && (
+                              <img
+                                src="/icon-fog.png"
+                                alt="Fog/Low clouds at this level"
+                                title="Fog/Low clouds at this level"
+                                className="w-4 h-4"
+                              />
+                            )}
                           </div>
                         </div>
                       </td>
@@ -299,8 +307,8 @@ export default function HeatbarDebugDialog({
                       >
                         <div className="flex flex-col items-center gap-1">
                           {/* Line 1: Temperature */}
-                          <div className="flex items-center justify-start w-full text-xs">
-                            <span className="text-gray-700">
+                          <div className="flex items-center justify-between w-full text-xs">
+                            <span className="text-black font-bold">
                               {formatTemperature(hourData.wind_80m.temperature, temperatureUnit)}
                             </span>
                           </div>
@@ -310,9 +318,17 @@ export default function HeatbarDebugDialog({
                               {Math.round(hourData.wind_80m.speed)} km/h
                             </span>
                           </div>
-                          {/* Line 3: Wind Arrow */}
-                          <div className="flex items-center justify-start w-full">
+                          {/* Line 3: Wind Arrow | Fog Icon */}
+                          <div className="flex items-center justify-between w-full">
                             <WindArrow direction={hourData.wind_80m.direction} />
+                            {hourData.wind_80m.fog && (
+                              <img
+                                src="/icon-fog.png"
+                                alt="Fog/Low clouds at this level"
+                                title="Fog/Low clouds at this level"
+                                className="w-4 h-4"
+                              />
+                            )}
                           </div>
                         </div>
                       </td>
@@ -342,7 +358,7 @@ export default function HeatbarDebugDialog({
                           <div className="flex flex-col items-center gap-1">
                             {/* Line 1: Temperature | Rain Icon */}
                             <div className="flex items-center justify-between w-full text-xs">
-                              <span className="text-gray-700 font-bold">
+                              <span className="text-black font-bold">
                                 {formatTemperature(hourData.wind_10m.temperature, temperatureUnit)}
                               </span>
                               {hasRain && (
@@ -360,9 +376,17 @@ export default function HeatbarDebugDialog({
                                 {Math.round(hourData.wind_10m.speed)} km/h
                               </span>
                             </div>
-                            {/* Line 3: Wind Arrow | Gusts Icon */}
+                            {/* Line 3: Wind Arrow | Fog Icon | Gusts Icon */}
                             <div className="flex items-center justify-between w-full">
                               <WindArrow direction={hourData.wind_10m.direction} />
+                              {hourData.wind_10m.fog && (
+                                <img
+                                  src="/icon-fog.png"
+                                  alt="Fog/Low clouds at surface level"
+                                  title="Fog/Low clouds at surface level"
+                                  className="w-4 h-4"
+                                />
+                              )}
                               {hourData.wind_10m.gusts !== null &&
                                hourData.wind_10m.gusts !== undefined &&
                                hourData.wind_10m.gusts > gustThreshold && (

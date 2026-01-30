@@ -175,15 +175,38 @@ export class WeatherProcessorService {
         const windDirection = hourlyData.wind_direction_10m[index];
         const gustSpeed = hourlyData.wind_gusts_10m[index];
         const rain = hourlyData.precipitation[index];
+        const cloudCover = hourlyData.cloud_cover?.[index] ?? null;
+        const cloudCoverLow = hourlyData.cloud_cover_low?.[index] ?? null;
 
         // Calculate gust spread
         const gustSpread = gustSpeed - windSpeed;
+
+        // Estimate cloud base from low-level cloud cover
+        // High low-level cloud cover indicates low cloud base
+        let cloudBase: number | null = null;
+        if (cloudCoverLow !== null && cloudCoverLow > 10) {
+          // Estimate cloud base in feet based on low-level cloud percentage
+          // Higher percentage = lower base
+          // cloud_cover_low represents 0-3km (0-9843ft)
+          // Rough estimate: 80%+ → ~300ft, 50% → ~1500ft, 20% → ~3000ft
+          if (cloudCoverLow >= 80) {
+            cloudBase = 300; // Very low ceiling, likely fog
+          } else if (cloudCoverLow >= 60) {
+            cloudBase = 800; // Low ceiling
+          } else if (cloudCoverLow >= 40) {
+            cloudBase = 1500; // Moderate low ceiling
+          } else {
+            cloudBase = 3000; // Higher cloud base in low layer
+          }
+        }
 
         // Calculate PPG safety scores
         const scores = await this.scoringService.calculateScores(
           windSpeed,
           gustSpeed,
           rain,
+          cloudBase,
+          cloudCover,
         );
 
         return this.hourlyRepository.create({
@@ -195,10 +218,13 @@ export class WeatherProcessorService {
           gust_speed: gustSpeed,
           gust_spread: gustSpread,
           rain,
+          cloud_cover: cloudCover,
+          cloud_base: cloudBase,
           wind_score: scores.wind_score,
           gust_score: scores.gust_score,
           gust_spread_score: scores.gust_spread_score,
           rain_score: scores.rain_score,
+          cloud_score: scores.cloud_score,
           overall_score: scores.overall_score,
         });
       }),

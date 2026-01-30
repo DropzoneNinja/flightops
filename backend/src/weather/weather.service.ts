@@ -224,10 +224,13 @@ export class WeatherService {
         gustSpeed: parseFloat(hourly.gust_speed.toString()),
         gustSpread: parseFloat(hourly.gust_spread.toString()),
         rain: parseFloat(hourly.rain.toString()),
+        cloudCover: hourly.cloud_cover !== null ? parseFloat(hourly.cloud_cover.toString()) : null,
+        cloudBase: hourly.cloud_base !== null ? parseFloat(hourly.cloud_base.toString()) : null,
         windScore: hourly.wind_score,
         gustScore: hourly.gust_score,
         gustSpreadScore: hourly.gust_spread_score,
         rainScore: hourly.rain_score,
+        cloudScore: hourly.cloud_score,
         overallScore: hourly.overall_score,
       })),
     };
@@ -319,9 +322,28 @@ export class WeatherService {
       temperature_120m,
       precipitation,
       wind_gusts_10m,
+      cloud_cover,
+      cloud_cover_low,
     } = openMeteoData.hourly;
 
     return time.map((timestamp, index) => {
+      const cloudCover = cloud_cover?.[index] ?? null;
+      const cloudCoverLow = cloud_cover_low?.[index] ?? null;
+
+      // Estimate cloud base from low-level cloud cover
+      let cloudBase: number | null = null;
+      if (cloudCoverLow !== null && cloudCoverLow > 10) {
+        if (cloudCoverLow >= 80) {
+          cloudBase = 300; // Very low ceiling, likely fog
+        } else if (cloudCoverLow >= 60) {
+          cloudBase = 800; // Low ceiling
+        } else if (cloudCoverLow >= 40) {
+          cloudBase = 1500; // Moderate low ceiling
+        } else {
+          cloudBase = 3000; // Higher cloud base in low layer
+        }
+      }
+
       return this.multiHeightRepository.create({
         forecast_id: forecastId,
         timestamp: new Date(timestamp),
@@ -336,6 +358,8 @@ export class WeatherService {
         temperature_120m: temperature_120m?.[index] ?? null,
         precipitation: precipitation?.[index] ?? null,
         wind_gusts_10m: wind_gusts_10m?.[index] ?? null,
+        cloud_cover: cloudCover,
+        cloud_base: cloudBase,
       });
     });
   }
@@ -348,36 +372,60 @@ export class WeatherService {
       date: forecast.forecast_date,
       sunrise: forecast.sunrise,
       sunset: forecast.sunset,
-      hourlyData: forecast.multi_height_data.map((data) => ({
-        timestamp: data.timestamp,
-        wind_10m: {
-          speed: parseFloat(data.wind_speed_10m.toString()),
-          direction: parseFloat(data.wind_direction_10m.toString()),
-          temperature: data.temperature_2m
-            ? parseFloat(data.temperature_2m.toString())
-            : null,
-          precipitation: data.precipitation
-            ? parseFloat(data.precipitation.toString())
-            : null,
-          gusts: data.wind_gusts_10m
-            ? parseFloat(data.wind_gusts_10m.toString())
-            : null,
-        },
-        wind_80m: {
-          speed: parseFloat(data.wind_speed_80m.toString()),
-          direction: parseFloat(data.wind_direction_80m.toString()),
-          temperature: data.temperature_80m
-            ? parseFloat(data.temperature_80m.toString())
-            : null,
-        },
-        wind_120m: {
-          speed: parseFloat(data.wind_speed_120m.toString()),
-          direction: parseFloat(data.wind_direction_120m.toString()),
-          temperature: data.temperature_120m
-            ? parseFloat(data.temperature_120m.toString())
-            : null,
-        },
-      })),
+      hourlyData: forecast.multi_height_data.map((data) => {
+        const cloudBase = data.cloud_base
+          ? parseFloat(data.cloud_base.toString())
+          : null;
+        const cloudCover = data.cloud_cover
+          ? parseFloat(data.cloud_cover.toString())
+          : null;
+
+        // Determine fog conditions
+        // Fog is indicated when cloud base < 500ft
+        const hasFog = cloudBase !== null && cloudBase < 500;
+
+        // Determine which height levels are affected by fog/low clouds
+        const fogAtSurface = hasFog; // 10m/33ft
+        const fogAt80m = cloudBase !== null && cloudBase < 262; // 80m = 262ft
+        const fogAt120m = cloudBase !== null && cloudBase < 394; // 120m = 394ft
+
+        return {
+          timestamp: data.timestamp,
+          cloud_base: cloudBase,
+          cloud_cover: cloudCover,
+          has_fog: hasFog,
+          wind_10m: {
+            speed: parseFloat(data.wind_speed_10m.toString()),
+            direction: parseFloat(data.wind_direction_10m.toString()),
+            temperature: data.temperature_2m
+              ? parseFloat(data.temperature_2m.toString())
+              : null,
+            precipitation: data.precipitation
+              ? parseFloat(data.precipitation.toString())
+              : null,
+            gusts: data.wind_gusts_10m
+              ? parseFloat(data.wind_gusts_10m.toString())
+              : null,
+            fog: fogAtSurface,
+          },
+          wind_80m: {
+            speed: parseFloat(data.wind_speed_80m.toString()),
+            direction: parseFloat(data.wind_direction_80m.toString()),
+            temperature: data.temperature_80m
+              ? parseFloat(data.temperature_80m.toString())
+              : null,
+            fog: fogAt80m,
+          },
+          wind_120m: {
+            speed: parseFloat(data.wind_speed_120m.toString()),
+            direction: parseFloat(data.wind_direction_120m.toString()),
+            temperature: data.temperature_120m
+              ? parseFloat(data.temperature_120m.toString())
+              : null,
+            fog: fogAt120m,
+          },
+        };
+      }),
     };
   }
 }

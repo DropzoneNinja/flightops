@@ -62,6 +62,13 @@ export class WeatherMultiHeight {
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
   wind_gusts_10m: number | null;
 
+  // Cloud data
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  cloud_cover: number | null;
+
+  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
+  cloud_base: number | null;
+
   @CreateDateColumn()
   created_at: Date;
 
