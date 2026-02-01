@@ -6,17 +6,24 @@ import {
   Body,
   Param,
   UseGuards,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import { UpdateSettingDto, UpdateSettingsDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { DEFAULT_SETTINGS } from './constants/default-settings';
+import { BackupJob } from '../backup/jobs/backup.job';
 
 @Controller('settings')
 @UseGuards(JwtAuthGuard)
 export class SettingsController {
-  constructor(private readonly settingsService: SettingsService) {}
+  constructor(
+    private readonly settingsService: SettingsService,
+    @Inject(forwardRef(() => BackupJob))
+    private readonly backupJob: BackupJob,
+  ) {}
 
   /**
    * GET /settings
@@ -60,11 +67,18 @@ export class SettingsController {
    */
   @Put(':key')
   @UseGuards(AdminGuard)
-  update(
+  async update(
     @Param('key') key: string,
     @Body() updateSettingDto: UpdateSettingDto,
   ) {
-    return this.settingsService.update(key, updateSettingDto);
+    const result = await this.settingsService.update(key, updateSettingDto);
+
+    // If backup setting was updated, refresh backup schedule
+    if (key.startsWith('backup.')) {
+      await this.backupJob.updateSchedule();
+    }
+
+    return result;
   }
 
   /**
@@ -73,10 +87,20 @@ export class SettingsController {
    */
   @Put()
   @UseGuards(AdminGuard)
-  updateMany(
+  async updateMany(
     @Body() updateSettingsDto: UpdateSettingsDto,
   ) {
-    return this.settingsService.updateMany(updateSettingsDto.settings);
+    const result = await this.settingsService.updateMany(updateSettingsDto.settings);
+
+    // If any backup setting was updated, refresh backup schedule
+    const hasBackupSettings = updateSettingsDto.settings.some(s =>
+      s.setting_key.startsWith('backup.')
+    );
+    if (hasBackupSettings) {
+      await this.backupJob.updateSchedule();
+    }
+
+    return result;
   }
 
   /**

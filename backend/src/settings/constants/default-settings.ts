@@ -52,6 +52,13 @@ export enum SettingKey {
 
   // Debug Settings
   HEATBAR_DEBUG_MODE = 'debug.heatbar_debug_mode',
+
+  // Backup Settings
+  BACKUP_ENABLED = 'backup.enabled',
+  BACKUP_FREQUENCY = 'backup.frequency',
+  BACKUP_TIME = 'backup.time',
+  BACKUP_DAY_OF_WEEK = 'backup.day_of_week',
+  BACKUP_DAY_OF_MONTH = 'backup.day_of_month',
 }
 
 export enum SettingType {
@@ -263,6 +270,43 @@ export const DEFAULT_SETTINGS: DefaultSetting[] = [
     type: SettingType.BOOLEAN,
     description: 'Show multi-height wind data grid in detail view',
     category: 'Debug',
+  },
+
+  // Backup Settings
+  {
+    key: SettingKey.BACKUP_ENABLED,
+    value: false,
+    type: SettingType.BOOLEAN,
+    description: 'Enable automated database backups',
+    category: 'Database Backup',
+  },
+  {
+    key: SettingKey.BACKUP_FREQUENCY,
+    value: 'daily',
+    type: SettingType.STRING,
+    description: 'Backup frequency (daily, weekly, or monthly)',
+    category: 'Database Backup',
+  },
+  {
+    key: SettingKey.BACKUP_TIME,
+    value: '02:00',
+    type: SettingType.STRING,
+    description: 'Time of day for backup (HH:mm format, 24-hour)',
+    category: 'Database Backup',
+  },
+  {
+    key: SettingKey.BACKUP_DAY_OF_WEEK,
+    value: '0',
+    type: SettingType.STRING,
+    description: 'Day of week for weekly backups (0=Sunday, 6=Saturday)',
+    category: 'Database Backup',
+  },
+  {
+    key: SettingKey.BACKUP_DAY_OF_MONTH,
+    value: '1',
+    type: SettingType.STRING,
+    description: 'Day of month for monthly backups (1-28)',
+    category: 'Database Backup',
   },
 ];
 

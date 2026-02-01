@@ -12,6 +12,7 @@ import { SitesModule } from './sites/sites.module';
 import { SettingsModule } from './settings/settings.module';
 import { WeatherModule } from './weather/weather.module';
 import { AirspaceModule } from './airspace/airspace.module';
+import { BackupModule } from './backup/backup.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { AirspaceModule } from './airspace/airspace.module';
     SettingsModule,
     WeatherModule,
     AirspaceModule,
+    BackupModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -32,6 +32,13 @@ export enum SettingKey {
 
   // Debug Settings
   HEATBAR_DEBUG_MODE = 'debug.heatbar_debug_mode',
+
+  // Backup Settings
+  BACKUP_ENABLED = 'backup.enabled',
+  BACKUP_FREQUENCY = 'backup.frequency',
+  BACKUP_TIME = 'backup.time',
+  BACKUP_DAY_OF_WEEK = 'backup.day_of_week',
+  BACKUP_DAY_OF_MONTH = 'backup.day_of_month',
 }
 
 export enum SettingType {

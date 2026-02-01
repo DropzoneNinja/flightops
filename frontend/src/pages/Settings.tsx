@@ -7,6 +7,7 @@ import { preAuthorizedEmailsService, PreAuthorizedEmail } from '../services/pre-
 import { usersService, UserData } from '../services/users.service';
 import { weatherService, WeatherApiStats } from '../services/weather.service';
 import { useSites } from '../hooks/useSites';
+import { backupService, BackupStatus } from '../services/backup.service';
 
 export default function Settings() {
   const { settings, defaults, isLoading, updateManyMutation, resetToDefaultsMutation } =
@@ -30,6 +31,11 @@ export default function Settings() {
   // Weather API stats state (admin only)
   const [weatherStats, setWeatherStats] = useState<WeatherApiStats | null>(null);
   const [loadingWeatherStats, setLoadingWeatherStats] = useState(false);
+
+  // Backup state (admin only)
+  const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
+  const [loadingBackupStatus, setLoadingBackupStatus] = useState(false);
+  const [triggeringBackup, setTriggeringBackup] = useState(false);
 
   // Sites management (admin only)
   const { sites, isLoading: isLoadingSites, deleteSiteMutation, updateSiteMutation, toggleSiteEnabledMutation } = useSites();
@@ -255,6 +261,43 @@ export default function Settings() {
         console.error('Failed to reset weather stats:', error);
         alert('Failed to reset statistics. Please try again.');
       }
+    }
+  };
+
+  // Load backup status (admin only)
+  useEffect(() => {
+    if (user?.is_admin) {
+      loadBackupStatus();
+    }
+  }, [user?.is_admin]);
+
+  const loadBackupStatus = async () => {
+    try {
+      setLoadingBackupStatus(true);
+      const status = await backupService.getStatus();
+      setBackupStatus(status);
+    } catch (error) {
+      console.error('Failed to load backup status:', error);
+    } finally {
+      setLoadingBackupStatus(false);
+    }
+  };
+
+  const handleManualBackup = async () => {
+    if (!window.confirm('Start a manual database backup now?')) {
+      return;
+    }
+
+    try {
+      setTriggeringBackup(true);
+      await backupService.triggerManualBackup();
+      await loadBackupStatus();
+      alert('Database backup completed successfully!');
+    } catch (error: any) {
+      console.error('Failed to trigger backup:', error);
+      alert(error.response?.data?.message || 'Failed to trigger backup. Please try again.');
+    } finally {
+      setTriggeringBackup(false);
     }
   };
 
@@ -843,6 +886,227 @@ export default function Settings() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Database Backup (Admin Only) */}
+        {user?.is_admin && (
+          <div className="mb-8 bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Database Backup
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Configure automated database backups
+              </p>
+            </div>
+
+            <div className="px-6 py-4 space-y-6">
+              {/* Last Backup Status */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                  Last Backup Status
+                </h3>
+                {loadingBackupStatus ? (
+                  <div className="text-center py-4">
+                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : backupStatus?.lastBackup ? (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Status:</span>
+                      <span className={`font-semibold ${
+                        backupStatus.lastBackup.status === 'success'
+                          ? 'text-green-600'
+                          : backupStatus.lastBackup.status === 'failed'
+                          ? 'text-red-600'
+                          : 'text-yellow-600'
+                      }`}>
+                        {backupStatus.lastBackup.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Type:</span>
+                      <span className="text-gray-900 font-medium">
+                        {backupStatus.lastBackup.type === 'manual' ? 'Manual' : 'Scheduled'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Timestamp:</span>
+                      <span className="text-gray-900 font-mono">
+                        {new Date(backupStatus.lastBackup.timestamp).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Filename:</span>
+                      <span className="text-gray-900 font-mono text-xs">
+                        {backupStatus.lastBackup.filename}
+                      </span>
+                    </div>
+                    {backupStatus.lastBackup.fileSize && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Size:</span>
+                        <span className="text-gray-900">
+                          {(backupStatus.lastBackup.fileSize / 1024 / 1024).toFixed(2)} MB
+                        </span>
+                      </div>
+                    )}
+                    {backupStatus.lastBackup.duration && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Duration:</span>
+                        <span className="text-gray-900">
+                          {(backupStatus.lastBackup.duration / 1000).toFixed(2)}s
+                        </span>
+                      </div>
+                    )}
+                    {backupStatus.lastBackup.error && (
+                      <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
+                        <span className="text-xs text-red-700 font-mono">
+                          {backupStatus.lastBackup.error}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No backups have been performed yet.</p>
+                )}
+
+                {/* Manual Backup Button */}
+                <button
+                  onClick={handleManualBackup}
+                  disabled={triggeringBackup}
+                  className="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {triggeringBackup ? 'Backing up...' : 'Run Manual Backup Now'}
+                </button>
+              </div>
+
+              {/* Backup Settings */}
+              {settingsByCategory['Database Backup']?.map((setting) => {
+                const defaultSetting = defaults.find(
+                  (d) => d.key === setting.setting_key,
+                );
+                const currentValue =
+                  editedValues[setting.setting_key] !== undefined
+                    ? editedValues[setting.setting_key]
+                    : setting.setting_value;
+
+                // Get frequency value (for conditional rendering)
+                const frequencyValue = editedValues['backup.frequency'] !== undefined
+                  ? editedValues['backup.frequency']
+                  : settingsByCategory['Database Backup']?.find(s => s.setting_key === 'backup.frequency')?.setting_value;
+
+                return (
+                  <div key={setting.id} className="space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          {defaultSetting?.description || setting.setting_key}
+                        </label>
+                      </div>
+                    </div>
+
+                    {setting.setting_type === SettingType.BOOLEAN ? (
+                      <div className="flex items-center">
+                        <button
+                          onClick={() =>
+                            handleValueChange(
+                              setting.setting_key,
+                              currentValue === 'true' ? 'false' : 'true',
+                            )
+                          }
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            currentValue === 'true'
+                              ? 'bg-blue-600'
+                              : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              currentValue === 'true'
+                                ? 'translate-x-6'
+                                : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                        <span className="ml-3 text-sm text-gray-600">
+                          {currentValue === 'true' ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </div>
+                    ) : setting.setting_key === 'backup.frequency' ? (
+                      <select
+                        value={currentValue}
+                        onChange={(e) =>
+                          handleValueChange(setting.setting_key, e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    ) : setting.setting_key === 'backup.day_of_week' ? (
+                      <select
+                        value={currentValue}
+                        onChange={(e) =>
+                          handleValueChange(setting.setting_key, e.target.value)
+                        }
+                        disabled={frequencyValue !== 'weekly'}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      >
+                        <option value="0">Sunday</option>
+                        <option value="1">Monday</option>
+                        <option value="2">Tuesday</option>
+                        <option value="3">Wednesday</option>
+                        <option value="4">Thursday</option>
+                        <option value="5">Friday</option>
+                        <option value="6">Saturday</option>
+                      </select>
+                    ) : setting.setting_key === 'backup.day_of_month' ? (
+                      <select
+                        value={currentValue}
+                        onChange={(e) =>
+                          handleValueChange(setting.setting_key, e.target.value)
+                        }
+                        disabled={frequencyValue !== 'monthly'}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      >
+                        {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                          <option key={day} value={day}>
+                            {day}
+                          </option>
+                        ))}
+                      </select>
+                    ) : setting.setting_key === 'backup.time' ? (
+                      <input
+                        type="time"
+                        value={currentValue}
+                        onChange={(e) =>
+                          handleValueChange(setting.setting_key, e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={currentValue}
+                        onChange={(e) =>
+                          handleValueChange(setting.setting_key, e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+
+              <div className="pt-4 border-t border-gray-200">
+                <p className="text-xs text-gray-500 italic">
+                  Note: Backup files are stored in the configured BACKUP_DIR and must be managed manually.
+                  No automatic file pruning is performed.
+                </p>
+              </div>
             </div>
           </div>
         )}

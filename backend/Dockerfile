@@ -23,6 +23,9 @@ RUN ls -la /app/dist/assets/ || echo "Warning: No assets directory found"
 # Production stage
 FROM node:20-alpine
 
+# Install PostgreSQL client tools for pg_dump
+RUN apk add --no-cache postgresql-client
+
 WORKDIR /app
 
 # Copy package files

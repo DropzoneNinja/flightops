@@ -122,7 +122,8 @@ export const weatherService = {
    * @param onUpdate Callback when weather is updated for a site
    */
   connectToWeatherUpdates(onUpdate: (siteId: string) => void): EventSource {
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    // Use the same base URL as the rest of the API for consistency
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
 
     // Note: EventSource doesn't support custom headers,
     // so auth relies on cookies being sent via withCredentials

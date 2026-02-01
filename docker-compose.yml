@@ -10,6 +10,7 @@ services:
       TZ: ${TIMEZONE}
     volumes:
       - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data
+      - ${BACKUP_DIR:-./backups}:/backups
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flightops}"]
       interval: 10s
@@ -37,11 +38,15 @@ services:
       TZ: ${TIMEZONE}
       # Force Node.js to prefer IPv4 over IPv6 (fixes ETIMEDOUT with IPv6 routing issues)
       NODE_OPTIONS: "--dns-result-order=ipv4first"
+      BACKUP_DIR: /backups
+      POSTGRES_CONTAINER_NAME: flightops-postgres
     # DNS servers for external API access (Open-Meteo)
     dns:
       - 8.8.8.8      # Google DNS primary
       - 8.8.4.4      # Google DNS secondary
       - 1.1.1.1      # Cloudflare DNS
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
     depends_on:
       postgres:
         condition: service_healthy
