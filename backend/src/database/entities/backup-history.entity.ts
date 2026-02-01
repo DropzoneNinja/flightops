@@ -15,6 +15,7 @@ export enum BackupStatus {
 export enum BackupType {
   MANUAL = 'manual',
   SCHEDULED = 'scheduled',
+  PRE_RESTORE = 'pre-restore',
 }
 
 @Entity('backup_history')

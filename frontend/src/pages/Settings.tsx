@@ -7,7 +7,8 @@ import { preAuthorizedEmailsService, PreAuthorizedEmail } from '../services/pre-
 import { usersService, UserData } from '../services/users.service';
 import { weatherService, WeatherApiStats } from '../services/weather.service';
 import { useSites } from '../hooks/useSites';
-import { backupService, BackupStatus } from '../services/backup.service';
+import { backupService, BackupStatus, BackupFileInfo } from '../services/backup.service';
+import { RestoreModal } from '../components/RestoreModal';
 
 export default function Settings() {
   const { settings, defaults, isLoading, updateManyMutation, resetToDefaultsMutation } =
@@ -36,6 +37,9 @@ export default function Settings() {
   const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
   const [loadingBackupStatus, setLoadingBackupStatus] = useState(false);
   const [triggeringBackup, setTriggeringBackup] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [backupFiles, setBackupFiles] = useState<BackupFileInfo[]>([]);
+  const [loadingBackupFiles, setLoadingBackupFiles] = useState(false);
 
   // Sites management (admin only)
   const { sites, isLoading: isLoadingSites, deleteSiteMutation, updateSiteMutation, toggleSiteEnabledMutation } = useSites();
@@ -298,6 +302,18 @@ export default function Settings() {
       alert(error.response?.data?.message || 'Failed to trigger backup. Please try again.');
     } finally {
       setTriggeringBackup(false);
+    }
+  };
+
+  const loadBackupFiles = async () => {
+    try {
+      setLoadingBackupFiles(true);
+      const { files } = await backupService.listFiles();
+      setBackupFiles(files);
+    } catch (error) {
+      console.error('Failed to load backup files:', error);
+    } finally {
+      setLoadingBackupFiles(false);
     }
   };
 
@@ -980,6 +996,18 @@ export default function Settings() {
                 >
                   {triggeringBackup ? 'Backing up...' : 'Run Manual Backup Now'}
                 </button>
+
+                {/* Restore Database Button */}
+                <button
+                  onClick={() => {
+                    loadBackupFiles();
+                    setShowRestoreModal(true);
+                  }}
+                  disabled={loadingBackupFiles}
+                  className="mt-2 w-full px-4 py-2 bg-red-600 text-white rounded-md font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingBackupFiles ? 'Loading...' : 'Restore Database'}
+                </button>
               </div>
 
               {/* Backup Settings */}
@@ -1108,6 +1136,19 @@ export default function Settings() {
                 </p>
               </div>
             </div>
+
+            {/* Restore Modal */}
+            {showRestoreModal && (
+              <RestoreModal
+                isOpen={showRestoreModal}
+                onClose={() => setShowRestoreModal(false)}
+                onSuccess={() => {
+                  // Reload the entire page to refresh all data after restore
+                  window.location.reload();
+                }}
+                existingBackups={backupFiles}
+              />
+            )}
           </div>
         )}
 

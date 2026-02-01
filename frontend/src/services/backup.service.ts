@@ -16,11 +16,18 @@ export interface BackupHistoryItem {
   id: string;
   filename: string;
   status: 'success' | 'failed' | 'in_progress';
-  type: 'manual' | 'scheduled';
+  type: 'manual' | 'scheduled' | 'pre-restore';
   created_at: string;
   file_size_bytes: number | null;
   duration_ms: number | null;
   error_message: string | null;
+}
+
+export interface BackupFileInfo {
+  filename: string;
+  size: number;
+  created: string;
+  isValid: boolean;
 }
 
 export const backupService = {
@@ -53,6 +60,38 @@ export const backupService = {
    */
   async updateSchedule(): Promise<{ message: string }> {
     const response = await api.post('/backup/update-schedule');
+    return response.data;
+  },
+
+  /**
+   * List available backup files
+   */
+  async listFiles(): Promise<{ files: BackupFileInfo[] }> {
+    const response = await api.get('/backup/files');
+    return response.data;
+  },
+
+  /**
+   * Restore database from existing backup file
+   */
+  async restoreFromBackup(filename: string): Promise<{ message: string; preRestoreBackup: string }> {
+    const response = await api.post('/backup/restore', { filename });
+    return response.data;
+  },
+
+  /**
+   * Upload backup file and optionally restore immediately
+   */
+  async uploadBackup(file: File, restoreImmediately: boolean): Promise<{ message: string; filename: string; preRestoreBackup?: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('restoreImmediately', restoreImmediately.toString());
+
+    const response = await api.post('/backup/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 };
