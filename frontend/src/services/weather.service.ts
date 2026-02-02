@@ -125,14 +125,15 @@ export const weatherService = {
     // Use the same base URL as the rest of the API for consistency
     const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
 
-    // Note: EventSource doesn't support custom headers,
-    // so auth relies on cookies being sent via withCredentials
-    const eventSource = new EventSource(
-      `${baseUrl}/weather/events`,
-      {
-        withCredentials: true,
-      }
-    );
+    // EventSource doesn't support custom headers, so we pass the token as a query parameter
+    const token = localStorage.getItem('access_token');
+    const url = token
+      ? `${baseUrl}/weather/events?token=${encodeURIComponent(token)}`
+      : `${baseUrl}/weather/events`;
+
+    const eventSource = new EventSource(url, {
+      withCredentials: true,
+    });
 
     eventSource.addEventListener('weather-update', (event) => {
       try {
