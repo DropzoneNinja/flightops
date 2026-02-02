@@ -5,6 +5,7 @@ import { LatLng } from 'leaflet';
 import { useSites } from '../hooks/useSites';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
+import { useIsMobile } from '../hooks/useIsMobile';
 import SiteMarker from '../components/Site/SiteMarker';
 import AddSitePanel from '../components/Site/AddSitePanel';
 import AirspaceOverlay from '../components/Airspace/AirspaceOverlay';
@@ -13,6 +14,11 @@ import AirspaceLayerVisualization from '../components/Airspace/AirspaceLayerVisu
 import PlotOverlay from '../components/Plot/PlotOverlay';
 import TotalDistanceMarker from '../components/Plot/TotalDistanceMarker';
 import PlotControls from '../components/Plot/PlotControls';
+import BottomNavigationBar from '../components/Mobile/BottomNavigationBar';
+import WeatherStatusBanner from '../components/Mobile/WeatherStatusBanner';
+import MobileAddSiteSheet from '../components/Mobile/MobileAddSiteSheet';
+import MobileToolsSheet from '../components/Mobile/MobileToolsSheet';
+import MobileMultiHeightDialog from '../components/Mobile/MobileMultiHeightDialog';
 import { useAirspace } from '../hooks/useAirspace';
 import { AirspaceClass } from '../services/airspace.service';
 import { FlightSite } from '../services/sites.service';
@@ -126,31 +132,23 @@ export default function MapView() {
   const [isPlotClosed, setIsPlotClosed] = useState(false);
   const [showPlotLabels, setShowPlotLabels] = useState(true);
 
+  // Mobile state
+  const isMobile = useIsMobile(900);
+  const [mobileActiveTab, setMobileActiveTab] = useState<'map' | 'sites' | 'logout' | 'tools'>('map');
+  const [selectedMobileSite, setSelectedMobileSite] = useState<FlightSite | null>(null);
+  const [showMobileMultiHeight, setShowMobileMultiHeight] = useState(false);
+  const [selectedMobileHeightForecast, setSelectedMobileHeightForecast] = useState<any>(null);
+
   // Update state when settings are loaded
   useEffect(() => {
-    console.log('🗺️ [MapView] Settings effect triggered');
-    console.log('  - isLoadingMap:', isLoadingMap);
-    console.log('  - settingsMap:', settingsMap);
-    console.log('  - settingsMap keys:', Object.keys(settingsMap || {}));
-
     if (!isLoadingMap && settingsMap) {
-      console.log('  ✅ [MapView] Applying settings...');
-
       if (settingsMap['map.show_zoom_indicator'] !== undefined) {
-        console.log('    - Setting showZoomIndicator to:', settingsMap['map.show_zoom_indicator'], typeof settingsMap['map.show_zoom_indicator']);
         setShowZoomIndicator(settingsMap['map.show_zoom_indicator']);
-      } else {
-        console.log('    ⚠️ [MapView] map.show_zoom_indicator is undefined!');
       }
 
       if (settingsMap['map.parking_icon_zoom_level'] !== undefined) {
-        console.log('    - Setting parkingIconZoomLevel to:', settingsMap['map.parking_icon_zoom_level'], typeof settingsMap['map.parking_icon_zoom_level']);
         setParkingIconZoomLevel(settingsMap['map.parking_icon_zoom_level']);
-      } else {
-        console.log('    ⚠️ [MapView] map.parking_icon_zoom_level is undefined!');
       }
-    } else {
-      console.log('  ⏳ [MapView] Still loading or no settingsMap');
     }
   }, [settingsMap, isLoadingMap]);
 
@@ -243,14 +241,19 @@ export default function MapView() {
       setIsPlotClosed(false);
     }
 
-    // Turn on airspace if not already showing
-    if (!showAirspace) {
-      setShowAirspace(true);
+    // Mobile: Set selected site
+    if (isMobile) {
+      setSelectedMobileSite(site);
+    } else {
+      // Desktop: Turn on airspace if not already showing
+      if (!showAirspace) {
+        setShowAirspace(true);
+      }
+      // Clear selected plot node when switching sites
+      setSelectedPlotNode(null);
+      // Set selected site (one visualization at a time)
+      setSelectedSiteForAirspace(site);
     }
-    // Clear selected plot node when switching sites
-    setSelectedPlotNode(null);
-    // Set selected site (one visualization at a time)
-    setSelectedSiteForAirspace(site);
   };
 
   const handleCloseAirspaceVisualization = () => {
@@ -396,8 +399,9 @@ export default function MapView() {
         }
       `}</style>
 
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b-2 border-gray-200 z-10">
+      {/* Desktop Header - Hidden on mobile */}
+      {!isMobile && (
+        <div className="bg-white shadow-sm border-b-2 border-gray-200 z-10">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="border-r-2 border-gray-300 pr-6 flex items-center gap-4">
@@ -470,6 +474,12 @@ export default function MapView() {
           </div>
         </div>
       </div>
+      )}
+
+      {/* Mobile Site Name Banner - Show only on mobile when site is selected */}
+      {isMobile && selectedMobileSite && (
+        <WeatherStatusBanner site={selectedMobileSite} />
+      )}
 
       {/* Map */}
       <div className="flex-1 relative">
@@ -521,6 +531,15 @@ export default function MapView() {
                 parkingIconZoomLevel={parkingIconZoomLevel}
                 onTakeoffClick={handleTakeoffClick}
                 isSelectedForAirspace={selectedSiteForAirspace?.id === site.id}
+                onMobileDayClick={isMobile ? (forecast) => {
+                  // Set the selected site if not already set
+                  if (selectedMobileSite?.id !== site.id) {
+                    setSelectedMobileSite(site);
+                  }
+                  // Open mobile multi-height dialog directly
+                  setSelectedMobileHeightForecast(forecast);
+                  setShowMobileMultiHeight(true);
+                } : undefined}
               />
             ))}
 
@@ -595,38 +614,41 @@ export default function MapView() {
           </MapContainer>
         )}
 
-        {/* Zoom Indicator */}
-        {showZoomIndicator && !isLoading && (
-          <div className="absolute bottom-4 left-4 bg-white px-4 py-2 rounded-lg shadow-lg border-2 border-gray-300 z-[500]">
-            <div className="text-sm font-semibold text-gray-700">
-              Zoom Level: {currentZoom}
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              Parking icons: {currentZoom >= parkingIconZoomLevel ? 'ON' : 'OFF'}
-            </div>
-          </div>
-        )}
+        {/* Desktop Overlays - Hidden on mobile */}
+        {!isMobile && (
+          <>
+            {/* Zoom Indicator */}
+            {showZoomIndicator && !isLoading && (
+              <div className="absolute bottom-4 left-4 bg-white px-4 py-2 rounded-lg shadow-lg border-2 border-gray-300 z-[500]">
+                <div className="text-sm font-semibold text-gray-700">
+                  Zoom Level: {currentZoom}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Parking icons: {currentZoom >= parkingIconZoomLevel ? 'ON' : 'OFF'}
+                </div>
+              </div>
+            )}
 
-        {/* Airspace class filter */}
-        {showAirspace && !isLoading && (
-          <AirspaceClassFilter
-            enabledClasses={enabledAirspaceClasses}
-            onToggleClass={handleToggleAirspaceClass}
-          />
-        )}
+            {/* Airspace class filter */}
+            {showAirspace && !isLoading && (
+              <AirspaceClassFilter
+                enabledClasses={enabledAirspaceClasses}
+                onToggleClass={handleToggleAirspaceClass}
+              />
+            )}
 
-        {/* Airspace layer visualization */}
-        {selectedSiteForAirspace && showAirspace && airspace && (
-          <AirspaceLayerVisualization
-            site={selectedSiteForAirspace}
-            airspace={airspace}
-            onClose={handleCloseAirspaceVisualization}
-            selectedPlotNode={selectedPlotNode}
-          />
-        )}
+            {/* Airspace layer visualization */}
+            {selectedSiteForAirspace && showAirspace && airspace && (
+              <AirspaceLayerVisualization
+                site={selectedSiteForAirspace}
+                airspace={airspace}
+                onClose={handleCloseAirspaceVisualization}
+                selectedPlotNode={selectedPlotNode}
+              />
+            )}
 
-        {/* Plot controls */}
-        {isPlottingMode && selectedSiteForPlot && (
+            {/* Plot controls */}
+            {isPlottingMode && selectedSiteForPlot && (
           <PlotControls
             site={selectedSiteForPlot}
             currentPoints={currentPlotPoints}
@@ -646,10 +668,13 @@ export default function MapView() {
             isSaving={updateSiteMutation.isPending}
           />
         )}
+          </>
+        )}
       </div>
 
-      {/* Add Site Panel */}
-      <AddSitePanel
+      {/* Desktop Add Site Panel - Hidden on mobile */}
+      {!isMobile && (
+        <AddSitePanel
         isOpen={isAddPanelOpen}
         onClose={handlePanelClose}
         onSelectLocation={handleSelectLocation}
@@ -662,6 +687,78 @@ export default function MapView() {
         }}
         onZoomToLocation={handleZoomToLocation}
       />
+      )}
+
+      {/* Mobile Bottom Navigation - Show only on mobile */}
+      {isMobile && (
+        <BottomNavigationBar
+          activeTab={mobileActiveTab}
+          onTabChange={setMobileActiveTab}
+          onLogout={logout}
+        />
+      )}
+
+      {/* Mobile Multi-Height Wind Data Dialog */}
+      {isMobile && showMobileMultiHeight && selectedMobileSite && (
+        <MobileMultiHeightDialog
+          isOpen={showMobileMultiHeight}
+          onClose={() => {
+            setShowMobileMultiHeight(false);
+            setSelectedMobileHeightForecast(null);
+          }}
+          forecast={selectedMobileHeightForecast}
+          siteId={selectedMobileSite.id}
+        />
+      )}
+
+      {/* Mobile Add Site Sheet - Show when Sites tab is active */}
+      {isMobile && mobileActiveTab === 'sites' && (
+        <MobileAddSiteSheet
+          isOpen={true}
+          onClose={() => setMobileActiveTab('map')}
+          onSelectLocation={handleSelectLocation}
+          activeLocationSelection={activeLocationSelection}
+          pendingLocation={pendingLocation}
+          pendingLocationType={pendingLocationType}
+          onLocationUsed={() => {
+            setPendingLocation(null);
+            setPendingLocationType(null);
+          }}
+          onZoomToLocation={handleZoomToLocation}
+        />
+      )}
+
+      {/* Mobile Tools Sheet - Show when Tools tab is active */}
+      {isMobile && mobileActiveTab === 'tools' && (
+        <MobileToolsSheet
+          isOpen={true}
+          onClose={() => setMobileActiveTab('map')}
+          showAirspace={showAirspace}
+          enabledAirspaceClasses={enabledAirspaceClasses}
+          onToggleAirspaceClass={handleToggleAirspaceClass}
+          onToggleAirspace={() => setShowAirspace(!showAirspace)}
+          isPlottingMode={isPlottingMode}
+          selectedSiteForPlot={selectedSiteForPlot}
+          currentPlotPoints={currentPlotPoints}
+          isPlotClosed={isPlotClosed}
+          hasUnsavedChanges={
+            JSON.stringify(currentPlotPoints) !==
+            JSON.stringify(selectedSiteForPlot?.plot_data?.points || [])
+          }
+          showPlotLabels={showPlotLabels}
+          onSavePlot={handleSavePlot}
+          onCompletePlot={handleCompleteClick}
+          onDeleteLastPoint={handleDeleteLastPoint}
+          onClearPlot={handleClearPlot}
+          onDeletePlot={handleDeletePlot}
+          onToggleLabels={handleToggleLabels}
+          onClosePlot={handleClosePlotControls}
+          isSavingPlot={updateSiteMutation.isPending}
+          isAdmin={user?.is_admin || false}
+          onFetchWeather={handleFetchWeather}
+          isFetchingWeather={isFetchingWeather}
+        />
+      )}
     </div>
   );
 }

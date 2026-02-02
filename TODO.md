@@ -1,2 +1,2 @@
 * Enable/Disable Sites (in Settings)
-* (Maybe) Put speed and time at waypoints
+* Make public.weather_api_logs a summary table instead of detailed logs

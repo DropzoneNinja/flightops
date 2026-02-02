@@ -1,0 +1,49 @@
+/* Mobile-specific utility classes for touch optimization and outdoor visibility */
+
+/* Touch target sizing - Ensures buttons and interactive elements are easily tappable */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.touch-target-lg {
+  min-height: 56px;
+  min-width: 56px;
+}
+
+/* High-contrast text for outdoor visibility */
+.outdoor-text {
+  color: #1f2937;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+}
+
+/* Prevent text selection on touch devices */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Mobile-specific Leaflet map controls positioning */
+@media (max-width: 900px) {
+  /* Move zoom controls below the site name banner */
+  .leaflet-top.leaflet-left {
+    top: 50px !important;
+  }
+
+  /* Make zoom controls larger for touch */
+  .leaflet-control-zoom a {
+    width: 40px !important;
+    height: 40px !important;
+    line-height: 40px !important;
+    font-size: 24px !important;
+  }
+
+  /* Adjust attribution to be above bottom nav */
+  .leaflet-bottom {
+    bottom: 60px !important;
+  }
+}

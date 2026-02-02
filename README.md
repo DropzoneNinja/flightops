@@ -60,6 +60,7 @@
 - Clustered markers when zoomed out for better performance
 - Clickable markers showing site summary with weather overview
 - Sunrise/sunset calculations per site and day
+- **Mobile-responsive UI** with touch-optimized controls (< 900px breakpoint)
 
 ### 🌦️ Weather Visualization
 - **3-day forecast heat bars** for each site (green → yellow → red)
@@ -74,6 +75,16 @@
 - Edit existing sites with full details
 - Enable/disable sites without deleting them
 - Bulk operations for managing multiple sites
+
+### 📱 Mobile Support
+- **Responsive breakpoint at 900px** - Automatically switches to mobile UI on smaller screens
+- **Bottom navigation bar** with Map, Sites, Weather, and Tools tabs
+- **Touch-optimized controls** with 44px+ minimum touch targets for easy one-handed operation
+- **Swipeable forecast cards** replacing desktop dialogs for intuitive mobile weather viewing
+- **Bottom sheets** for site management and tools, designed for mobile workflows
+- **High-contrast text** optimized for outdoor visibility in bright sunlight
+- **Compact site banner** showing selected site at top of screen
+- Works seamlessly on phones and tablets - single responsive webapp, no separate mobile app needed
 
 ### 👥 User Management
 - User registration with pre-authorized email system
@@ -161,8 +172,9 @@ The final safety score (0-100) is calculated using weighted components:
 
 ### Frontend
 - **Framework**: React 18 with TypeScript
-- **Styling**: Tailwind CSS
+- **Styling**: Tailwind CSS with mobile-first responsive design
 - **Map Library**: Leaflet with React-Leaflet
+- **Mobile Gestures**: react-swipeable for touch interactions
 - **State Management**: React Context API with custom hooks
 - **Build Tool**: Vite
 - **HTTP Client**: Axios
@@ -850,12 +862,13 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 🗺️ Roadmap
 
-- [ ] Mobile app (React Native)
+- [x] Mobile-responsive web UI (< 900px breakpoint)
 - [ ] Weather notifications (email/push)
 - [ ] Flight logging & history
 - [ ] Social features (share sites, reports)
 - [ ] Advanced wind analysis (wind rose, crosswind calculator)
 - [ ] Integration with weather stations
+- [ ] Native mobile app (React Native or PWA)
 - [ ] Offline mode support
 - [ ] Multi-language support
 

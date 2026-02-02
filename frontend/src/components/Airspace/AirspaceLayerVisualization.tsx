@@ -121,9 +121,6 @@ export default function AirspaceLayerVisualization({
           parseFloat(site.takeoff_lat.toString()),
         ];
 
-    console.log(`🎯 [AirspaceLayerVisualization] Checking airspace for ${site.name}`);
-    console.log(`   Point: [${point[0]}, ${point[1]}] (lon, lat)`);
-
     // Find all airspace features containing this point
     const containingFeatures = airspace.features.filter(feature => {
       if (feature.geometry.type === 'Polygon') {
@@ -132,17 +129,6 @@ export default function AirspaceLayerVisualization({
         return pointInMultiPolygon(point, feature.geometry.coordinates as number[][][][]);
       }
       return false;
-    });
-
-    console.log(`   Found ${containingFeatures.length} airspace features containing this point:`);
-
-    // Debug: Print detailed airspace info for each zone
-    containingFeatures.forEach((feature, index) => {
-      console.log(`   [Zone ${index + 1}]`);
-      console.log(`     AC (Class): ${feature.properties.class}`);
-      console.log(`     AN (Name):  ${feature.properties.name}`);
-      console.log(`     AL (Lower): ${feature.properties.lower}`);
-      console.log(`     AH (Upper): ${feature.properties.upper}`);
     });
 
     // Convert to layer objects with parsed altitudes and truncate at FL150
@@ -166,10 +152,6 @@ export default function AirspaceLayerVisualization({
         color: CLASS_COLORS[feature.properties.class],
       };
     }).filter(layer => layer.lowerFeet < FL150_FEET); // Exclude layers entirely above FL150
-
-    layerObjects.forEach(layer => {
-      console.log(`     - ${layer.class}: ${layer.lower} to ${layer.upper} (${layer.name})`);
-    });
 
     // Remove duplicates (same class and altitude range)
     const uniqueLayers = layerObjects.filter((layer, index, self) =>
@@ -236,11 +218,6 @@ export default function AirspaceLayerVisualization({
         mergedLayers.push({ ...layer });
       }
     }
-
-    console.log(`   After priority resolution and merging, ${mergedLayers.length} layers:`);
-    mergedLayers.forEach(layer => {
-      console.log(`     - ${layer.class}: ${layer.lower} to ${layer.upper}`);
-    });
 
     return mergedLayers;
   }, [site, airspace, selectedPlotNode]);

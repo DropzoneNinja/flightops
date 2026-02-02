@@ -2,6 +2,7 @@ import { Marker, Polyline } from 'react-leaflet';
 import { FlightSite } from '../../services/sites.service';
 import { useWeather } from '../../hooks/useWeather';
 import { useSettings } from '../../hooks/useSettings';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import L from 'leaflet';
@@ -64,11 +65,13 @@ interface SiteMarkerProps {
   parkingIconZoomLevel: number;
   onTakeoffClick?: (site: FlightSite) => void;
   isSelectedForAirspace?: boolean;
+  onMobileDayClick?: (forecast: WeatherForecast, index: number) => void;
 }
 
-export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, onTakeoffClick, isSelectedForAirspace = false }: SiteMarkerProps) {
+export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, onTakeoffClick, isSelectedForAirspace = false, onMobileDayClick }: SiteMarkerProps) {
   const { forecasts, isLoading: isLoadingWeather } = useWeather(site.id);
   const { settingsMap } = useSettings();
+  const isMobile = useIsMobile(900);
   const [selectedForecast, setSelectedForecast] = useState<WeatherForecast | null>(null);
   const [showParkingModal, setShowParkingModal] = useState(false);
   const markerRef = useRef<L.Marker | null>(null);
@@ -81,13 +84,6 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
   const forecastDays = typeof settingsMap['weather.forecast_days'] === 'number'
     ? settingsMap['weather.forecast_days']
     : 3;
-
-  // Debug logging for settings
-  useEffect(() => {
-    console.log('🔧 [SiteMarker]', site.name, '- settingsMap:', settingsMap);
-    console.log('  - debug.heatbar_debug_mode:', settingsMap['debug.heatbar_debug_mode'], typeof settingsMap['debug.heatbar_debug_mode']);
-    console.log('  - isDebugMode:', isDebugMode);
-  }, [settingsMap, site.name, isDebugMode]);
 
   // Convert coordinates to numbers (they come as strings from PostgreSQL decimal type)
   const takeoffLat = parseFloat(site.takeoff_lat.toString());
@@ -133,7 +129,18 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
       <WeatherForecastBars
         forecasts={forecasts}
         isLoading={isLoadingWeather}
-        onDayClick={setSelectedForecast}
+        onDayClick={(forecast) => {
+          if (isMobile && onMobileDayClick) {
+            // On mobile, trigger the mobile forecast cards
+            const index = forecasts.findIndex(f => f.id === forecast.id);
+            if (index !== -1) {
+              onMobileDayClick(forecast, index);
+            }
+          } else {
+            // On desktop, open the dialog
+            setSelectedForecast(forecast);
+          }
+        }}
         maxDays={forecastDays}
       />
     );
@@ -215,18 +222,20 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
         }
       `}</style>
 
-      {/* Weather Dialog */}
-      {isDebugMode ? (
-        <HeatbarDebugDialog
-          forecast={selectedForecast}
-          siteId={site.id}
-          onClose={() => setSelectedForecast(null)}
-        />
-      ) : (
-        <HourlyWeatherDialog
-          forecast={selectedForecast}
-          onClose={() => setSelectedForecast(null)}
-        />
+      {/* Weather Dialog - Desktop only */}
+      {!isMobile && (
+        isDebugMode ? (
+          <HeatbarDebugDialog
+            forecast={selectedForecast}
+            siteId={site.id}
+            onClose={() => setSelectedForecast(null)}
+          />
+        ) : (
+          <HourlyWeatherDialog
+            forecast={selectedForecast}
+            onClose={() => setSelectedForecast(null)}
+          />
+        )
       )}
 
       {/* Parking Address Modal */}
