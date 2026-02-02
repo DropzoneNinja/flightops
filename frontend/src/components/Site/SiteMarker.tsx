@@ -69,7 +69,7 @@ interface SiteMarkerProps {
 }
 
 export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, onTakeoffClick, isSelectedForAirspace = false, onMobileDayClick }: SiteMarkerProps) {
-  const { forecasts, isLoading: isLoadingWeather } = useWeather(site.id);
+  const { forecasts, isLoading: isLoadingWeather } = useWeather(site.enabled ? site.id : null);
   const { settingsMap } = useSettings();
   const isMobile = useIsMobile(900);
   const [selectedForecast, setSelectedForecast] = useState<WeatherForecast | null>(null);

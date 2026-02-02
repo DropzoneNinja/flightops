@@ -523,7 +523,7 @@ export default function MapView() {
             )}
 
             {/* Render site markers */}
-            {sites.filter(site => site.enabled).map((site) => (
+            {sites.filter(site => site.enabled || user?.is_admin).map((site) => (
               <SiteMarker
                 key={site.id}
                 site={site}
