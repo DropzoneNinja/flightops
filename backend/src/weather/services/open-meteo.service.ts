@@ -117,7 +117,7 @@ export class OpenMeteoService {
       );
 
       // Log external API call to Open-Meteo
-      await this.weatherStatsService.logApiCall(
+      await this.weatherStatsService.updateStats(
         'Open-Meteo: GET /forecast (standard)',
       );
 
@@ -228,7 +228,7 @@ export class OpenMeteoService {
       );
 
       // Log external API call to Open-Meteo
-      await this.weatherStatsService.logApiCall(
+      await this.weatherStatsService.updateStats(
         'Open-Meteo: GET /forecast (multi-height)',
       );
 

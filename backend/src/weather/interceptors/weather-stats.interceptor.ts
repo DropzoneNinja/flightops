@@ -29,7 +29,7 @@ export class WeatherStatsInterceptor implements NestInterceptor {
       }
 
       // Log the API call asynchronously (don't wait for it)
-      this.weatherStatsService.logApiCall(endpoint, user?.id).catch((error) => {
+      this.weatherStatsService.updateStats(endpoint, user?.id).catch((error) => {
         // Silently fail - don't block the request
         console.error('Failed to log API call:', error);
       });

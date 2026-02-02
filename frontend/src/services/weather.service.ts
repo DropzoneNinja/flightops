@@ -61,11 +61,11 @@ export interface EndpointStats {
 export interface WeatherApiStats {
   endpointCounts: EndpointStats[];
   maxPerDay: {
-    date: string;
+    date: string; // YYYY-MM-DD format
     count: number;
   };
   maxPerHour: {
-    hour: string;
+    hour: string; // ISO 8601 timestamp (e.g., '2024-01-15T14:00:00.000Z')
     count: number;
   };
 }

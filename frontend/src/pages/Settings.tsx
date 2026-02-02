@@ -865,7 +865,7 @@ export default function Settings() {
                         {weatherStats.maxPerHour.count}
                       </div>
                       <div className="mt-1 text-xs text-green-600">
-                        at {new Date(weatherStats.maxPerHour.hour).toLocaleString()}
+                        at {weatherStats.maxPerHour.hour ? new Date(weatherStats.maxPerHour.hour).toLocaleString() : 'N/A'}
                       </div>
                     </div>
                   </div>

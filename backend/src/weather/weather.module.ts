@@ -3,7 +3,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { WeatherForecast } from '../database/entities/weather-forecast.entity';
 import { WeatherHourly } from '../database/entities/weather-hourly.entity';
 import { WeatherMultiHeight } from '../database/entities/weather-multi-height.entity';
-import { WeatherApiLog } from '../database/entities/weather-api-log.entity';
+import { WeatherApiStatsDaily } from '../database/entities/weather-api-stats-daily.entity';
+import { WeatherApiStatsHourly } from '../database/entities/weather-api-stats-hourly.entity';
+import { WeatherApiStatsEndpoints } from '../database/entities/weather-api-stats-endpoints.entity';
 import { FlightSite } from '../database/entities/flight-site.entity';
 import { SettingsModule } from '../settings/settings.module';
 import { OpenMeteoService } from './services/open-meteo.service';
@@ -23,7 +25,9 @@ import { WeatherEventsController } from './weather-events.controller';
       WeatherForecast,
       WeatherHourly,
       WeatherMultiHeight,
-      WeatherApiLog,
+      WeatherApiStatsDaily,
+      WeatherApiStatsHourly,
+      WeatherApiStatsEndpoints,
       FlightSite,
     ]),
     SettingsModule, // Import settings for threshold access
