@@ -76,6 +76,16 @@
 - Enable/disable sites without deleting them
 - Bulk operations for managing multiple sites
 
+### 📸 Media Gallery & Album Management
+- **Media Upload**: Upload photos and videos from your flights with automatic thumbnail generation
+- **Calendar View**: Interactive calendar showing all dates with uploaded media, with photo/video counts
+- **Site Map**: Map visualization showing all sites with media, displaying image and video counts per location
+- **Daily Gallery**: View all media for a specific date with site information (when all media is from the same site)
+- **Site Gallery**: Browse all media for a specific flight site, automatically organized by month/year
+- **Full-Screen Viewer**: Immersive media viewing experience with navigation between photos/videos
+- **Metadata Display**: View uploader, pilot names, notes, and flight date for each media item
+- **Site Association**: Link media to specific flight sites for better organization
+
 ### 📱 Mobile Support
 - **Responsive breakpoint at 900px** - Automatically switches to mobile UI on smaller screens
 - **Bottom navigation bar** with Map, Sites, Weather, and Tools tabs
@@ -333,6 +343,29 @@ The final safety score (0-100) is calculated using weighted components:
 4. Save changes
 5. Scores will be recalculated on the next weather update
 
+### Using the Media Gallery
+
+1. **Uploading Media**:
+   - Click the "Upload Media" button in the media calendar
+   - Select photos or videos from your flights
+   - Add flight date, pilot names, notes, and associate with a site
+   - Thumbnails are generated automatically
+
+2. **Browsing by Date**:
+   - Navigate to the Media Calendar
+   - Click on any date with media to view all photos/videos from that day
+   - If all media is from the same site, the site name is displayed
+
+3. **Browsing by Site**:
+   - In the Media Calendar, view the map showing all sites with media
+   - Click on a site marker to view all media for that location
+   - Media is automatically organized by month and year
+
+4. **Viewing Media**:
+   - Click any thumbnail to open the full-screen viewer
+   - Navigate between photos/videos with arrow keys or swipe gestures
+   - View metadata including uploader, pilots, and notes
+
 ---
 
 ## 📁 Project Structure
@@ -363,6 +396,13 @@ flightops/
 │   │   │   ├── settings.controller.ts
 │   │   │   ├── settings.service.ts
 │   │   │   └── entities/settings.entity.ts
+│   │   ├── media/                # Media upload & management
+│   │   │   ├── media.controller.ts
+│   │   │   ├── media.service.ts
+│   │   │   ├── entities/media.entity.ts
+│   │   │   └── utils/
+│   │   │       ├── file-validation.util.ts
+│   │   │       └── thumbnail.util.ts
 │   │   ├── database/             # Database configuration
 │   │   │   ├── migrations/
 │   │   │   └── data-source.ts
@@ -383,18 +423,31 @@ flightops/
 │   │   │   │   ├── HeatBar.tsx
 │   │   │   │   ├── WeatherDetail.tsx
 │   │   │   │   └── WeatherSummary.tsx
+│   │   │   ├── Media/
+│   │   │   │   ├── MediaCard.tsx
+│   │   │   │   ├── MediaGrid.tsx
+│   │   │   │   ├── MediaViewer.tsx
+│   │   │   │   ├── UploadModal.tsx
+│   │   │   │   ├── CalendarView.tsx
+│   │   │   │   ├── MediaSitesMap.tsx
+│   │   │   │   ├── ImageViewer.tsx
+│   │   │   │   └── VideoPlayer.tsx
 │   │   │   └── UI/
 │   │   ├── pages/                # Page components
 │   │   │   ├── Dashboard.tsx
 │   │   │   ├── Login.tsx
 │   │   │   ├── Register.tsx
 │   │   │   ├── Settings.tsx
-│   │   │   └── SiteManager.tsx
+│   │   │   ├── SiteManager.tsx
+│   │   │   ├── MediaCalendar.tsx
+│   │   │   ├── DailyGallery.tsx
+│   │   │   └── SiteGallery.tsx
 │   │   ├── services/             # API services
 │   │   │   ├── api.ts
 │   │   │   ├── auth.service.ts
 │   │   │   ├── sites.service.ts
-│   │   │   └── weather.service.ts
+│   │   │   ├── weather.service.ts
+│   │   │   └── media.service.ts
 │   │   ├── hooks/                # Custom React hooks
 │   │   │   ├── useAuth.ts
 │   │   │   ├── useSites.ts
@@ -548,6 +601,133 @@ Response:
 }
 ```
 
+### Media
+
+#### Upload Media
+```http
+POST /media
+Authorization: Bearer {token}
+Content-Type: multipart/form-data
+
+FormData:
+{
+  "file": <File>,
+  "flight_date": "2026-01-15",
+  "uploaded_by": "username",
+  "pilots": ["Pilot 1", "Pilot 2"],
+  "notes": "Great flight conditions",
+  "site_id": "uuid"
+}
+
+Response:
+{
+  "id": "uuid",
+  "flight_date": "2026-01-15",
+  "media_type": "image",
+  "file_path": "2026-01-15/uuid-filename.jpg",
+  "thumbnail_path": "2026-01-15/thumbnails/uuid-filename.jpg",
+  "original_filename": "IMG_1234.jpg",
+  "uploaded_by": "username",
+  "pilots": ["Pilot 1", "Pilot 2"],
+  "notes": "Great flight conditions",
+  "site_id": "uuid",
+  "mime_type": "image/jpeg",
+  "file_size": 2048576,
+  "created_at": "2026-01-15T10:30:00Z"
+}
+```
+
+#### Get Media Dates with Counts
+```http
+GET /media/dates/counts
+Authorization: Bearer {token}
+
+Response:
+[
+  {
+    "date": "2026-01-15",
+    "image_count": 5,
+    "video_count": 2
+  }
+]
+```
+
+#### Get Sites with Media Counts
+```http
+GET /media/sites/counts
+Authorization: Bearer {token}
+
+Response:
+[
+  {
+    "site_id": "uuid",
+    "site_name": "Coastal Launch",
+    "takeoff_lat": 51.5074,
+    "takeoff_lon": -0.1278,
+    "image_count": 12,
+    "video_count": 3
+  }
+]
+```
+
+#### Get Media by Date
+```http
+GET /media?date=2026-01-15
+Authorization: Bearer {token}
+
+Response:
+[
+  {
+    "id": "uuid",
+    "flight_date": "2026-01-15",
+    "media_type": "image",
+    "original_filename": "IMG_1234.jpg",
+    "uploaded_by": "username",
+    "pilots": ["Pilot 1"],
+    "site_id": "uuid",
+    "site": {
+      "id": "uuid",
+      "name": "Coastal Launch"
+    }
+  }
+]
+```
+
+#### Get Media by Site
+```http
+GET /media?site=uuid
+Authorization: Bearer {token}
+
+Response:
+[
+  {
+    "id": "uuid",
+    "flight_date": "2026-01-15",
+    "media_type": "video",
+    "original_filename": "VID_5678.mp4",
+    "uploaded_by": "username",
+    "pilots": ["Pilot 1", "Pilot 2"],
+    "site": {
+      "id": "uuid",
+      "name": "Coastal Launch"
+    }
+  }
+]
+```
+
+#### Delete Media
+```http
+DELETE /media/:id
+Authorization: Bearer {token}
+
+Response:
+{
+  "message": "Media deleted successfully"
+}
+```
+
+Note: Users can only delete their own media. Admins can delete any media.
+
 ### Settings
 
 #### Get Settings
@@ -605,6 +785,8 @@ Content-Type: application/json
 | `WEATHER_UPDATE_INTERVAL` | Cron expression for weather updates | `0 */6 * * *` | No |
 | `MAX_LOGIN_ATTEMPTS` | Max failed login attempts | `5` | No |
 | `LOCKOUT_DURATION` | Account lockout duration (minutes) | `30` | No |
+| `MEDIA_STORAGE_PATH` | Path for media file storage | `/app/media` | No |
+| `MAX_UPLOAD_SIZE` | Maximum file upload size (bytes) | `524288000` (500MB) | No |
 
 ### Frontend (.env)
 
@@ -681,6 +863,29 @@ CREATE TABLE weather_hourly (
   rain_score VARCHAR(20),
   created_at TIMESTAMP DEFAULT NOW()
 );
+```
+
+#### Media
+```sql
+CREATE TABLE media (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  flight_date DATE NOT NULL,
+  site_id UUID REFERENCES flight_sites(id) ON DELETE SET NULL,
+  media_type VARCHAR(10) NOT NULL CHECK (media_type IN ('image', 'video')),
+  file_path TEXT NOT NULL,
+  original_filename TEXT NOT NULL,
+  uploaded_by TEXT NOT NULL,
+  pilots TEXT[] DEFAULT '{}',
+  notes TEXT,
+  mime_type TEXT NOT NULL,
+  file_size BIGINT NOT NULL,
+  thumbnail_path TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_media_flight_date ON media(flight_date);
+CREATE INDEX idx_media_site_id ON media(site_id);
 ```
 
 ---
@@ -863,6 +1068,10 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ## 🗺️ Roadmap
 
 - [x] Mobile-responsive web UI (< 900px breakpoint)
+- [x] Media gallery & album management
+- [x] Photo/video upload with thumbnail generation
+- [x] Site-based media organization
+- [x] Calendar view for media browsing
 - [ ] Weather notifications (email/push)
 - [ ] Flight logging & history
 - [ ] Social features (share sites, reports)
