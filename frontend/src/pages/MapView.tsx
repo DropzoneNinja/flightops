@@ -457,6 +457,12 @@ export default function MapView() {
                     {isFetchingWeather ? 'Fetching...' : 'Fetch Weather'}
                   </button>
                   <button
+                    onClick={() => navigate('/media')}
+                    className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors"
+                  >
+                    Album
+                  </button>
+                  <button
                     onClick={() => navigate('/settings')}
                     className="px-4 py-2 bg-gray-600 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
                   >

@@ -25,6 +25,14 @@ export const usersService = {
   },
 
   /**
+   * Get all usernames (for pilot selection)
+   */
+  async getUsernames(): Promise<string[]> {
+    const response = await api.get<string[]>('/users/usernames');
+    return response.data;
+  },
+
+  /**
    * Delete a user (admin only)
    */
   async delete(id: string): Promise<void> {

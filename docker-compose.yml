@@ -8,6 +8,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-flightops}
       TZ: ${TIMEZONE}
+    ports:
+      - "5432:5432"
     volumes:
       - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data
       - ${BACKUP_DIR:-./backups}:/backups
@@ -40,6 +42,8 @@ services:
       NODE_OPTIONS: "--dns-result-order=ipv4first"
       BACKUP_DIR: /backups
       POSTGRES_CONTAINER_NAME: flightops-postgres
+      MEDIA_STORAGE_PATH: /app/media
+      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-524288000}
     # DNS servers for external API access (Open-Meteo)
     dns:
       - 8.8.8.8      # Google DNS primary
@@ -47,6 +51,7 @@ services:
       - 1.1.1.1      # Cloudflare DNS
     volumes:
       - ${BACKUP_DIR:-./backups}:/backups
+      - ${MEDIA_STORAGE_PATH:-./media}:/app/media
     depends_on:
       postgres:
         condition: service_healthy

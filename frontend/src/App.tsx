@@ -5,6 +5,8 @@ import SetupUsername from './pages/SetupUsername';
 import ResetPassword from './pages/ResetPassword';
 import MapView from './pages/MapView';
 import Settings from './pages/Settings';
+import MediaCalendar from './pages/MediaCalendar';
+import DailyGallery from './pages/DailyGallery';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -38,6 +40,22 @@ function App() {
           element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/media"
+          element={
+            <ProtectedRoute>
+              <MediaCalendar />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/media/:date"
+          element={
+            <ProtectedRoute>
+              <DailyGallery />
             </ProtectedRoute>
           }
         />

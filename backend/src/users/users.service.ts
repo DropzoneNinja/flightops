@@ -171,6 +171,21 @@ export class UsersService {
   }
 
   /**
+   * Get all usernames (for pilot selection in media uploads)
+   */
+  async getAllUsernames(): Promise<string[]> {
+    const users = await this.userRepository.find({
+      select: ['username'],
+      order: { username: 'ASC' },
+    });
+    // Filter out users without usernames and return sorted list
+    return users
+      .map(u => u.username)
+      .filter(username => username !== null && username !== undefined && username !== '')
+      .sort();
+  }
+
+  /**
    * Update last login timestamp
    */
   async updateLastLogin(userId: string): Promise<void> {

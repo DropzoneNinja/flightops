@@ -20,6 +20,16 @@ export class UsersController {
   }
 
   /**
+   * GET /users/usernames
+   * Get all usernames (for pilot selection)
+   */
+  @Get('usernames')
+  @UseGuards(JwtAuthGuard)
+  async getUsernames() {
+    return this.usersService.getAllUsernames();
+  }
+
+  /**
    * GET /users
    * Get all users (admin only)
    */

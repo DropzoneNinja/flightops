@@ -13,6 +13,7 @@ import { SettingsModule } from './settings/settings.module';
 import { WeatherModule } from './weather/weather.module';
 import { AirspaceModule } from './airspace/airspace.module';
 import { BackupModule } from './backup/backup.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { BackupModule } from './backup/backup.module';
     WeatherModule,
     AirspaceModule,
     BackupModule,
+    MediaModule,
   ],
   controllers: [AppController],
   providers: [AppService],
