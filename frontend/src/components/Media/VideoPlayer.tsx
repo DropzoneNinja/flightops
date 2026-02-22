@@ -132,7 +132,7 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full flex items-center justify-center bg-black"
+      className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden"
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
     >
@@ -140,7 +140,7 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
       <video
         ref={videoRef}
         src={videoUrl}
-        className="max-w-full max-h-full"
+        className="max-w-full max-h-full object-contain"
         preload="metadata"
         onClick={togglePlayPause}
       />

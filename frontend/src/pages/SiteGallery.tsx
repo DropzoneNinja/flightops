@@ -1,37 +1,54 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useMediaByDate } from '../hooks/useMedia';
+import { useMediaBySite } from '../hooks/useMedia';
 import { useMediaStore } from '../stores/mediaStore';
 import { useAuth } from '../hooks/useAuth';
-import MediaGrid from '../components/Media/MediaGrid';
+import MediaCard from '../components/Media/MediaCard';
 import MediaViewer from '../components/Media/MediaViewer';
 import UploadModal from '../components/Media/UploadModal';
+import { Media } from '../services/media.service';
 import { format, parseISO } from 'date-fns';
+import { useMemo } from 'react';
 
 /**
- * DailyGallery Page
- * Shows all media for a specific date with grid layout
+ * SiteGallery Page
+ * Shows all media for a specific flight site organized by month/year
  */
-export default function DailyGallery() {
-  const { date } = useParams<{ date: string }>();
+export default function SiteGallery() {
+  const { siteId } = useParams<{ siteId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { openUploadModal } = useMediaStore();
 
-  const { data: media, isLoading, error, refetch } = useMediaByDate(date);
+  const { data: media, isLoading, error, refetch } = useMediaBySite(siteId);
 
-  // Format the date for display
-  const formattedDate = date
-    ? format(parseISO(date), 'EEEE, MMMM d, yyyy')
-    : '';
+  // Group media by month/year
+  const mediaByMonth = useMemo(() => {
+    if (!media || media.length === 0) return new Map<string, Media[]>();
 
-  // Get site name if all media is from the same site
-  const siteName = media && media.length > 0
-    ? (() => {
-        const firstSite = media[0].site;
-        const allSameSite = media.every(m => m.site?.id === firstSite?.id);
-        return allSameSite && firstSite ? firstSite.name : null;
-      })()
-    : null;
+    const grouped = new Map<string, Media[]>();
+
+    media.forEach((item) => {
+      const date = parseISO(item.flight_date);
+      const monthKey = format(date, 'yyyy-MM'); // e.g., "2024-03"
+
+      if (!grouped.has(monthKey)) {
+        grouped.set(monthKey, []);
+      }
+      grouped.get(monthKey)!.push(item);
+    });
+
+    // Sort months in descending order (newest first)
+    const sortedEntries = Array.from(grouped.entries()).sort((a, b) =>
+      b[0].localeCompare(a[0])
+    );
+
+    return new Map(sortedEntries);
+  }, [media]);
+
+  // Get site name from first media item's site relation
+  const siteName = media && media.length > 0 && media[0].site
+    ? media[0].site.name
+    : 'Flight Site';
 
   if (isLoading) {
     return (
@@ -87,10 +104,10 @@ export default function DailyGallery() {
               <div className="flex items-center justify-end space-x-4 ml-auto">
                 <span className="text-sm text-gray-600">{user?.username || user?.email}</span>
                 <button
-                  onClick={() => navigate('/')}
+                  onClick={() => navigate('/media')}
                   className="px-4 py-2 bg-gray-600 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
                 >
-                  Back to Map
+                  Back to Calendar
                 </button>
               </div>
             </div>
@@ -126,7 +143,7 @@ export default function DailyGallery() {
             <p className="text-sky-dusk font-body text-center mb-6">
               {error instanceof Error
                 ? error.message
-                : 'An unexpected error occurred while loading media for this date.'}
+                : 'An unexpected error occurred. Please try again.'}
             </p>
 
             {/* Action Buttons */}
@@ -138,10 +155,10 @@ export default function DailyGallery() {
                 Try Again
               </button>
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/media')}
                 className="px-6 py-3 bg-white text-sky-dusk border border-sky-midday font-body font-medium rounded-lg hover:bg-sky-cloud transition-all"
               >
-                Back to Map
+                Back to Calendar
               </button>
             </div>
           </div>
@@ -153,7 +170,7 @@ export default function DailyGallery() {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b-2 border-gray-200 z-10 sticky top-0">
+      <header className="bg-white shadow-sm border-b-2 border-gray-200 z-10">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="border-r-2 border-gray-300 pr-6 flex items-center gap-4">
@@ -171,7 +188,8 @@ export default function DailyGallery() {
               <span className="text-sm text-gray-600">{user?.username || user?.email}</span>
               <button
                 onClick={openUploadModal}
-                className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors"
+                disabled={isLoading}
+                className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Upload Media
               </button>
@@ -188,17 +206,57 @@ export default function DailyGallery() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Site Name Header (if all media from same site) */}
-        {siteName && (
-          <div className="mb-6">
-            <h1 className="text-3xl font-display font-bold text-sky-night mb-2">
-              {siteName}
-            </h1>
-          </div>
-        )}
+        {/* Site Name Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-display font-bold text-sky-night mb-2">
+            {siteName}
+          </h1>
+          {media && media.length > 0 && (
+            <p className="text-sky-dusk font-body">
+              {media.length} {media.length === 1 ? 'item' : 'items'} across {mediaByMonth.size} {mediaByMonth.size === 1 ? 'month' : 'months'}
+            </p>
+          )}
+        </div>
 
-        {/* Media for the day */}
-        {!media || media.length === 0 ? (
+        {/* Media grouped by month/year */}
+        {media && media.length > 0 ? (
+          <div className="space-y-8">
+            {Array.from(mediaByMonth.entries()).map(([monthKey, monthMedia]) => {
+              const date = parseISO(monthKey + '-01');
+              const monthYear = format(date, 'MMMM yyyy');
+              const allMediaIds = media.map(m => m.id);
+
+              return (
+                <div
+                  key={monthKey}
+                  className="bg-white rounded-xl shadow-elevation-lg p-6 sm:p-8 animate-fade-in"
+                >
+                  {/* Month/Year Header */}
+                  <div className="mb-6 pb-4 border-b-2 border-sky-midday">
+                    <h2 className="text-2xl font-display font-bold text-sky-night">
+                      {monthYear}
+                    </h2>
+                    <p className="text-sm text-sky-dusk font-body mt-1">
+                      {monthMedia.length} {monthMedia.length === 1 ? 'item' : 'items'}
+                    </p>
+                  </div>
+
+                  {/* Media Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
+                    {monthMedia.map((mediaItem) => (
+                      <MediaCard
+                        key={mediaItem.id}
+                        media={mediaItem}
+                        mediaList={allMediaIds}
+                        index={allMediaIds.indexOf(mediaItem.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
           <div className="bg-white rounded-xl shadow-elevation-lg p-6 sm:p-8">
             <div className="text-center py-12">
               <div className="mb-4">
@@ -217,10 +275,10 @@ export default function DailyGallery() {
                 </svg>
               </div>
               <h3 className="text-lg font-display font-semibold text-sky-night mb-2">
-                No Media Yet
+                No media for this site yet
               </h3>
               <p className="text-sky-dusk font-body mb-4">
-                There are no photos or videos for {formattedDate}
+                Start building your collection by uploading photos and videos
               </p>
               <button
                 onClick={openUploadModal}
@@ -230,21 +288,6 @@ export default function DailyGallery() {
               </button>
             </div>
           </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-elevation-lg p-6 sm:p-8 animate-fade-in">
-            {/* Date Header */}
-            <div className="mb-6 pb-4 border-b-2 border-sky-midday">
-              <h2 className="text-2xl font-display font-bold text-sky-night">
-                {formattedDate}
-              </h2>
-              <p className="text-sm text-sky-dusk font-body mt-1">
-                {media.length} {media.length === 1 ? 'item' : 'items'}
-              </p>
-            </div>
-
-            {/* Media Grid */}
-            <MediaGrid />
-          </div>
         )}
       </main>
 
@@ -252,7 +295,7 @@ export default function DailyGallery() {
       <MediaViewer />
 
       {/* Upload Modal */}
-      <UploadModal defaultDate={date} />
+      <UploadModal />
     </div>
   );
 }

@@ -1,5 +1,12 @@
 import { api } from './api';
 
+export interface FlightSite {
+  id: string;
+  name: string;
+  takeoff_lat: number;
+  takeoff_lon: number;
+}
+
 export interface Media {
   id: string;
   flight_date: string; // ISO date string
@@ -12,6 +19,8 @@ export interface Media {
   mime_type: string;
   file_size: number;
   thumbnail_path: string | null;
+  site_id: string | null;
+  site?: FlightSite; // Optional site relation
   created_at: string;
   updated_at: string;
 }
@@ -21,10 +30,20 @@ export interface CreateMediaData {
   uploaded_by: string;
   pilots?: string[];
   notes?: string;
+  site_id?: string;
 }
 
 export interface MediaDateCount {
   date: string;
+  image_count: number;
+  video_count: number;
+}
+
+export interface SiteMediaCount {
+  site_id: string;
+  site_name: string;
+  takeoff_lat: number;
+  takeoff_lon: number;
   image_count: number;
   video_count: number;
 }
@@ -47,11 +66,29 @@ export const mediaService = {
   },
 
   /**
+   * Get all sites with their media counts
+   */
+  async getSitesWithMediaCounts(): Promise<SiteMediaCount[]> {
+    const response = await api.get<SiteMediaCount[]>('/media/sites/counts');
+    return response.data;
+  },
+
+  /**
    * Get all media for a specific date
    */
   async getMediaByDate(date: string): Promise<Media[]> {
     const response = await api.get<Media[]>('/media', {
       params: { date },
+    });
+    return response.data;
+  },
+
+  /**
+   * Get all media for a specific site
+   */
+  async getMediaBySite(siteId: string): Promise<Media[]> {
+    const response = await api.get<Media[]>('/media', {
+      params: { site: siteId },
     });
     return response.data;
   },
@@ -101,6 +138,10 @@ export const mediaService = {
 
     if (data.notes) {
       formData.append('notes', data.notes);
+    }
+
+    if (data.site_id) {
+      formData.append('site_id', data.site_id);
     }
 
     const response = await api.post<Media>('/media', formData, {

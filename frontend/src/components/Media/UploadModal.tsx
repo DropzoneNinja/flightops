@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useMediaStore } from '../../stores/mediaStore';
 import { useMediaUpload } from '../../hooks/useMedia';
+import { useSites } from '../../hooks/useSites';
 import { authService } from '../../services/auth.service';
 import { usersService } from '../../services/users.service';
+import { useToastContext } from '../../contexts/ToastContext';
 
 interface UploadModalProps {
   defaultDate?: string; // Optional default date (YYYY-MM-DD format)
@@ -15,10 +17,13 @@ const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 export default function UploadModal({ defaultDate }: UploadModalProps) {
   const { uploadModalOpen, closeUploadModal, setUploadProgress, resetUploadProgress, uploadProgress } = useMediaStore();
   const uploadMutation = useMediaUpload();
+  const { sites, isLoading: isLoadingSites } = useSites();
+  const toast = useToastContext();
 
   // Form state
   const [flightDate, setFlightDate] = useState(defaultDate || new Date().toISOString().split('T')[0]);
   const [uploadedBy, setUploadedBy] = useState('');
+  const [selectedSiteId, setSelectedSiteId] = useState<string>('');
   const [availableUsernames, setAvailableUsernames] = useState<string[]>([]);
   const [selectedPilots, setSelectedPilots] = useState<string[]>([]);
   const [otherPilots, setOtherPilots] = useState<string[]>(['']);
@@ -69,6 +74,7 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
       if (user) {
         setUploadedBy(user.username || user.email);
       }
+      setSelectedSiteId('');
       setSelectedPilots([]);
       setOtherPilots(['']);
       setShowOtherInput(false);
@@ -234,21 +240,23 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
           uploaded_by: uploadedBy.trim(),
           pilots: allPilots.length > 0 ? allPilots : undefined,
           notes: notes.trim() || undefined,
+          site_id: selectedSiteId || undefined,
         },
         onProgress: (progress) => {
           setUploadProgress(progress, selectedFile.name);
         },
       });
 
-      // Success - close modal
+      // Success - show toast and close modal
+      toast.success('Media uploaded successfully!');
       closeUploadModal();
     } catch (error: any) {
       console.error('Upload failed:', error);
-      setUploadError(
-        error.response?.data?.message ||
+      const errorMessage = error.response?.data?.message ||
         error.message ||
-        'Upload failed. Please try again.'
-      );
+        'Upload failed. Please try again.';
+      setUploadError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsUploading(false);
       abortControllerRef.current = null;
@@ -422,6 +430,36 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
             />
             <p className="text-xs text-gray-500 mt-1">This field is automatically set to your username</p>
+          </div>
+
+          {/* Site Selection */}
+          <div>
+            <label htmlFor="site" className="block text-sm font-medium text-sky-dusk mb-2">
+              Flying Site (Optional)
+            </label>
+            {isLoadingSites ? (
+              <div className="text-sm text-gray-500">Loading sites...</div>
+            ) : (
+              <select
+                id="site"
+                value={selectedSiteId}
+                onChange={(e) => setSelectedSiteId(e.target.value)}
+                disabled={isUploading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-morning focus:border-sky-morning"
+              >
+                <option value="">Select a site</option>
+                {sites
+                  .filter(site => site.enabled)
+                  .map((site) => (
+                    <option key={site.id} value={site.id}>
+                      {site.name}
+                    </option>
+                  ))}
+              </select>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Selecting a site will save its GPS coordinates for future features
+            </p>
           </div>
 
           {/* Pilots Multi-Select */}

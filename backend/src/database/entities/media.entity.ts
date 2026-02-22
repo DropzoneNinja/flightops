@@ -5,16 +5,23 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { FlightSite } from './flight-site.entity';
 
 @Entity('media')
 @Index(['flight_date'])
+@Index(['site_id'])
 export class Media {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'date' })
   flight_date: Date;
+
+  @Column({ type: 'uuid', nullable: true })
+  site_id: string;
 
   @Column({
     type: 'enum',
@@ -51,4 +58,9 @@ export class Media {
 
   @UpdateDateColumn()
   updated_at: Date;
+
+  // Relationships
+  @ManyToOne(() => FlightSite, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'site_id' })
+  site: FlightSite;
 }

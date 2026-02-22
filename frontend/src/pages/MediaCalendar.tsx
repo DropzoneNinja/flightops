@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { useMediaDatesWithCounts } from '../hooks/useMedia';
+import { useMediaDatesWithCounts, useSitesWithMediaCounts } from '../hooks/useMedia';
 import { useMediaStore } from '../stores/mediaStore';
 import { useAuth } from '../hooks/useAuth';
 import CalendarView from '../components/Media/CalendarView';
 import UploadModal from '../components/Media/UploadModal';
+import MediaSitesMap from '../components/Media/MediaSitesMap';
 
 /**
  * MediaCalendar Page
@@ -14,6 +15,7 @@ export default function MediaCalendar() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: mediaDateCounts, isLoading, error, refetch } = useMediaDatesWithCounts();
+  const { data: sitesWithMediaCounts, isLoading: isLoadingSites } = useSitesWithMediaCounts();
   const { openUploadModal } = useMediaStore();
 
   if (error) {
@@ -78,7 +80,7 @@ export default function MediaCalendar() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Header */}
       <header className="bg-white shadow-sm border-b-2 border-gray-200 z-10 sticky top-0">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
@@ -115,8 +117,8 @@ export default function MediaCalendar() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-xl shadow-elevation-lg p-6 sm:p-8 animate-fade-in">
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-8 flex-1 flex flex-col gap-6 overflow-hidden">
+        <div className="w-full bg-white rounded-xl shadow-elevation-lg p-6 sm:p-8 animate-fade-in">
           <CalendarView
             mediaDateCounts={mediaDateCounts || []}
             isLoading={isLoading}
@@ -124,41 +126,20 @@ export default function MediaCalendar() {
           />
         </div>
 
-        {/* Stats section */}
-        {!isLoading && mediaDateCounts && mediaDateCounts.length > 0 && (
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white rounded-lg shadow-elevation p-6 animate-slide-up">
-              <div className="text-3xl font-display font-bold text-sky-morning mb-1">
-                {mediaDateCounts.length}
-              </div>
-              <div className="text-sm font-body text-sky-dusk">
-                Days with media
-              </div>
-            </div>
-            <div
-              className="bg-white rounded-lg shadow-elevation p-6 animate-slide-up"
-              style={{ animationDelay: '100ms' }}
-            >
-              <div className="text-3xl font-display font-bold text-sky-morning mb-1">
-                {new Date().toLocaleDateString('en-US', { month: 'short' })}
-              </div>
-              <div className="text-sm font-body text-sky-dusk">
-                Current month
-              </div>
-            </div>
-            <div
-              className="bg-white rounded-lg shadow-elevation p-6 animate-slide-up"
-              style={{ animationDelay: '200ms' }}
-            >
-              <div className="text-3xl font-display font-bold text-sky-morning mb-1">
-                📸
-              </div>
-              <div className="text-sm font-body text-sky-dusk">
-                Building your archive
-              </div>
-            </div>
+        {/* Map section */}
+        <div className="w-full bg-white rounded-xl shadow-elevation-lg flex-1 overflow-hidden flex flex-col" style={{ minHeight: '600px' }}>
+          <div className="p-6 sm:p-8 pb-4">
+            <h2 className="text-xl font-display font-semibold text-sky-night">
+              Media by Site
+            </h2>
           </div>
-        )}
+          <div className="flex-1 px-6 sm:px-8 pb-6 sm:pb-8 overflow-hidden">
+            <MediaSitesMap
+              sites={sitesWithMediaCounts || []}
+              isLoading={isLoadingSites}
+            />
+          </div>
+        </div>
       </main>
 
       {/* Upload Modal */}

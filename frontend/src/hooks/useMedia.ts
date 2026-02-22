@@ -30,6 +30,19 @@ export function useMediaDatesWithCounts() {
 }
 
 /**
+ * Hook to get all sites with their media counts
+ */
+export function useSitesWithMediaCounts() {
+  return useQuery({
+    queryKey: [...MEDIA_QUERY_KEY, 'sites', 'counts'],
+    queryFn: () => mediaService.getSitesWithMediaCounts(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+}
+
+/**
  * Hook to get all media for a specific date
  */
 export function useMediaByDate(date: string | undefined) {
@@ -37,6 +50,20 @@ export function useMediaByDate(date: string | undefined) {
     queryKey: [...MEDIA_QUERY_KEY, 'date', date],
     queryFn: () => mediaService.getMediaByDate(date!),
     enabled: !!date,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+}
+
+/**
+ * Hook to get all media for a specific site
+ */
+export function useMediaBySite(siteId: string | undefined) {
+  return useQuery({
+    queryKey: [...MEDIA_QUERY_KEY, 'site', siteId],
+    queryFn: () => mediaService.getMediaBySite(siteId!),
+    enabled: !!siteId,
     staleTime: 2 * 60 * 1000, // 2 minutes
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),

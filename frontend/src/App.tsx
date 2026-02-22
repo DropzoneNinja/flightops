@@ -7,11 +7,15 @@ import MapView from './pages/MapView';
 import Settings from './pages/Settings';
 import MediaCalendar from './pages/MediaCalendar';
 import DailyGallery from './pages/DailyGallery';
+import SiteGallery from './pages/SiteGallery';
 import ProtectedRoute from './components/ProtectedRoute';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { ToastProvider } from './contexts/ToastContext';
 
 function App() {
   return (
-    <BrowserRouter>
+    <ToastProvider>
+      <BrowserRouter>
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
@@ -46,21 +50,36 @@ function App() {
         <Route
           path="/media"
           element={
-            <ProtectedRoute>
-              <MediaCalendar />
-            </ProtectedRoute>
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <MediaCalendar />
+              </ProtectedRoute>
+            </ErrorBoundary>
           }
         />
         <Route
           path="/media/:date"
           element={
-            <ProtectedRoute>
-              <DailyGallery />
-            </ProtectedRoute>
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <DailyGallery />
+              </ProtectedRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/media/site/:siteId"
+          element={
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <SiteGallery />
+              </ProtectedRoute>
+            </ErrorBoundary>
           }
         />
       </Routes>
     </BrowserRouter>
+    </ToastProvider>
   );
 }
 

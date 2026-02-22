@@ -159,14 +159,14 @@ export default function ImageViewer({ mediaId, alt }: ImageViewerProps) {
 
       {/* Zoom Instructions */}
       {imageLoaded && !imageError && !isZoomed && (
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-60 text-white px-4 py-2 rounded-lg text-sm font-body backdrop-blur-sm">
+        <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-60 text-white px-4 py-2 rounded-lg text-sm font-body backdrop-blur-sm pointer-events-none">
           Click to zoom
         </div>
       )}
 
       {/* Zoom Reset Instructions */}
       {isZoomed && (
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-60 text-white px-4 py-2 rounded-lg text-sm font-body backdrop-blur-sm">
+        <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-60 text-white px-4 py-2 rounded-lg text-sm font-body backdrop-blur-sm pointer-events-none">
           Click to zoom out • Drag to pan
         </div>
       )}

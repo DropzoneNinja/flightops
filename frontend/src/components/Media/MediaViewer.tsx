@@ -225,8 +225,8 @@ export default function MediaViewer() {
 
       {/* Main Content Area */}
       <div className="absolute inset-0 flex flex-col">
-        {/* Media Display Area */}
-        <div className="flex-1 relative">
+        {/* Media Display Area - Fixed height to leave room for metadata */}
+        <div className="relative" style={{ height: 'calc(100vh - 220px)', minHeight: '300px' }}>
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="flex flex-col items-center gap-4">
@@ -249,7 +249,7 @@ export default function MediaViewer() {
 
         {/* Metadata Panel */}
         {media && (
-          <div className="bg-gradient-to-t from-black via-black/90 to-transparent p-6">
+          <div className="bg-gradient-to-t from-black via-black/90 to-transparent p-6 flex-shrink-0">
             <div className="max-w-7xl mx-auto">
               <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                 {/* Left: Metadata */}
@@ -396,13 +396,18 @@ export default function MediaViewer() {
         )}
       </div>
 
-      {/* Keyboard Shortcuts Hint */}
-      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-black bg-opacity-60 text-white px-4 py-2 rounded-lg text-xs font-body backdrop-blur-sm hidden md:block">
-        <kbd className="px-2 py-1 bg-white bg-opacity-20 rounded">←</kbd>{' '}
-        <kbd className="px-2 py-1 bg-white bg-opacity-20 rounded">→</kbd> Navigate
-        • <kbd className="px-2 py-1 bg-white bg-opacity-20 rounded">ESC</kbd>{' '}
-        Close
-      </div>
+      {/* Keyboard Shortcuts Hint - Positioned above metadata panel */}
+      {media && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 bg-black bg-opacity-60 text-white px-4 py-2 rounded-lg text-xs font-body backdrop-blur-sm hidden md:block pointer-events-none"
+          style={{ bottom: '210px' }}
+        >
+          <kbd className="px-2 py-1 bg-white bg-opacity-20 rounded">←</kbd>{' '}
+          <kbd className="px-2 py-1 bg-white bg-opacity-20 rounded">→</kbd> Navigate
+          • <kbd className="px-2 py-1 bg-white bg-opacity-20 rounded">ESC</kbd>{' '}
+          Close
+        </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       {showDeleteConfirm && (
