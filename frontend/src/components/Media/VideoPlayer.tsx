@@ -156,6 +156,7 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
           src={videoUrl}
           className="max-w-full max-h-full object-contain"
           preload="metadata"
+          playsInline
           onClick={togglePlayPause}
         />
       )}

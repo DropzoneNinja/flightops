@@ -8,6 +8,10 @@ import { randomUUID } from 'crypto';
 import { CreateMediaDto } from './dto';
 import { FileValidationUtil } from './utils/file-validation.util';
 import { ThumbnailUtil } from './utils/thumbnail.util';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 @Injectable()
 export class MediaService {
@@ -175,6 +179,11 @@ export class MediaService {
 
     await fs.writeFile(absoluteFilePath, file.buffer);
 
+    // Optimize videos for streaming (move metadata to beginning for instant playback)
+    if (validationResult.mediaType === 'video') {
+      await this.optimizeVideoForStreaming(absoluteFilePath);
+    }
+
     // Generate thumbnail
     let thumbnailPath: string | null = null;
     try {
@@ -292,5 +301,38 @@ export class MediaService {
       return null;
     }
     return path.join(this.mediaStoragePath, media.thumbnail_path);
+  }
+
+  /**
+   * Optimize video for streaming by moving metadata (moov atom) to the beginning
+   * This enables immediate playback without downloading the entire file
+   */
+  private async optimizeVideoForStreaming(filePath: string): Promise<void> {
+    const tempPath = `${filePath}.tmp`;
+
+    try {
+      // Use ffmpeg to rewrite the video with faststart flag
+      // -movflags faststart moves the moov atom to the beginning of the file
+      // -c copy means we're just copying streams, not re-encoding (fast!)
+      await execAsync(
+        `ffmpeg -i "${filePath}" -c copy -movflags faststart "${tempPath}" -y`,
+      );
+
+      // Replace original with optimized version
+      await fs.rename(tempPath, filePath);
+      console.log(`Video optimized for streaming: ${filePath}`);
+    } catch (error) {
+      console.error(`Failed to optimize video ${filePath}:`, error);
+
+      // Clean up temp file if it exists
+      try {
+        await fs.unlink(tempPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+
+      // Don't throw - we can still serve the video, just not optimally
+      console.warn('Continuing with unoptimized video');
+    }
   }
 }
