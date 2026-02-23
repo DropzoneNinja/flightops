@@ -61,8 +61,8 @@ postgres_data_dev/
 backend_node_modules/
 frontend_node_modules/
 
-# Media uploads
-media/
+# Media uploads (user-uploaded files only, not source code)
+/media/
 .media/
 
 # Temporary files
