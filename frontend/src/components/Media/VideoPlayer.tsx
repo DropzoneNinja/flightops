@@ -97,6 +97,25 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
     };
   }, [videoUrl]);
 
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
   const togglePlayPause = () => {
     if (videoRef.current) {
       if (isPlaying) {
@@ -135,19 +154,38 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
     }
   };
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = async () => {
     if (!containerRef.current) return;
 
-    if (!isFullscreen) {
-      if (containerRef.current.requestFullscreen) {
-        containerRef.current.requestFullscreen();
+    try {
+      if (!document.fullscreenElement) {
+        // Enter fullscreen - try different browser APIs
+        const element = containerRef.current as any;
+        if (element.requestFullscreen) {
+          await element.requestFullscreen();
+        } else if (element.webkitRequestFullscreen) {
+          await element.webkitRequestFullscreen();
+        } else if (element.mozRequestFullScreen) {
+          await element.mozRequestFullScreen();
+        } else if (element.msRequestFullscreen) {
+          await element.msRequestFullscreen();
+        }
+      } else {
+        // Exit fullscreen - try different browser APIs
+        const doc = document as any;
+        if (doc.exitFullscreen) {
+          await doc.exitFullscreen();
+        } else if (doc.webkitExitFullscreen) {
+          await doc.webkitExitFullscreen();
+        } else if (doc.mozCancelFullScreen) {
+          await doc.mozCancelFullScreen();
+        } else if (doc.msExitFullscreen) {
+          await doc.msExitFullscreen();
+        }
       }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
+    } catch (error) {
+      console.error('Failed to toggle fullscreen:', error);
     }
-    setIsFullscreen(!isFullscreen);
   };
 
   const formatTime = (seconds: number): string => {
@@ -181,7 +219,7 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
         <video
           ref={videoRef}
           src={videoUrl}
-          className="max-w-full max-h-full object-contain"
+          className={`object-contain ${isFullscreen ? 'w-screen h-screen' : 'max-w-full max-h-full'}`}
           preload="metadata"
           playsInline
           onClick={togglePlayPause}
