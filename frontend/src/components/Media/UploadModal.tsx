@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useMediaStore } from '../../stores/mediaStore';
 import { useMediaUpload } from '../../hooks/useMedia';
 import { useSites } from '../../hooks/useSites';
-import { authService } from '../../services/auth.service';
+import { useAuth } from '../../hooks/useAuth';
 import { usersService } from '../../services/users.service';
 import { useToastContext } from '../../contexts/ToastContext';
 
@@ -18,6 +18,7 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
   const { uploadModalOpen, closeUploadModal, setUploadProgress, resetUploadProgress, uploadProgress } = useMediaStore();
   const uploadMutation = useMediaUpload();
   const { sites, isLoading: isLoadingSites } = useSites();
+  const { user } = useAuth();
   const toast = useToastContext();
 
   // Form state
@@ -43,14 +44,15 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Load user info and usernames on mount
+  // Load usernames on mount and update uploadedBy when user changes
   useEffect(() => {
-    const user = authService.getStoredUser();
     if (user) {
       setUploadedBy(user.username || user.email);
     }
+  }, [user]);
 
-    // Fetch available usernames
+  // Fetch available usernames on mount
+  useEffect(() => {
     const fetchUsernames = async () => {
       setIsLoadingUsernames(true);
       try {
@@ -70,10 +72,6 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
   useEffect(() => {
     if (uploadModalOpen) {
       setFlightDate(defaultDate || new Date().toISOString().split('T')[0]);
-      const user = authService.getStoredUser();
-      if (user) {
-        setUploadedBy(user.username || user.email);
-      }
       setSelectedSiteId('');
       setSelectedPilots([]);
       setOtherPilots(['']);

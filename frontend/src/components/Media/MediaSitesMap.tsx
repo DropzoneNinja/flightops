@@ -93,7 +93,9 @@ export default function MediaSitesMap({ sites, isLoading = false }: MediaSitesMa
                 white-space: nowrap;
                 box-shadow: 0 3px 10px rgba(0,0,0,0.3);
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
               ">
                 ${imageCount + videoCount}
               </div>

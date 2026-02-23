@@ -324,39 +324,6 @@ async canActivate(context: ExecutionContext): Promise<boolean> {
 
 ---
 
-### 5. Password Validation Bypass for Password Reset
-**Severity:** HIGH
-**CWE:** CWE-287 (Improper Authentication)
-**Location:** [backend/src/auth/auth.service.ts:140-145](backend/src/auth/auth.service.ts#L140)
-
-**Description:**
-When a user has the `needs_password_reset` flag set, the password validation is completely bypassed, allowing login with ANY password.
-
-**Vulnerable Code:**
-```typescript
-// If user needs password reset, skip password validation
-if (user.needs_password_reset) {
-  // Don't check password, just let them through to reset page
-  delete user.password_hash;
-  return user;
-}
-```
-
-**Attack Scenario:**
-If an attacker knows or can guess a user's email address and that user has been flagged for password reset:
-1. Attacker attempts login with any password
-2. Authentication succeeds without password verification
-3. Attacker gains access to the account
-
-**Impact:**
-- Account takeover
-- Unauthorized access during password reset period
-- Privilege escalation if admin account is targeted
-
-**Remediation Priority:** HIGH
-
----
-
 ### 6. Dependency Vulnerabilities
 **Severity:** HIGH
 **CWE:** CWE-1035 (Using Components with Known Vulnerabilities)
