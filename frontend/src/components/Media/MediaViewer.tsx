@@ -62,6 +62,17 @@ export default function MediaViewer() {
     }
   }, [viewerOpen]);
 
+  // Increment view count when media is opened
+  useEffect(() => {
+    if (viewerOpen && currentMediaId) {
+      // Fire-and-forget increment
+      mediaService.incrementViewCount(currentMediaId).catch((error) => {
+        console.error('Failed to increment view count:', error);
+        // Don't show error to user - this is non-critical
+      });
+    }
+  }, [viewerOpen, currentMediaId]);
+
   // Touch gestures for mobile
   useEffect(() => {
     if (!viewerOpen) return;
@@ -113,6 +124,13 @@ export default function MediaViewer() {
   const handleDownload = async () => {
     if (!media) return;
     try {
+      // Increment download counter first
+      await mediaService.incrementDownloadCount(media.id).catch((error) => {
+        console.error('Failed to increment download count:', error);
+        // Continue with download even if counter fails
+      });
+
+      // Proceed with download
       const url = await mediaService.getMediaFileUrl(media.id);
       const link = document.createElement('a');
       link.href = url;

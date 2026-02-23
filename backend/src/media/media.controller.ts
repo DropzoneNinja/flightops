@@ -213,6 +213,44 @@ export class MediaController {
   }
 
   /**
+   * POST /media/:id/view
+   * Increment view count when media is opened in viewer
+   * IMPORTANT: This route must be defined BEFORE the generic :id route
+   */
+  @Post(':id/view')
+  @UseGuards(JwtAuthGuard)
+  async incrementView(
+    @Param('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<{ message: string; view_count: number }> {
+    await this.mediaService.incrementViewCount(id);
+    const media = await this.mediaService.getMediaById(id);
+    return {
+      message: 'View count incremented',
+      view_count: media.view_count,
+    };
+  }
+
+  /**
+   * POST /media/:id/download
+   * Increment download count when user clicks download button
+   * IMPORTANT: This route must be defined BEFORE the generic :id route
+   */
+  @Post(':id/download')
+  @UseGuards(JwtAuthGuard)
+  async incrementDownload(
+    @Param('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<{ message: string; download_count: number }> {
+    await this.mediaService.incrementDownloadCount(id);
+    const media = await this.mediaService.getMediaById(id);
+    return {
+      message: 'Download count incremented',
+      download_count: media.download_count,
+    };
+  }
+
+  /**
    * GET /media/:id
    * Returns metadata for a single media item
    * IMPORTANT: This generic :id route must be defined AFTER all specific :id/* routes

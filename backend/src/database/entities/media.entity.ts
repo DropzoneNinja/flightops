@@ -53,6 +53,12 @@ export class Media {
   @Column({ type: 'text', nullable: true })
   thumbnail_path: string; // Generated thumbnail for videos and images
 
+  @Column({ type: 'int', default: 0 })
+  view_count: number;
+
+  @Column({ type: 'int', default: 0 })
+  download_count: number;
+
   @CreateDateColumn()
   created_at: Date;
 

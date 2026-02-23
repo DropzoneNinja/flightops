@@ -21,6 +21,8 @@ export interface Media {
   thumbnail_path: string | null;
   site_id: string | null;
   site?: FlightSite; // Optional site relation
+  view_count: number;
+  download_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -168,5 +170,19 @@ export const mediaService = {
    */
   async deleteMedia(id: string): Promise<void> {
     await api.delete(`/media/${id}`);
+  },
+
+  /**
+   * Increment view count for a media item
+   */
+  async incrementViewCount(id: string): Promise<void> {
+    await api.post(`/media/${id}/view`);
+  },
+
+  /**
+   * Increment download count for a media item
+   */
+  async incrementDownloadCount(id: string): Promise<void> {
+    await api.post(`/media/${id}/download`);
   },
 };

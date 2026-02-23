@@ -270,6 +270,24 @@ export class MediaService {
   }
 
   /**
+   * Increment view count for a media item
+   */
+  async incrementViewCount(id: string): Promise<void> {
+    const media = await this.getMediaById(id);
+    media.view_count += 1;
+    await this.mediaRepository.save(media);
+  }
+
+  /**
+   * Increment download count for a media item
+   */
+  async incrementDownloadCount(id: string): Promise<void> {
+    const media = await this.getMediaById(id);
+    media.download_count += 1;
+    await this.mediaRepository.save(media);
+  }
+
+  /**
    * Generate a secure filename with UUID prefix
    */
   generateSecureFilename(originalFilename: string): string {
