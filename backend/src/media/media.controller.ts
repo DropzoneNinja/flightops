@@ -10,12 +10,13 @@ import {
   UseInterceptors,
   UploadedFile,
   Res,
+  Req,
   StreamableFile,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { MediaService } from './media.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MediaTokenGuard } from '../auth/guards/media-token.guard';
@@ -120,9 +121,10 @@ export class MediaController {
   @UseGuards(MediaTokenGuard)
   async getMediaFile(
     @Param('id') id: string,
-    @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
+    @Res({ passthrough: false }) res: Response,
     @CurrentUser() user: User,
-  ): Promise<StreamableFile> {
+  ): Promise<void> {
     const media = await this.mediaService.getMediaById(id);
     const filePath = this.mediaService.getFullFilePath(media);
 
@@ -133,18 +135,51 @@ export class MediaController {
 
     // Get file stats
     const stat = statSync(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
 
-    // Set headers
+    // Set common headers
     res.set({
       'Content-Type': media.mime_type,
-      'Content-Length': stat.size,
       'Accept-Ranges': 'bytes',
       'Content-Disposition': `inline; filename="${media.original_filename}"`,
     });
 
-    // Create read stream
-    const stream = createReadStream(filePath);
-    return new StreamableFile(stream);
+    // Handle Range requests for video streaming
+    if (range) {
+      // Parse range header (e.g., "bytes=0-1023")
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunkSize = end - start + 1;
+
+      // Validate range
+      if (start >= fileSize || end >= fileSize) {
+        res.status(416).set({
+          'Content-Range': `bytes */${fileSize}`,
+        });
+        res.end();
+        return;
+      }
+
+      // Set partial content headers
+      res.status(206).set({
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Content-Length': chunkSize.toString(),
+      });
+
+      // Create read stream for the requested range
+      const stream = createReadStream(filePath, { start, end });
+      stream.pipe(res);
+    } else {
+      // No range request - send entire file
+      res.status(200).set({
+        'Content-Length': fileSize.toString(),
+      });
+
+      const stream = createReadStream(filePath);
+      stream.pipe(res);
+    }
   }
 
   /**
