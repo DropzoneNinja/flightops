@@ -7,6 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 COPY nest-cli.json ./
+COPY ormconfig.ts ./
 
 # Install dependencies
 RUN npm ci
@@ -30,9 +31,14 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+COPY tsconfig.json ./
+COPY ormconfig.ts ./
 
-# Install production dependencies only
-RUN npm ci --only=production
+# Install ALL dependencies (needed for migrations with ts-node)
+RUN npm ci
+
+# Copy source files (needed for TypeScript migrations)
+COPY --from=builder /app/src ./src
 
 # Copy built application from builder (includes assets in dist/assets via nest-cli.json)
 COPY --from=builder /app/dist ./dist
