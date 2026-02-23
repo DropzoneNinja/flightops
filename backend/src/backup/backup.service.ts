@@ -2,7 +2,7 @@ import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -10,7 +10,7 @@ import { BackupHistory, BackupStatus, BackupType } from '../database/entities/ba
 import { SettingsService } from '../settings/settings.service';
 import { SettingKey } from '../settings/constants/default-settings';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface BackupResult {
   success: boolean;
@@ -99,13 +99,17 @@ export class BackupService {
       // Ensure backup directory exists
       await fs.mkdir(this.backupDir, { recursive: true });
 
-      // Build pg_dump command
-      const pgDumpCmd = `PGPASSWORD="${this.dbPassword}" pg_dump -h ${this.dbHost} -p ${this.dbPort} -U ${this.dbUser} -d ${this.dbName} -f ${filepath}`;
-
       this.logger.log(`Executing pg_dump for ${this.dbName}...`);
 
-      // Execute backup
-      const { stdout, stderr } = await execAsync(pgDumpCmd, {
+      // Execute backup using execFile with array arguments to prevent command injection
+      const { stderr } = await execFileAsync('pg_dump', [
+        '-h', this.dbHost,
+        '-p', this.dbPort,
+        '-U', this.dbUser,
+        '-d', this.dbName,
+        '-f', filepath,
+      ], {
+        env: { ...process.env, PGPASSWORD: this.dbPassword },
         maxBuffer: 50 * 1024 * 1024, // 50MB buffer
       });
 
@@ -319,24 +323,53 @@ export class BackupService {
       this.logger.log(`Restoring database from ${filename}...`);
 
       // Terminate other connections to the database
-      const terminateCmd = `PGPASSWORD="${this.dbPassword}" psql -h ${this.dbHost} -p ${this.dbPort} -U ${this.dbUser} -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${this.dbName}' AND pid <> pg_backend_pid();"`;
-
       try {
-        await execAsync(terminateCmd, { maxBuffer: 10 * 1024 * 1024 });
+        await execFileAsync('psql', [
+          '-h', this.dbHost,
+          '-p', this.dbPort,
+          '-U', this.dbUser,
+          '-d', 'postgres',
+          '-c', `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${this.dbName}' AND pid <> pg_backend_pid();`,
+        ], {
+          env: { ...process.env, PGPASSWORD: this.dbPassword },
+          maxBuffer: 10 * 1024 * 1024,
+        });
       } catch (error) {
         this.logger.warn(`Failed to terminate connections (this may be normal): ${error.message}`);
       }
 
       // Drop and recreate database
-      const dropCmd = `PGPASSWORD="${this.dbPassword}" psql -h ${this.dbHost} -p ${this.dbPort} -U ${this.dbUser} -d postgres -c "DROP DATABASE IF EXISTS ${this.dbName};"`;
-      await execAsync(dropCmd, { maxBuffer: 10 * 1024 * 1024 });
+      await execFileAsync('psql', [
+        '-h', this.dbHost,
+        '-p', this.dbPort,
+        '-U', this.dbUser,
+        '-d', 'postgres',
+        '-c', `DROP DATABASE IF EXISTS ${this.dbName};`,
+      ], {
+        env: { ...process.env, PGPASSWORD: this.dbPassword },
+        maxBuffer: 10 * 1024 * 1024,
+      });
 
-      const createCmd = `PGPASSWORD="${this.dbPassword}" psql -h ${this.dbHost} -p ${this.dbPort} -U ${this.dbUser} -d postgres -c "CREATE DATABASE ${this.dbName};"`;
-      await execAsync(createCmd, { maxBuffer: 10 * 1024 * 1024 });
+      await execFileAsync('psql', [
+        '-h', this.dbHost,
+        '-p', this.dbPort,
+        '-U', this.dbUser,
+        '-d', 'postgres',
+        '-c', `CREATE DATABASE ${this.dbName};`,
+      ], {
+        env: { ...process.env, PGPASSWORD: this.dbPassword },
+        maxBuffer: 10 * 1024 * 1024,
+      });
 
       // Restore from backup file
-      const restoreCmd = `PGPASSWORD="${this.dbPassword}" psql -h ${this.dbHost} -p ${this.dbPort} -U ${this.dbUser} -d ${this.dbName} -f ${filepath}`;
-      const { stdout, stderr } = await execAsync(restoreCmd, {
+      const { stderr } = await execFileAsync('psql', [
+        '-h', this.dbHost,
+        '-p', this.dbPort,
+        '-U', this.dbUser,
+        '-d', this.dbName,
+        '-f', filepath,
+      ], {
+        env: { ...process.env, PGPASSWORD: this.dbPassword },
         maxBuffer: 100 * 1024 * 1024, // 100MB buffer for large restores
       });
 
