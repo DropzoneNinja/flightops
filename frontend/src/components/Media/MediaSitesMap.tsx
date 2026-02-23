@@ -81,8 +81,24 @@ export default function MediaSitesMap({ sites, isLoading = false }: MediaSitesMa
           // Create simple marker icon
           const markerIcon = L.divIcon({
             className: 'custom-site-marker',
-            html: `<div style="background: white; padding: 4px 8px; border-radius: 12px; border: 2px solid #0ea5e9; font-weight: bold; font-size: 11px;">📷 ${imageCount} 🎥 ${videoCount}</div>`,
-            iconAnchor: [20, 20],
+            html: `
+              <div style="
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                padding: 8px 12px;
+                border-radius: 20px;
+                border: 2px solid white;
+                font-weight: 700;
+                font-size: 12px;
+                color: white;
+                white-space: nowrap;
+                box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                text-align: center;
+              ">
+                ${imageCount + videoCount}
+              </div>
+            `,
+            iconAnchor: [25, 25],
           });
 
           return (

@@ -3,15 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import {
   format,
   startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
   isSameMonth,
   addMonths,
   subMonths,
-  isToday,
 } from 'date-fns';
+import MonthCalendar from './MonthCalendar';
+import { useVisibleMonthCount } from '../../hooks/useVisibleMonthCount';
 
 interface MediaDateCount {
   date: string;
@@ -35,7 +32,8 @@ export default function CalendarView({
   onUploadClick,
 }: CalendarViewProps) {
   const navigate = useNavigate();
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [referenceMonth, setReferenceMonth] = useState(new Date());
+  const visibleMonthCount = useVisibleMonthCount();
 
   // Create a map of date to counts for quick lookup
   const dateCountsMap = useMemo(() => {
@@ -49,25 +47,26 @@ export default function CalendarView({
     return map;
   }, [mediaDateCounts]);
 
-  // Generate calendar days for current month
-  const calendarDays = useMemo(() => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 }); // Sunday
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+  // Calculate visible months based on reference month and count
+  const visibleMonths = useMemo(() => {
+    const months: Date[] = [];
+    for (let i = visibleMonthCount - 1; i >= 0; i--) {
+      months.push(subMonths(referenceMonth, i));
+    }
+    return months;
+  }, [referenceMonth, visibleMonthCount]);
 
-    return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-  }, [currentMonth]);
-
-  // Get media counts for a specific date
-  const getMediaCounts = (date: Date) => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return dateCountsMap.get(dateStr) || null;
-  };
+  // Check if next button should be disabled
+  const isNextDisabled = useMemo(() => {
+    const now = new Date();
+    return isSameMonth(referenceMonth, now);
+  }, [referenceMonth]);
 
   // Handle date click
   const handleDateClick = (date: Date) => {
-    if (!isSameMonth(date, currentMonth)) return;
+    // Allow click on any visible month
+    const isVisible = visibleMonths.some((m) => isSameMonth(date, m));
+    if (!isVisible) return;
 
     const dateStr = format(date, 'yyyy-MM-dd');
     navigate(`/media/${dateStr}`);
@@ -75,22 +74,28 @@ export default function CalendarView({
 
   // Navigation handlers
   const handlePreviousMonth = () => {
-    setCurrentMonth((prev) => subMonths(prev, 1));
+    setReferenceMonth((prev) => subMonths(prev, 1));
   };
 
   const handleNextMonth = () => {
-    setCurrentMonth((prev) => addMonths(prev, 1));
+    setReferenceMonth((prev) => {
+      const next = addMonths(prev, 1);
+      const now = new Date();
+      // Don't go beyond current month
+      if (next > startOfMonth(now)) return prev;
+      return next;
+    });
   };
 
   const handleToday = () => {
-    setCurrentMonth(new Date());
+    setReferenceMonth(new Date());
   };
 
   // Loading skeleton
   if (isLoading) {
     return (
       <div className="calendar-container">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
           <div className="h-8 w-48 bg-sky-midday rounded animate-pulse"></div>
           <div className="flex gap-2">
             <div className="h-10 w-24 bg-sky-midday rounded animate-pulse"></div>
@@ -98,26 +103,42 @@ export default function CalendarView({
             <div className="h-10 w-10 bg-sky-midday rounded animate-pulse"></div>
           </div>
         </div>
-        <div className="grid grid-cols-7 gap-2">
-          {Array.from({ length: 35 }).map((_, i) => (
+        <div className="flex gap-8 sm:gap-12">
+          {Array.from({ length: visibleMonthCount }).map((_, monthIdx) => (
             <div
-              key={i}
-              className="h-24 bg-sky-midday rounded animate-pulse"
-            ></div>
+              key={monthIdx}
+              className="flex-1"
+              style={{
+                width:
+                  visibleMonthCount === 1
+                    ? '100%'
+                    : 'calc(50% - 1.5rem)',
+              }}
+            >
+              <div className="h-6 w-32 bg-sky-midday rounded animate-pulse mb-4 mx-auto"></div>
+              <div className="grid grid-cols-7 gap-2">
+                {Array.from({ length: 35 }).map((_, dayIdx) => (
+                  <div
+                    key={dayIdx}
+                    className="h-20 sm:h-24 bg-sky-midday rounded animate-pulse"
+                  ></div>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>
     );
   }
 
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
   return (
     <div className="calendar-container">
       {/* Calendar Header */}
       <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
         <h2 className="text-2xl sm:text-3xl font-display font-semibold text-sky-night">
-          {format(currentMonth, 'MMMM yyyy')}
+          {visibleMonthCount === 1
+            ? format(referenceMonth, 'MMMM yyyy')
+            : `${format(visibleMonths[0], 'MMM yyyy')} - ${format(referenceMonth, 'MMM yyyy')}`}
         </h2>
 
         <div className="flex items-center gap-2">
@@ -148,7 +169,8 @@ export default function CalendarView({
           </button>
           <button
             onClick={handleNextMonth}
-            className="p-2 text-sky-dusk hover:text-sky-night hover:bg-sky-midday rounded-lg transition-all"
+            disabled={isNextDisabled}
+            className="p-2 text-sky-dusk hover:text-sky-night hover:bg-sky-midday rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Next month"
           >
             <svg
@@ -168,107 +190,52 @@ export default function CalendarView({
         </div>
       </div>
 
-      {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-2 sm:gap-3">
-        {/* Week day headers */}
-        {weekDays.map((day) => (
-          <div
-            key={day}
-            className="calendar-weekday text-center py-3 text-sm font-mono font-medium text-sky-dusk uppercase tracking-wider"
-          >
-            {day}
-          </div>
-        ))}
+      {/* Custom scrollbar styles */}
+      <style>{`
+        .calendar-scroll-container {
+          scrollbar-width: thin;
+          scrollbar-color: #4A5568 #E8F4F8;
+          -webkit-overflow-scrolling: touch;
+        }
+        .calendar-scroll-container::-webkit-scrollbar {
+          height: 12px;
+        }
+        .calendar-scroll-container::-webkit-scrollbar-track {
+          background-color: #E8F4F8;
+          border-radius: 6px;
+        }
+        .calendar-scroll-container::-webkit-scrollbar-thumb {
+          background-color: #4A5568;
+          border-radius: 6px;
+        }
+        .calendar-scroll-container::-webkit-scrollbar-thumb:hover {
+          background-color: #1A202C;
+        }
+      `}</style>
 
-        {/* Calendar days */}
-        {calendarDays.map((day, index) => {
-          const isCurrentMonth = isSameMonth(day, currentMonth);
-          const mediaCounts = getMediaCounts(day);
-          const hasMedia = mediaCounts !== null;
-          const isTodayDate = isToday(day);
-
-          return (
-            <button
-              key={day.toISOString()}
-              onClick={() => handleDateClick(day)}
-              disabled={!isCurrentMonth}
-              className={`
-                calendar-day
-                relative p-2 sm:p-3 rounded-lg
-                transition-all duration-200
-                min-h-[80px] sm:min-h-[100px]
-                flex flex-col items-center justify-start
-                ${
-                  isCurrentMonth
-                    ? 'hover:shadow-elevation hover:scale-105 cursor-pointer'
-                    : 'opacity-30 cursor-not-allowed'
-                }
-                ${isTodayDate ? 'ring-2 ring-sky-morning' : ''}
-                ${
-                  hasMedia && isCurrentMonth
-                    ? 'bg-gradient-to-br from-sky-cloud to-sky-midday hover:from-sky-midday hover:to-sky-morning/20'
-                    : 'bg-sky-cloud hover:bg-sky-midday'
-                }
-              `}
+      {/* Horizontal scroll container for multiple months */}
+      <div className="calendar-scroll-container -mx-4 sm:-mx-6 px-4 sm:px-6 overflow-x-auto overflow-y-hidden pb-4">
+        <div className="flex gap-8 sm:gap-12">
+          {visibleMonths.map((month, index) => (
+            <div
+              key={month.toISOString()}
+              className="flex-shrink-0"
               style={{
-                animationDelay: `${index * 30}ms`,
+                width:
+                  visibleMonthCount === 1
+                    ? '100%'
+                    : 'calc(50% - 1.5rem)',
+                animationDelay: `${index * 100}ms`,
               }}
             >
-              {/* Day number */}
-              <span
-                className={`
-                  text-base sm:text-lg font-display font-semibold mb-1
-                  ${isCurrentMonth ? 'text-sky-night' : 'text-sky-dusk/50'}
-                  ${isTodayDate ? 'text-sky-morning' : ''}
-                `}
-              >
-                {format(day, 'd')}
-              </span>
-
-              {/* Media counts */}
-              {hasMedia && isCurrentMonth && mediaCounts && (
-                <div className="flex flex-col gap-1 text-xs sm:text-sm">
-                  {mediaCounts.image_count > 0 && (
-                    <div className="flex items-center gap-1 text-sky-dusk">
-                      <svg
-                        className="w-3 h-3 sm:w-4 sm:h-4"
-                        fill="none"
-                        strokeWidth={2}
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
-                        />
-                      </svg>
-                      <span className="font-medium">{mediaCounts.image_count}</span>
-                    </div>
-                  )}
-                  {mediaCounts.video_count > 0 && (
-                    <div className="flex items-center gap-1 text-sky-dusk">
-                      <svg
-                        className="w-3 h-3 sm:w-4 sm:h-4"
-                        fill="none"
-                        strokeWidth={2}
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z"
-                        />
-                      </svg>
-                      <span className="font-medium">{mediaCounts.video_count}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </button>
-          );
-        })}
+              <MonthCalendar
+                month={month}
+                dateCountsMap={dateCountsMap}
+                onDateClick={handleDateClick}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Empty state message */}
