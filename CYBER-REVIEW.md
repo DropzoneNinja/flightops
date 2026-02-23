@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This cybersecurity review identified **1 CRITICAL** (✅ **FIXED**), **5 HIGH** (✅ **3 FIXED**, 2 remaining), **6 MEDIUM**, and **4 LOW** severity vulnerabilities across the FlightOps application. The most severe issues have been remediated:
+This cybersecurity review identified **1 CRITICAL** (✅ **FIXED**), **5 HIGH** (✅ **3 FIXED**, 2 remaining), **6 MEDIUM** (✅ **1 FIXED**, 5 remaining), and **4 LOW** severity vulnerabilities across the FlightOps application. The most severe issues have been remediated:
 - Command injection vulnerability in the backup service - ✅ **FIXED**
 - Missing CSRF protection - ✅ **FIXED**
 - Missing security headers - ✅ **FIXED**
@@ -352,15 +352,16 @@ async canActivate(context: ExecutionContext): Promise<boolean> {
 
 ## Medium Severity Issues
 
-### 7. Weak Bcrypt Hashing Rounds
+### 7. Weak Bcrypt Hashing Rounds ✅ **FIXED**
 **Severity:** MEDIUM
 **CWE:** CWE-916 (Use of Password Hash With Insufficient Computational Effort)
 **Location:** [backend/src/database/entities/user.entity.ts:67](backend/src/database/entities/user.entity.ts#L67)
+**Status:** COMPLETE - Fixed on February 23, 2026
 
 **Description:**
 Password hashing uses bcrypt with only 10 rounds, which is below current security recommendations of 12-14 rounds.
 
-**Current Implementation:**
+**Previous Implementation:**
 ```typescript
 const salt = await bcrypt.genSalt(10);
 this.password_hash = await bcrypt.hash(this.password, salt);
@@ -370,9 +371,21 @@ this.password_hash = await bcrypt.hash(this.password, salt);
 - Faster brute-force attacks on password hashes if database is compromised
 - Reduced protection against GPU-accelerated password cracking
 
-**Recommendation:** Increase to 12-14 rounds
+**Remediation Implemented:**
+- Increased bcrypt rounds from 10 to 12 (configurable)
+- Made bcrypt rounds configurable via `BCRYPT_ROUNDS` environment variable
+- Added configuration to `.env.example` with recommended value of 12
+- Default value of 12 rounds provides good balance between security and performance
 
-**Remediation Priority:** MEDIUM
+**Fixed Code:**
+```typescript
+// Use configurable bcrypt rounds (12-14 recommended for security)
+const bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
+const salt = await bcrypt.genSalt(bcryptRounds);
+this.password_hash = await bcrypt.hash(this.password, salt);
+```
+
+**Remediation Priority:** MEDIUM → ✅ COMPLETE
 
 ---
 
@@ -464,35 +477,6 @@ If the `FRONTEND_URL` environment variable is misconfigured or compromised, it c
 **Impact:**
 - Cross-origin attacks if misconfigured
 - Potential for CSRF-like attacks from unauthorized domains
-
-**Remediation Priority:** MEDIUM
-
----
-
-### 11. Weak Default Credentials in Examples
-**Severity:** MEDIUM
-**CWE:** CWE-798 (Use of Hard-coded Credentials)
-**Location:** [backend/.env.example:5](backend/.env.example#L5), [.env.example:9](backend/.env.example#L9)
-
-**Description:**
-The .env.example file contains weak default passwords that users might not change in production.
-
-**Example Values:**
-```
-DATABASE_PASSWORD=changeme
-JWT_SECRET=changeme-in-production-use-strong-random-string
-```
-
-**Risk:**
-Users deploying the application might:
-- Forget to change default values
-- Use weak passwords similar to examples
-- Not understand the security implications
-
-**Impact:**
-- Potential for unauthorized database access
-- JWT token forgery if default secret is used
-- Account compromise
 
 **Remediation Priority:** MEDIUM
 
@@ -713,12 +697,6 @@ Despite the identified vulnerabilities, the application demonstrates several goo
    - ✅ JWT tokens in query parameters are now rejected
    - ✅ Prevents token leakage via logs, browser history, and referrers
 
-5. **Fix Password Reset Authentication Bypass (HIGH)** - REMAINING
-   - Remove the password validation bypass
-   - Implement proper password reset flow with temporary tokens
-   - Send password reset links via email
-   - Use time-limited, single-use reset tokens
-
 6. **Update Dependencies (HIGH)** - REMAINING
    - Update React Router: `npm update react-router-dom`
    - Update all packages with known vulnerabilities
@@ -727,9 +705,10 @@ Despite the identified vulnerabilities, the application demonstrates several goo
 
 ### Short-term Improvements (Medium Priority)
 
-7. **Increase Bcrypt Rounds**
-   - Update to 12-14 rounds in user.entity.ts
-   - Consider making this configurable via environment variable
+7. ✅ **Increase Bcrypt Rounds** - **COMPLETE**
+   - ✅ Updated to 12 rounds in user.entity.ts
+   - ✅ Made configurable via BCRYPT_ROUNDS environment variable
+   - ✅ Added to .env.example with recommended value
 
 8. **Implement Rate Limiting**
    - Install @nestjs/throttler

@@ -64,7 +64,9 @@ export class User {
   @BeforeUpdate()
   async hashPassword() {
     if (this.password) {
-      const salt = await bcrypt.genSalt(10);
+      // Use configurable bcrypt rounds (12-14 recommended for security)
+      const bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
+      const salt = await bcrypt.genSalt(bcryptRounds);
       this.password_hash = await bcrypt.hash(this.password, salt);
       delete this.password; // Remove plain password
     }
