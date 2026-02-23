@@ -450,6 +450,7 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
                 <option value="">Select a site</option>
                 {sites
                   .filter(site => site.enabled)
+                  .sort((a, b) => a.name.localeCompare(b.name))
                   .map((site) => (
                     <option key={site.id} value={site.id}>
                       {site.name}
@@ -478,7 +479,7 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
                     <p className="text-sm text-gray-500">No pilots available</p>
                   ) : (
                     <div className="space-y-2">
-                      {availableUsernames.map((username) => (
+                      {availableUsernames.sort((a, b) => a.localeCompare(b)).map((username) => (
                         <label
                           key={username}
                           className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
