@@ -8,7 +8,9 @@ import {
   HttpCode,
   HttpStatus,
   Query,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, SetupUsernameDto, ResetPasswordDto } from './dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -19,6 +21,15 @@ import { User } from '../database/entities/user.entity';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  /**
+   * GET /auth/csrf-token
+   * Get CSRF token for authenticated requests
+   */
+  @Get('csrf-token')
+  getCsrfToken(@Req() req: Request) {
+    return { csrfToken: req.csrfToken() };
+  }
 
   /**
    * POST /auth/register

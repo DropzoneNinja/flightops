@@ -15,7 +15,7 @@ export default function MediaCalendar() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: mediaDateCounts, isLoading, error, refetch } = useMediaDatesWithCounts();
-  const { data: sitesWithMediaCounts, isLoading: isLoadingSites } = useSitesWithMediaCounts();
+  const { data: sitesWithMediaCounts, isLoading: isLoadingSites, error: sitesError } = useSitesWithMediaCounts();
   const { openUploadModal } = useMediaStore();
 
   if (error) {
@@ -134,10 +134,24 @@ export default function MediaCalendar() {
             </h2>
           </div>
           <div className="flex-1 px-6 sm:px-8 pb-6 sm:pb-8 overflow-hidden">
-            <MediaSitesMap
-              sites={sitesWithMediaCounts || []}
-              isLoading={isLoadingSites}
-            />
+            {sitesError ? (
+              <div className="w-full h-full flex items-center justify-center" style={{ minHeight: '400px' }}>
+                <div className="text-center">
+                  <p className="text-sky-dusk mb-4">Unable to load map data</p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors"
+                  >
+                    Reload Page
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <MediaSitesMap
+                sites={Array.isArray(sitesWithMediaCounts) ? sitesWithMediaCounts : []}
+                isLoading={isLoadingSites}
+              />
+            )}
           </div>
         </div>
       </main>
