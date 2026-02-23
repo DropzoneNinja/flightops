@@ -50,11 +50,29 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !videoUrl) return;
 
     const handleTimeUpdate = () => setCurrentTime(video.currentTime);
-    const handleDurationChange = () => setDuration(video.duration);
-    const handleLoadedMetadata = () => setIsLoading(false);
+    const handleDurationChange = () => {
+      if (video.duration && !isNaN(video.duration)) {
+        setDuration(video.duration);
+      }
+    };
+    const handleLoadedMetadata = () => {
+      if (video.duration && !isNaN(video.duration)) {
+        setDuration(video.duration);
+      }
+      setIsLoading(false);
+    };
+    const handleCanPlay = () => {
+      setIsLoading(false);
+    };
+    const handlePlay = () => {
+      setIsPlaying(true);
+    };
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
     const handleError = () => {
       setError(true);
       setIsLoading(false);
@@ -63,30 +81,39 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('durationchange', handleDurationChange);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
     video.addEventListener('error', handleError);
 
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('durationchange', handleDurationChange);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
       video.removeEventListener('error', handleError);
     };
-  }, []);
+  }, [videoUrl]);
 
   const togglePlayPause = () => {
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        videoRef.current.play().catch((error) => {
+          console.error('Failed to play video:', error);
+          // Don't throw - browser might have autoplay restrictions
+        });
       }
-      setIsPlaying(!isPlaying);
+      // State will be updated by play/pause event listeners
     }
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = parseFloat(e.target.value);
-    if (videoRef.current) {
+    if (videoRef.current && !isNaN(newTime) && duration > 0) {
       videoRef.current.currentTime = newTime;
       setCurrentTime(newTime);
     }
@@ -229,7 +256,8 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
             max={duration || 0}
             value={currentTime}
             onChange={handleSeek}
-            className="w-full h-1 bg-white bg-opacity-30 rounded-lg appearance-none cursor-pointer slider-thumb"
+            disabled={isLoading || !duration}
+            className="w-full h-1 bg-white bg-opacity-30 rounded-lg appearance-none cursor-pointer slider-thumb disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Seek video"
           />
           <div className="flex justify-between text-xs text-white font-mono mt-1">
