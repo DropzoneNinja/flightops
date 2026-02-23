@@ -19,12 +19,11 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
   const [showControls, setShowControls] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string>('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<number | null>(null);
-
-  const videoUrl = mediaService.getMediaFileUrl(mediaId);
 
   useEffect(() => {
     // Reset state when mediaId changes
@@ -33,6 +32,20 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
     setDuration(0);
     setIsLoading(true);
     setError(false);
+
+    // Fetch presigned token URL
+    const fetchVideoUrl = async () => {
+      try {
+        const url = await mediaService.getMediaFileUrl(mediaId);
+        setVideoUrl(url);
+      } catch (error) {
+        console.error('Failed to fetch video URL:', error);
+        setError(true);
+        setIsLoading(false);
+      }
+    };
+
+    fetchVideoUrl();
   }, [mediaId]);
 
   useEffect(() => {
@@ -137,13 +150,15 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
       onMouseLeave={() => isPlaying && setShowControls(false)}
     >
       {/* Video Element */}
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        className="max-w-full max-h-full object-contain"
-        preload="metadata"
-        onClick={togglePlayPause}
-      />
+      {videoUrl && (
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          className="max-w-full max-h-full object-contain"
+          preload="metadata"
+          onClick={togglePlayPause}
+        />
+      )}
 
       {/* Loading State */}
       {isLoading && (

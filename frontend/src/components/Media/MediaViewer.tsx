@@ -110,13 +110,17 @@ export default function MediaViewer() {
     return null;
   }
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!media) return;
-    const url = mediaService.getMediaFileUrl(media.id);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = media.original_filename;
-    link.click();
+    try {
+      const url = await mediaService.getMediaFileUrl(media.id);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = media.original_filename;
+      link.click();
+    } catch (error) {
+      console.error('Failed to download media:', error);
+    }
   };
 
   const handleDeleteClick = () => {

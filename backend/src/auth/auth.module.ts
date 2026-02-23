@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { LoginAttemptService } from './login-attempt.service';
+import { MediaTokenService } from './media-token.service';
 import { UsersModule } from '../users/users.module';
 import { PreAuthorizedEmailsModule } from '../pre-authorized-emails/pre-authorized-emails.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -30,7 +31,7 @@ import { LoginAttempt } from '../database/entities/login-attempt.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LoginAttemptService, JwtStrategy, LocalStrategy],
-  exports: [AuthService],
+  providers: [AuthService, LoginAttemptService, MediaTokenService, JwtStrategy, LocalStrategy],
+  exports: [AuthService, MediaTokenService],
 })
 export class AuthModule {}

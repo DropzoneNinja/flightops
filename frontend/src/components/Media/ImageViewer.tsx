@@ -17,10 +17,9 @@ export default function ImageViewer({ mediaId, alt }: ImageViewerProps) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [imageUrl, setImageUrl] = useState<string>('');
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const imageUrl = mediaService.getMediaFileUrl(mediaId);
 
   useEffect(() => {
     // Reset zoom and position when mediaId changes
@@ -28,6 +27,19 @@ export default function ImageViewer({ mediaId, alt }: ImageViewerProps) {
     setPosition({ x: 0, y: 0 });
     setImageLoaded(false);
     setImageError(false);
+
+    // Fetch presigned token URL
+    const fetchImageUrl = async () => {
+      try {
+        const url = await mediaService.getMediaFileUrl(mediaId);
+        setImageUrl(url);
+      } catch (error) {
+        console.error('Failed to fetch image URL:', error);
+        setImageError(true);
+      }
+    };
+
+    fetchImageUrl();
   }, [mediaId]);
 
   const handleImageClick = () => {
@@ -131,31 +143,33 @@ export default function ImageViewer({ mediaId, alt }: ImageViewerProps) {
       )}
 
       {/* Image */}
-      <img
-        ref={imageRef}
-        src={imageUrl}
-        alt={alt}
-        onLoad={() => setImageLoaded(true)}
-        onError={() => setImageError(true)}
-        onClick={handleImageClick}
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleTouchStart}
-        className={`max-w-full max-h-full object-contain transition-all duration-300 ${
-          imageLoaded ? 'opacity-100' : 'opacity-0'
-        } ${isZoomed ? 'cursor-move scale-150' : 'cursor-zoom-in'} ${
-          isDragging ? 'cursor-grabbing' : ''
-        }`}
-        style={
-          isZoomed
-            ? {
-                transform: `scale(2.5) translate(${position.x / 2.5}px, ${
-                  position.y / 2.5
-                }px)`,
-              }
-            : undefined
-        }
-        draggable={false}
-      />
+      {imageUrl && (
+        <img
+          ref={imageRef}
+          src={imageUrl}
+          alt={alt}
+          onLoad={() => setImageLoaded(true)}
+          onError={() => setImageError(true)}
+          onClick={handleImageClick}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          className={`max-w-full max-h-full object-contain transition-all duration-300 ${
+            imageLoaded ? 'opacity-100' : 'opacity-0'
+          } ${isZoomed ? 'cursor-move scale-150' : 'cursor-zoom-in'} ${
+            isDragging ? 'cursor-grabbing' : ''
+          }`}
+          style={
+            isZoomed
+              ? {
+                  transform: `scale(2.5) translate(${position.x / 2.5}px, ${
+                    position.y / 2.5
+                  }px)`,
+                }
+              : undefined
+          }
+          draggable={false}
+        />
+      )}
 
       {/* Zoom Instructions */}
       {imageLoaded && !imageError && !isZoomed && (

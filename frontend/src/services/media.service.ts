@@ -102,21 +102,30 @@ export const mediaService = {
   },
 
   /**
-   * Get the file URL for a media item
+   * Get a presigned token for accessing media files
+   * Returns a short-lived (5 minute) token specific to this media file
    */
-  getMediaFileUrl(id: string): string {
-    const baseURL = api.defaults.baseURL || '';
-    const token = localStorage.getItem('access_token');
-    return `${baseURL}/media/${id}/file${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  async getMediaAccessToken(id: string): Promise<{ token: string; expiresIn: string; mediaId: string }> {
+    const response = await api.get<{ token: string; expiresIn: string; mediaId: string }>(`/media/${id}/token`);
+    return response.data;
   },
 
   /**
-   * Get the thumbnail URL for a media item
+   * Get the file URL for a media item with a presigned token
    */
-  getMediaThumbnailUrl(id: string): string {
+  async getMediaFileUrl(id: string): Promise<string> {
     const baseURL = api.defaults.baseURL || '';
-    const token = localStorage.getItem('access_token');
-    return `${baseURL}/media/${id}/thumbnail${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+    const tokenData = await this.getMediaAccessToken(id);
+    return `${baseURL}/media/${id}/file?token=${encodeURIComponent(tokenData.token)}`;
+  },
+
+  /**
+   * Get the thumbnail URL for a media item with a presigned token
+   */
+  async getMediaThumbnailUrl(id: string): Promise<string> {
+    const baseURL = api.defaults.baseURL || '';
+    const tokenData = await this.getMediaAccessToken(id);
+    return `${baseURL}/media/${id}/thumbnail?token=${encodeURIComponent(tokenData.token)}`;
   },
 
   /**

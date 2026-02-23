@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Media } from '../../services/media.service';
 import { mediaService } from '../../services/media.service';
 import { useMediaStore } from '../../stores/mediaStore';
@@ -17,10 +17,24 @@ export default function MediaCard({ media, mediaList, index }: MediaCardProps) {
   const { openViewer } = useMediaStore();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
 
-  const thumbnailUrl = media.thumbnail_path
-    ? mediaService.getMediaThumbnailUrl(media.id)
-    : mediaService.getMediaFileUrl(media.id);
+  // Fetch presigned token URL when component mounts
+  useEffect(() => {
+    const fetchThumbnailUrl = async () => {
+      try {
+        const url = media.thumbnail_path
+          ? await mediaService.getMediaThumbnailUrl(media.id)
+          : await mediaService.getMediaFileUrl(media.id);
+        setThumbnailUrl(url);
+      } catch (error) {
+        console.error('Failed to fetch media URL:', error);
+        setImageError(true);
+      }
+    };
+
+    fetchThumbnailUrl();
+  }, [media.id, media.thumbnail_path]);
 
   const handleCardClick = () => {
     openViewer(media.id, mediaList, index);
@@ -49,7 +63,7 @@ export default function MediaCard({ media, mediaList, index }: MediaCardProps) {
         )}
 
         {/* Thumbnail Image */}
-        {!imageError && (
+        {!imageError && thumbnailUrl && (
           <img
             src={thumbnailUrl}
             alt={media.original_filename}
