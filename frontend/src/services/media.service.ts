@@ -50,6 +50,13 @@ export interface SiteMediaCount {
   video_count: number;
 }
 
+export interface MediaFilters {
+  uploadedBy?: string;
+  pilots?: string[];
+  year?: number;
+  month?: number;
+}
+
 export const mediaService = {
   /**
    * Get all unique dates that have media
@@ -60,18 +67,49 @@ export const mediaService = {
   },
 
   /**
+   * Get all distinct pilot names from media entries
+   */
+  async getUniquePilots(): Promise<string[]> {
+    const response = await api.get<string[]>('/media/pilots');
+    return response.data;
+  },
+
+  /**
+   * Search media by filters (uploaded_by, pilots, year, month)
+   */
+  async searchMedia(filters: MediaFilters): Promise<Media[]> {
+    const params: Record<string, string> = {};
+    if (filters.uploadedBy) params.uploaded_by = filters.uploadedBy;
+    if (filters.pilots?.length) params.pilots = filters.pilots.join(',');
+    if (filters.year) params.year = String(filters.year);
+    if (filters.month) params.month = String(filters.month);
+    const response = await api.get<Media[]>('/media/search', { params });
+    return response.data;
+  },
+
+  /**
    * Get all unique dates with media counts
    */
-  async getMediaDatesWithCounts(): Promise<MediaDateCount[]> {
-    const response = await api.get<MediaDateCount[]>('/media/dates/counts');
+  async getMediaDatesWithCounts(filters?: MediaFilters): Promise<MediaDateCount[]> {
+    const params: Record<string, string> = {};
+    if (filters?.uploadedBy) params.uploaded_by = filters.uploadedBy;
+    if (filters?.pilots?.length) params.pilots = filters.pilots.join(',');
+    if (filters?.year) params.year = String(filters.year);
+    if (filters?.month) params.month = String(filters.month);
+    const response = await api.get<MediaDateCount[]>('/media/dates/counts', { params });
     return response.data;
   },
 
   /**
    * Get all sites with their media counts
    */
-  async getSitesWithMediaCounts(): Promise<SiteMediaCount[]> {
-    const response = await api.get<SiteMediaCount[]>('/media/sites/counts');
+  async getSitesWithMediaCounts(filters?: MediaFilters): Promise<SiteMediaCount[]> {
+    const params: Record<string, string> = {};
+    if (filters?.uploadedBy) params.uploaded_by = filters.uploadedBy;
+    if (filters?.pilots?.length) params.pilots = filters.pilots.join(',');
+    if (filters?.year) params.year = String(filters.year);
+    if (filters?.month) params.month = String(filters.month);
+    const response = await api.get<SiteMediaCount[]>('/media/sites/counts', { params });
     return response.data;
   },
 

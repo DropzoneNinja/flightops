@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   format,
@@ -20,6 +20,8 @@ interface CalendarViewProps {
   mediaDateCounts: MediaDateCount[];
   isLoading?: boolean;
   onUploadClick?: () => void;
+  referenceMonth: Date;
+  setReferenceMonth: (month: Date) => void;
 }
 
 /**
@@ -30,9 +32,10 @@ export default function CalendarView({
   mediaDateCounts,
   isLoading = false,
   onUploadClick,
+  referenceMonth,
+  setReferenceMonth,
 }: CalendarViewProps) {
   const navigate = useNavigate();
-  const [referenceMonth, setReferenceMonth] = useState(new Date());
   const visibleMonthCount = useVisibleMonthCount();
 
   // Create a map of date to counts for quick lookup
@@ -74,17 +77,15 @@ export default function CalendarView({
 
   // Navigation handlers
   const handlePreviousMonth = () => {
-    setReferenceMonth((prev) => subMonths(prev, 1));
+    setReferenceMonth(subMonths(referenceMonth, 1));
   };
 
   const handleNextMonth = () => {
-    setReferenceMonth((prev) => {
-      const next = addMonths(prev, 1);
-      const now = new Date();
-      // Don't go beyond current month
-      if (next > startOfMonth(now)) return prev;
-      return next;
-    });
+    const next = addMonths(referenceMonth, 1);
+    const now = new Date();
+    // Don't go beyond current month
+    if (next > startOfMonth(now)) return;
+    setReferenceMonth(next);
   };
 
   const handleToday = () => {

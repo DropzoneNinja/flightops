@@ -25,9 +25,28 @@ export class MediaService {
   }
 
   /**
+   * Get all distinct pilot names across all media entries
+   */
+  async getUniquePilots(): Promise<string[]> {
+    const result = await this.mediaRepository
+      .createQueryBuilder('media')
+      .select('DISTINCT unnest(media.pilots)', 'pilot')
+      .where("media.pilots != '{}'")
+      .orderBy('pilot', 'ASC')
+      .getRawMany();
+
+    return result.map((row) => row.pilot).filter(Boolean);
+  }
+
+  /**
    * Get all sites with their media counts
    */
-  async getSitesWithMediaCounts(): Promise<Array<{
+  async getSitesWithMediaCounts(filters?: {
+    uploadedBy?: string;
+    pilots?: string[];
+    year?: number;
+    month?: number;
+  }): Promise<Array<{
     site_id: string;
     site_name: string;
     takeoff_lat: number;
@@ -35,7 +54,7 @@ export class MediaService {
     image_count: number;
     video_count: number;
   }>> {
-    const result = await this.mediaRepository
+    const qb = this.mediaRepository
       .createQueryBuilder('media')
       .leftJoin('media.site', 'site')
       .select('media.site_id', 'site_id')
@@ -50,12 +69,27 @@ export class MediaService {
         "SUM(CASE WHEN media.media_type = 'video' THEN 1 ELSE 0 END)",
         'video_count',
       )
-      .where('media.site_id IS NOT NULL')
-      .groupBy('media.site_id')
+      .where('media.site_id IS NOT NULL');
+
+    if (filters?.uploadedBy) {
+      qb.andWhere('media.uploaded_by = :uploadedBy', { uploadedBy: filters.uploadedBy });
+    }
+    if (filters?.pilots?.length) {
+      qb.andWhere('media.pilots && :pilots', { pilots: filters.pilots });
+    }
+    if (filters?.year) {
+      qb.andWhere('EXTRACT(YEAR FROM media.flight_date) = :year', { year: filters.year });
+    }
+    if (filters?.month) {
+      qb.andWhere('EXTRACT(MONTH FROM media.flight_date) = :month', { month: filters.month });
+    }
+
+    qb.groupBy('media.site_id')
       .addGroupBy('site.name')
       .addGroupBy('site.takeoff_lat')
-      .addGroupBy('site.takeoff_lon')
-      .getRawMany();
+      .addGroupBy('site.takeoff_lon');
+
+    const result = await qb.getRawMany();
 
     return result.map((row) => ({
       site_id: row.site_id,
@@ -83,12 +117,17 @@ export class MediaService {
   /**
    * Get all unique dates with media counts (photos and videos)
    */
-  async getMediaDatesWithCounts(): Promise<Array<{
+  async getMediaDatesWithCounts(filters?: {
+    uploadedBy?: string;
+    pilots?: string[];
+    year?: number;
+    month?: number;
+  }): Promise<Array<{
     date: string;
     image_count: number;
     video_count: number;
   }>> {
-    const result = await this.mediaRepository
+    const qb = this.mediaRepository
       .createQueryBuilder('media')
       .select("TO_CHAR(media.flight_date, 'YYYY-MM-DD')", 'date')
       .addSelect(
@@ -98,16 +137,70 @@ export class MediaService {
       .addSelect(
         "SUM(CASE WHEN media.media_type = 'video' THEN 1 ELSE 0 END)",
         'video_count',
-      )
-      .groupBy("TO_CHAR(media.flight_date, 'YYYY-MM-DD')")
-      .orderBy('date', 'DESC')
-      .getRawMany();
+      );
+
+    if (filters?.uploadedBy) {
+      qb.where('media.uploaded_by = :uploadedBy', { uploadedBy: filters.uploadedBy });
+    }
+    if (filters?.pilots?.length) {
+      qb.andWhere('media.pilots && :pilots', { pilots: filters.pilots });
+    }
+    if (filters?.year) {
+      qb.andWhere('EXTRACT(YEAR FROM media.flight_date) = :year', { year: filters.year });
+    }
+    if (filters?.month) {
+      qb.andWhere('EXTRACT(MONTH FROM media.flight_date) = :month', { month: filters.month });
+    }
+
+    qb.groupBy("TO_CHAR(media.flight_date, 'YYYY-MM-DD')")
+      .orderBy('date', 'DESC');
+
+    const result = await qb.getRawMany();
 
     return result.map((row) => ({
       date: row.date,
       image_count: parseInt(row.image_count, 10) || 0,
       video_count: parseInt(row.video_count, 10) || 0,
     }));
+  }
+
+  /**
+   * Search media by filters (uploaded_by, pilots, year, month)
+   */
+  async searchMedia(filters: {
+    uploadedBy?: string;
+    pilots?: string[];
+    year?: number;
+    month?: number;
+  }): Promise<Media[]> {
+    const hasFilter =
+      !!filters.uploadedBy ||
+      (filters.pilots?.length ?? 0) > 0 ||
+      !!filters.year ||
+      !!filters.month;
+
+    if (!hasFilter) return [];
+
+    const qb = this.mediaRepository
+      .createQueryBuilder('media')
+      .leftJoinAndSelect('media.site', 'site')
+      .orderBy('media.flight_date', 'DESC')
+      .addOrderBy('media.created_at', 'ASC');
+
+    if (filters.uploadedBy) {
+      qb.andWhere('media.uploaded_by = :uploadedBy', { uploadedBy: filters.uploadedBy });
+    }
+    if (filters.pilots?.length) {
+      qb.andWhere('media.pilots && :pilots', { pilots: filters.pilots });
+    }
+    if (filters.year) {
+      qb.andWhere('EXTRACT(YEAR FROM media.flight_date) = :year', { year: filters.year });
+    }
+    if (filters.month) {
+      qb.andWhere('EXTRACT(MONTH FROM media.flight_date) = :month', { month: filters.month });
+    }
+
+    return qb.getMany();
   }
 
   /**

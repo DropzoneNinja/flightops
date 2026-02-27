@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { mediaService, CreateMediaData } from '../services/media.service';
+import { mediaService, CreateMediaData, MediaFilters } from '../services/media.service';
 
 const MEDIA_QUERY_KEY = ['media'];
 
@@ -17,12 +17,12 @@ export function useMediaDates() {
 }
 
 /**
- * Hook to get all unique dates with media counts
+ * Hook to get all unique dates with media counts (supports optional filters)
  */
-export function useMediaDatesWithCounts() {
+export function useMediaDatesWithCounts(filters?: MediaFilters) {
   return useQuery({
-    queryKey: [...MEDIA_QUERY_KEY, 'dates', 'counts'],
-    queryFn: () => mediaService.getMediaDatesWithCounts(),
+    queryKey: [...MEDIA_QUERY_KEY, 'dates', 'counts', filters ?? {}],
+    queryFn: () => mediaService.getMediaDatesWithCounts(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
@@ -30,13 +30,40 @@ export function useMediaDatesWithCounts() {
 }
 
 /**
- * Hook to get all sites with their media counts
+ * Hook to get all sites with their media counts (supports optional filters)
  */
-export function useSitesWithMediaCounts() {
+export function useSitesWithMediaCounts(filters?: MediaFilters) {
   return useQuery({
-    queryKey: [...MEDIA_QUERY_KEY, 'sites', 'counts'],
-    queryFn: () => mediaService.getSitesWithMediaCounts(),
+    queryKey: [...MEDIA_QUERY_KEY, 'sites', 'counts', filters ?? {}],
+    queryFn: () => mediaService.getSitesWithMediaCounts(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+}
+
+/**
+ * Hook to get all distinct pilot names from media entries
+ */
+export function useMediaPilots() {
+  return useQuery({
+    queryKey: [...MEDIA_QUERY_KEY, 'pilots'],
+    queryFn: () => mediaService.getUniquePilots(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+}
+
+/**
+ * Hook to search media by filters (uploaded_by, pilots, year, month)
+ */
+export function useMediaSearch(filters: MediaFilters | null) {
+  return useQuery({
+    queryKey: [...MEDIA_QUERY_KEY, 'search', filters ?? {}],
+    queryFn: () => mediaService.searchMedia(filters!),
+    enabled: !!filters,
+    staleTime: 2 * 60 * 1000, // 2 minutes
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });

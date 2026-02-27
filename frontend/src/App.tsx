@@ -8,6 +8,7 @@ import Settings from './pages/Settings';
 import MediaCalendar from './pages/MediaCalendar';
 import DailyGallery from './pages/DailyGallery';
 import SiteGallery from './pages/SiteGallery';
+import FilteredGallery from './pages/FilteredGallery';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './contexts/ToastContext';
@@ -53,6 +54,16 @@ function App() {
             <ErrorBoundary>
               <ProtectedRoute>
                 <MediaCalendar />
+              </ProtectedRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/media/search"
+          element={
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <FilteredGallery />
               </ProtectedRoute>
             </ErrorBoundary>
           }

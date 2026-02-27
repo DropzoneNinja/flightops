@@ -36,23 +36,79 @@ export class MediaController {
   ) {}
 
   /**
+   * GET /media/search
+   * Search media by filters: uploaded_by, pilots (comma-sep), year, month
+   */
+  @Get('search')
+  @UseGuards(JwtAuthGuard)
+  async searchMedia(
+    @Query('uploaded_by') uploadedBy: string,
+    @Query('pilots') pilotsParam: string,
+    @Query('year') yearParam: string,
+    @Query('month') monthParam: string,
+    @CurrentUser() user: User,
+  ) {
+    const filters = {
+      uploadedBy: uploadedBy || undefined,
+      pilots: pilotsParam ? pilotsParam.split(',').filter(Boolean) : undefined,
+      year: yearParam ? parseInt(yearParam, 10) : undefined,
+      month: monthParam ? parseInt(monthParam, 10) : undefined,
+    };
+    return this.mediaService.searchMedia(filters);
+  }
+
+  /**
+   * GET /media/pilots
+   * Returns all distinct pilot names from media entries
+   */
+  @Get('pilots')
+  @UseGuards(JwtAuthGuard)
+  async getUniquePilots(@CurrentUser() user: User): Promise<string[]> {
+    return this.mediaService.getUniquePilots();
+  }
+
+  /**
    * GET /media/sites/counts
-   * Returns all sites with their media counts
+   * Returns all sites with their media counts (supports filtering)
    */
   @Get('sites/counts')
   @UseGuards(JwtAuthGuard)
-  async getSitesWithMediaCounts(@CurrentUser() user: User) {
-    return this.mediaService.getSitesWithMediaCounts();
+  async getSitesWithMediaCounts(
+    @Query('uploaded_by') uploadedBy: string,
+    @Query('pilots') pilotsParam: string,
+    @Query('year') yearParam: string,
+    @Query('month') monthParam: string,
+    @CurrentUser() user: User,
+  ) {
+    const filters = {
+      uploadedBy: uploadedBy || undefined,
+      pilots: pilotsParam ? pilotsParam.split(',').filter(Boolean) : undefined,
+      year: yearParam ? parseInt(yearParam, 10) : undefined,
+      month: monthParam ? parseInt(monthParam, 10) : undefined,
+    };
+    return this.mediaService.getSitesWithMediaCounts(filters);
   }
 
   /**
    * GET /media/dates/counts
-   * Returns all dates with photo/video counts
+   * Returns all dates with photo/video counts (supports filtering)
    */
   @Get('dates/counts')
   @UseGuards(JwtAuthGuard)
-  async getMediaDatesWithCounts(@CurrentUser() user: User) {
-    return this.mediaService.getMediaDatesWithCounts();
+  async getMediaDatesWithCounts(
+    @Query('uploaded_by') uploadedBy: string,
+    @Query('pilots') pilotsParam: string,
+    @Query('year') yearParam: string,
+    @Query('month') monthParam: string,
+    @CurrentUser() user: User,
+  ) {
+    const filters = {
+      uploadedBy: uploadedBy || undefined,
+      pilots: pilotsParam ? pilotsParam.split(',').filter(Boolean) : undefined,
+      year: yearParam ? parseInt(yearParam, 10) : undefined,
+      month: monthParam ? parseInt(monthParam, 10) : undefined,
+    };
+    return this.mediaService.getMediaDatesWithCounts(filters);
   }
 
   /**
