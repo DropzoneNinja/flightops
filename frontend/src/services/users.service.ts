@@ -1,5 +1,15 @@
 import { api } from './api';
 
+export interface AlbumStatRow {
+  username: string;
+  email: string;
+  images_uploaded: number;
+  videos_uploaded: number;
+  images_viewed: number;
+  videos_viewed: number;
+  storage_used: number;
+}
+
 export interface UserData {
   id: string;
   email: string;
@@ -51,5 +61,13 @@ export const usersService = {
    */
   async unlockAccount(id: string): Promise<void> {
     await api.patch(`/users/${id}/unlock`);
+  },
+
+  /**
+   * Get per-user album stats (admin only)
+   */
+  async getAlbumStats(): Promise<AlbumStatRow[]> {
+    const response = await api.get<AlbumStatRow[]>('/users/album-stats');
+    return response.data;
   },
 };

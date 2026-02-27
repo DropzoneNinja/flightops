@@ -46,6 +46,9 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   locked_at: Date;
 
+  @Column({ type: 'bigint', default: 0 })
+  storage_used: number;
+
   @CreateDateColumn()
   created_at: Date;
 

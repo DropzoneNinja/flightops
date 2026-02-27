@@ -3,12 +3,25 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../database/entities/user.entity';
+import { Media } from '../database/entities/media.entity';
+
+export interface AlbumStatRow {
+  username: string;
+  email: string;
+  images_uploaded: number;
+  videos_uploaded: number;
+  images_viewed: number;
+  videos_viewed: number;
+  storage_used: number;
+}
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Media)
+    private readonly mediaRepository: Repository<Media>,
   ) {}
 
   /**
@@ -255,5 +268,50 @@ export class UsersService {
     user.last_failed_login = null;
 
     return this.userRepository.save(user);
+  }
+
+  /**
+   * Adjust storage_used for a user by username (positive delta = add, negative = subtract)
+   */
+  async adjustStorageUsed(username: string, delta: number): Promise<void> {
+    if (!username) return;
+    await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ storage_used: () => `storage_used + ${delta}` })
+      .where('username = :username', { username })
+      .execute();
+  }
+
+  /**
+   * Get per-user album stats (admin only)
+   */
+  async getAlbumStats(): Promise<AlbumStatRow[]> {
+    const result = await this.userRepository
+      .createQueryBuilder('u')
+      .leftJoin(Media, 'm', 'm.uploaded_by = u.username')
+      .select('u.username', 'username')
+      .addSelect('u.email', 'email')
+      .addSelect('u.storage_used', 'storage_used')
+      .addSelect("SUM(CASE WHEN m.media_type = 'image' THEN 1 ELSE 0 END)", 'images_uploaded')
+      .addSelect("SUM(CASE WHEN m.media_type = 'video' THEN 1 ELSE 0 END)", 'videos_uploaded')
+      .addSelect("SUM(CASE WHEN m.media_type = 'image' THEN m.view_count ELSE 0 END)", 'images_viewed')
+      .addSelect("SUM(CASE WHEN m.media_type = 'video' THEN m.view_count ELSE 0 END)", 'videos_viewed')
+      .groupBy('u.id')
+      .addGroupBy('u.username')
+      .addGroupBy('u.email')
+      .addGroupBy('u.storage_used')
+      .orderBy('u.username', 'ASC')
+      .getRawMany();
+
+    return result.map((row) => ({
+      username: row.username,
+      email: row.email,
+      images_uploaded: parseInt(row.images_uploaded, 10) || 0,
+      videos_uploaded: parseInt(row.videos_uploaded, 10) || 0,
+      images_viewed: parseInt(row.images_viewed, 10) || 0,
+      videos_viewed: parseInt(row.videos_viewed, 10) || 0,
+      storage_used: Number(row.storage_used) || 0,
+    }));
   }
 }

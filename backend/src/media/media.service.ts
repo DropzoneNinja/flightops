@@ -10,6 +10,7 @@ import { FileValidationUtil } from './utils/file-validation.util';
 import { ThumbnailUtil } from './utils/thumbnail.util';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { UsersService } from '../users/users.service';
 
 const execAsync = promisify(exec);
 
@@ -20,6 +21,7 @@ export class MediaService {
   constructor(
     @InjectRepository(Media)
     private readonly mediaRepository: Repository<Media>,
+    private readonly usersService: UsersService,
   ) {
     this.mediaStoragePath = process.env.MEDIA_STORAGE_PATH || '/app/media';
   }
@@ -328,7 +330,12 @@ export class MediaService {
       site_id: createMediaDto.site_id,
     });
 
-    return this.mediaRepository.save(media);
+    const savedMedia = await this.mediaRepository.save(media);
+
+    // Track storage used by uploader
+    await this.usersService.adjustStorageUsed(createMediaDto.uploaded_by, file.size);
+
+    return savedMedia;
   }
 
   /**
@@ -360,6 +367,9 @@ export class MediaService {
 
     // Delete database record
     await this.mediaRepository.remove(media);
+
+    // Adjust storage used by uploader
+    await this.usersService.adjustStorageUsed(media.uploaded_by, -media.file_size);
   }
 
   /**

@@ -30,6 +30,16 @@ export class UsersController {
   }
 
   /**
+   * GET /users/album-stats
+   * Get per-user album statistics (admin only)
+   */
+  @Get('album-stats')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async getAlbumStats() {
+    return this.usersService.getAlbumStats();
+  }
+
+  /**
    * GET /users
    * Get all users (admin only)
    */

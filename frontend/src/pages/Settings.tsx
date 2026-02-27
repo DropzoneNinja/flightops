@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { SettingType, UpdateSettingData } from '../services/settings.service';
 import { preAuthorizedEmailsService, PreAuthorizedEmail } from '../services/pre-authorized-emails.service';
-import { usersService, UserData } from '../services/users.service';
+import { usersService, UserData, AlbumStatRow } from '../services/users.service';
 import { weatherService, WeatherApiStats } from '../services/weather.service';
 import { useSites } from '../hooks/useSites';
 import { backupService, BackupStatus, BackupFileInfo } from '../services/backup.service';
@@ -28,6 +28,10 @@ export default function Settings() {
   // Current users state (admin only)
   const [users, setUsers] = useState<UserData[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+
+  // Album stats state (admin only)
+  const [albumStats, setAlbumStats] = useState<AlbumStatRow[]>([]);
+  const [loadingAlbumStats, setLoadingAlbumStats] = useState(false);
 
   // Weather API stats state (admin only)
   const [weatherStats, setWeatherStats] = useState<WeatherApiStats | null>(null);
@@ -234,6 +238,30 @@ export default function Settings() {
         alert('Failed to unlock account. Please try again.');
       }
     }
+  };
+
+  // Load album stats (admin only)
+  useEffect(() => {
+    if (user?.is_admin) {
+      loadAlbumStats();
+    }
+  }, [user?.is_admin]);
+
+  const loadAlbumStats = async () => {
+    try {
+      setLoadingAlbumStats(true);
+      setAlbumStats(await usersService.getAlbumStats());
+    } catch (error) {
+      console.error('Failed to load album stats:', error);
+    } finally {
+      setLoadingAlbumStats(false);
+    }
+  };
+
+  const formatStorageSize = (bytes: number): string => {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
   };
 
   // Load weather stats (admin only)
@@ -803,6 +831,55 @@ export default function Settings() {
                               </button>
                             </div>
                           </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Album Stats (Admin Only) */}
+        {user?.is_admin && (
+          <div className="mb-8 bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Album Stats</h2>
+              <p className="text-sm text-gray-600 mt-1">Storage and media upload statistics per user</p>
+            </div>
+            <div className="px-6 py-4">
+              {loadingAlbumStats ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="mt-2 text-gray-600">Loading stats...</p>
+                </div>
+              ) : albumStats.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No users found.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Images Uploaded</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Videos Uploaded</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Images Viewed</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Videos Viewed</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Space</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {albumStats.map((row) => (
+                        <tr key={row.username || row.email} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {row.username || <span className="text-gray-400 italic">no username</span>}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{row.images_uploaded}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{row.videos_uploaded}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{row.images_viewed}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{row.videos_viewed}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{formatStorageSize(row.storage_used)}</td>
                         </tr>
                       ))}
                     </tbody>
