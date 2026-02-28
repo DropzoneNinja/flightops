@@ -240,12 +240,12 @@ export default function Settings() {
     }
   };
 
-  // Load album stats (admin only)
+  // Load album stats (all users)
   useEffect(() => {
-    if (user?.is_admin) {
+    if (user) {
       loadAlbumStats();
     }
-  }, [user?.is_admin]);
+  }, [user?.id]);
 
   const loadAlbumStats = async () => {
     try {
@@ -841,54 +841,52 @@ export default function Settings() {
           </div>
         )}
 
-        {/* Album Stats (Admin Only) */}
-        {user?.is_admin && (
-          <div className="mb-8 bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Album Stats</h2>
-              <p className="text-sm text-gray-600 mt-1">Storage and media upload statistics per user</p>
-            </div>
-            <div className="px-6 py-4">
-              {loadingAlbumStats ? (
-                <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  <p className="mt-2 text-gray-600">Loading stats...</p>
-                </div>
-              ) : albumStats.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">No users found.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Images Uploaded</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Videos Uploaded</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Images Viewed</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Videos Viewed</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Space</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {albumStats.map((row) => (
-                        <tr key={row.username || row.email} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {row.username || <span className="text-gray-400 italic">no username</span>}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{row.images_uploaded}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{row.videos_uploaded}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{row.images_viewed}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{row.videos_viewed}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{formatStorageSize(row.storage_used)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+        {/* Album Stats */}
+        <div className="mb-8 bg-white rounded-lg shadow">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Album Stats</h2>
+            <p className="text-sm text-gray-600 mt-1">Storage and media upload statistics per user</p>
           </div>
-        )}
+          <div className="px-6 py-4">
+            {loadingAlbumStats ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p className="mt-2 text-gray-600">Loading stats...</p>
+              </div>
+            ) : albumStats.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">No users found.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Images Uploaded</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Videos Uploaded</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Images Viewed</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Videos Viewed</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Space</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {albumStats.map((row) => (
+                      <tr key={row.username || row.email} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {row.username || <span className="text-gray-400 italic">no username</span>}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{row.images_uploaded}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{row.videos_uploaded}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{row.images_viewed}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{row.videos_viewed}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{formatStorageSize(row.storage_used)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Weather API Statistics (Admin Only) */}
         {user?.is_admin && (

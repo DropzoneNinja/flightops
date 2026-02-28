@@ -454,6 +454,12 @@ export default function MapView() {
               >
                 {isPlottingMode ? 'Plotting...' : 'Plot'}
               </button>
+              <button
+                onClick={() => navigate('/media')}
+                className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors"
+              >
+                Album
+              </button>
               {user?.is_admin && (
                 <>
                   <button
@@ -462,12 +468,6 @@ export default function MapView() {
                     className="px-4 py-2 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isFetchingWeather ? 'Fetching...' : 'Fetch Weather'}
-                  </button>
-                  <button
-                    onClick={() => navigate('/media')}
-                    className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors"
-                  >
-                    Album
                   </button>
                   <button
                     onClick={() => navigate('/settings')}
