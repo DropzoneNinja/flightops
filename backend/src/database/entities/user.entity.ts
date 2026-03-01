@@ -49,6 +49,12 @@ export class User {
   @Column({ type: 'bigint', default: 0 })
   storage_used: number;
 
+  @Column({ type: 'bigint', default: 0 })
+  images_viewed_count: number;
+
+  @Column({ type: 'bigint', default: 0 })
+  videos_viewed_count: number;
+
   @CreateDateColumn()
   created_at: Date;
 

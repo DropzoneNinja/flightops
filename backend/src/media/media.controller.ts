@@ -279,7 +279,7 @@ export class MediaController {
     @Param('id') id: string,
     @CurrentUser() user: User,
   ): Promise<{ message: string; view_count: number }> {
-    await this.mediaService.incrementViewCount(id);
+    await this.mediaService.incrementViewCount(id, user.username);
     const media = await this.mediaService.getMediaById(id);
     return {
       message: 'View count incremented',

@@ -284,7 +284,21 @@ export class UsersService {
   }
 
   /**
-   * Get per-user album stats (admin only)
+   * Increment the per-user view counter when a user views an image or video
+   */
+  async incrementViewedCount(username: string, mediaType: 'image' | 'video'): Promise<void> {
+    if (!username) return;
+    const column = mediaType === 'image' ? 'images_viewed_count' : 'videos_viewed_count';
+    await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ [column]: () => `${column} + 1` })
+      .where('username = :username', { username })
+      .execute();
+  }
+
+  /**
+   * Get per-user album stats
    */
   async getAlbumStats(): Promise<AlbumStatRow[]> {
     const result = await this.userRepository
@@ -293,14 +307,16 @@ export class UsersService {
       .select('u.username', 'username')
       .addSelect('u.email', 'email')
       .addSelect('u.storage_used', 'storage_used')
+      .addSelect('u.images_viewed_count', 'images_viewed')
+      .addSelect('u.videos_viewed_count', 'videos_viewed')
       .addSelect("SUM(CASE WHEN m.media_type = 'image' THEN 1 ELSE 0 END)", 'images_uploaded')
       .addSelect("SUM(CASE WHEN m.media_type = 'video' THEN 1 ELSE 0 END)", 'videos_uploaded')
-      .addSelect("SUM(CASE WHEN m.media_type = 'image' THEN m.view_count ELSE 0 END)", 'images_viewed')
-      .addSelect("SUM(CASE WHEN m.media_type = 'video' THEN m.view_count ELSE 0 END)", 'videos_viewed')
       .groupBy('u.id')
       .addGroupBy('u.username')
       .addGroupBy('u.email')
       .addGroupBy('u.storage_used')
+      .addGroupBy('u.images_viewed_count')
+      .addGroupBy('u.videos_viewed_count')
       .orderBy('u.username', 'ASC')
       .getRawMany();
 
@@ -309,8 +325,8 @@ export class UsersService {
       email: row.email,
       images_uploaded: parseInt(row.images_uploaded, 10) || 0,
       videos_uploaded: parseInt(row.videos_uploaded, 10) || 0,
-      images_viewed: parseInt(row.images_viewed, 10) || 0,
-      videos_viewed: parseInt(row.videos_viewed, 10) || 0,
+      images_viewed: Number(row.images_viewed) || 0,
+      videos_viewed: Number(row.videos_viewed) || 0,
       storage_used: Number(row.storage_used) || 0,
     }));
   }

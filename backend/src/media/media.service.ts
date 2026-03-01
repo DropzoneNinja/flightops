@@ -373,12 +373,15 @@ export class MediaService {
   }
 
   /**
-   * Increment view count for a media item
+   * Increment view count for a media item and track it against the viewing user
    */
-  async incrementViewCount(id: string): Promise<void> {
+  async incrementViewCount(id: string, viewerUsername?: string): Promise<void> {
     const media = await this.getMediaById(id);
     media.view_count += 1;
     await this.mediaRepository.save(media);
+    if (viewerUsername) {
+      await this.usersService.incrementViewedCount(viewerUsername, media.media_type);
+    }
   }
 
   /**
