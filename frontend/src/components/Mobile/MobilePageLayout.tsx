@@ -98,11 +98,15 @@ export default function MobilePageLayout({
 
   return (
     <div
-      className="flex flex-col h-screen bg-gray-100 overflow-hidden"
+      className="flex flex-col bg-gray-100 overflow-hidden"
+      style={{ height: '100dvh' }}
       {...swipeHandlers}
     >
-      {/* Compact sticky header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shrink-0">
+      {/* Compact sticky header — padded for iOS status bar / notch */}
+      <header
+        className="bg-white border-b border-gray-200 sticky top-0 z-10 shrink-0"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
         <div className="flex items-center px-4 py-3 gap-3 min-h-[52px]">
           {showBackButton && (
             <button

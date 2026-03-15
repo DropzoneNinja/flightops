@@ -172,7 +172,7 @@ export default function MediaViewer() {
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 bg-black bg-opacity-95 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[1100] bg-black bg-opacity-95 backdrop-blur-sm animate-fade-in"
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
