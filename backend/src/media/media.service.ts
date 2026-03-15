@@ -428,6 +428,73 @@ export class MediaService {
   }
 
   /**
+   * Regenerate thumbnails for all image media records.
+   * Only processes images (videos are skipped as their thumbnails are still valid).
+   * Returns counts of successes and failures.
+   */
+  async regenerateImageThumbnails(): Promise<{
+    processed: number;
+    succeeded: number;
+    failed: number;
+    errors: Array<{ id: string; filename: string; error: string }>;
+  }> {
+    const images = await this.mediaRepository.find({
+      where: { media_type: 'image' },
+    });
+
+    let succeeded = 0;
+    let failed = 0;
+    const errors: Array<{ id: string; filename: string; error: string }> = [];
+
+    for (const media of images) {
+      try {
+        const absoluteFilePath = path.join(
+          this.mediaStoragePath,
+          media.file_path,
+        );
+
+        // Derive the date path from the stored file_path (YYYY-MM-DD/filename)
+        const datePath = path.dirname(media.file_path);
+
+        const thumbnailDir = await ThumbnailUtil.ensureThumbnailDirectory(
+          this.mediaStoragePath,
+          datePath,
+        );
+
+        const secureFilename = path.basename(media.file_path);
+
+        const absoluteThumbnailPath = await ThumbnailUtil.generateImageThumbnail(
+          absoluteFilePath,
+          thumbnailDir,
+          secureFilename,
+        );
+
+        const thumbnailPath = ThumbnailUtil.getRelativeThumbnailPath(
+          absoluteThumbnailPath,
+          this.mediaStoragePath,
+        );
+
+        media.thumbnail_path = thumbnailPath;
+        await this.mediaRepository.save(media);
+        succeeded++;
+      } catch (error) {
+        failed++;
+        errors.push({
+          id: media.id,
+          filename: media.original_filename,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        console.error(
+          `Failed to regenerate thumbnail for media ${media.id}:`,
+          error,
+        );
+      }
+    }
+
+    return { processed: images.length, succeeded, failed, errors };
+  }
+
+  /**
    * Optimize video for streaming by moving metadata (moov atom) to the beginning
    * This enables immediate playback without downloading the entire file
    */

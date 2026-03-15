@@ -23,6 +23,7 @@ export class ThumbnailUtil {
 
     try {
       await sharp(sourceFilePath)
+        .rotate() // auto-rotate based on EXIF orientation
         .resize(this.THUMBNAIL_WIDTH, this.THUMBNAIL_HEIGHT, {
           fit: 'inside',
           withoutEnlargement: true,

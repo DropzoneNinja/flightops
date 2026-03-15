@@ -9,6 +9,7 @@ import { weatherService, WeatherApiStats } from '../services/weather.service';
 import { useSites } from '../hooks/useSites';
 import { backupService, BackupStatus, BackupFileInfo } from '../services/backup.service';
 import { RestoreModal } from '../components/RestoreModal';
+import { mediaService } from '../services/media.service';
 
 export default function Settings() {
   const { settings, defaults, isLoading, updateManyMutation, resetToDefaultsMutation } =
@@ -44,6 +45,14 @@ export default function Settings() {
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [backupFiles, setBackupFiles] = useState<BackupFileInfo[]>([]);
   const [loadingBackupFiles, setLoadingBackupFiles] = useState(false);
+
+  // Thumbnail regeneration state (admin only)
+  const [regeneratingThumbnails, setRegeneratingThumbnails] = useState(false);
+  const [thumbnailResult, setThumbnailResult] = useState<{
+    processed: number;
+    succeeded: number;
+    failed: number;
+  } | null>(null);
 
   // Sites management (admin only)
   const { sites, isLoading: isLoadingSites, deleteSiteMutation, updateSiteMutation, toggleSiteEnabledMutation } = useSites();
@@ -342,6 +351,23 @@ export default function Settings() {
       console.error('Failed to load backup files:', error);
     } finally {
       setLoadingBackupFiles(false);
+    }
+  };
+
+  const handleRegenerateThumbnails = async () => {
+    if (!window.confirm('Regenerate thumbnails for all images? This may take a while on large libraries.')) {
+      return;
+    }
+    try {
+      setRegeneratingThumbnails(true);
+      setThumbnailResult(null);
+      const result = await mediaService.regenerateThumbnails();
+      setThumbnailResult(result);
+    } catch (error: any) {
+      console.error('Failed to regenerate thumbnails:', error);
+      alert(error.response?.data?.message || 'Failed to regenerate thumbnails. Please try again.');
+    } finally {
+      setRegeneratingThumbnails(false);
     }
   };
 
@@ -977,6 +1003,56 @@ export default function Settings() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Thumbnail Maintenance (Admin Only) */}
+        {user?.is_admin && (
+          <div className="mb-8 bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Thumbnail Maintenance
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Regenerate thumbnails for all existing images
+              </p>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              <p className="text-sm text-gray-600">
+                Use this if thumbnails appear rotated or are missing. Only image thumbnails are regenerated; video thumbnails are unaffected.
+              </p>
+
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleRegenerateThumbnails}
+                  disabled={regeneratingThumbnails}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {regeneratingThumbnails ? (
+                    <span className="flex items-center gap-2">
+                      <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                      Regenerating...
+                    </span>
+                  ) : (
+                    'Regenerate Thumbnails'
+                  )}
+                </button>
+
+                {thumbnailResult && (
+                  <p className="text-sm text-gray-700">
+                    Done —{' '}
+                    <span className="font-semibold text-green-600">{thumbnailResult.succeeded}</span>
+                    {' '}of{' '}
+                    <span className="font-semibold">{thumbnailResult.processed}</span>
+                    {' '}thumbnails regenerated
+                    {thumbnailResult.failed > 0 && (
+                      <span className="text-red-600"> ({thumbnailResult.failed} failed)</span>
+                    )}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         )}

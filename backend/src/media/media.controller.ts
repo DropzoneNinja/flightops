@@ -321,6 +321,18 @@ export class MediaController {
   }
 
   /**
+   * POST /media/admin/regenerate-thumbnails
+   * Regenerate thumbnails for all existing image media (admin only).
+   * Fixes orientation issues caused by missing EXIF auto-rotation.
+   * IMPORTANT: This route must be defined BEFORE the generic :id route
+   */
+  @Post('admin/regenerate-thumbnails')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async regenerateThumbnails(@CurrentUser() user: User) {
+    return this.mediaService.regenerateImageThumbnails();
+  }
+
+  /**
    * POST /media
    * Upload a new media file
    */

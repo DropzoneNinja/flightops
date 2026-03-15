@@ -223,4 +223,17 @@ export const mediaService = {
   async incrementDownloadCount(id: string): Promise<void> {
     await api.post(`/media/${id}/download`);
   },
+
+  /**
+   * Regenerate thumbnails for all existing image media (admin only)
+   */
+  async regenerateThumbnails(): Promise<{
+    processed: number;
+    succeeded: number;
+    failed: number;
+    errors: Array<{ id: string; filename: string; error: string }>;
+  }> {
+    const response = await api.post('/media/admin/regenerate-thumbnails');
+    return response.data;
+  },
 };
