@@ -42,8 +42,48 @@
     font-size: 24px !important;
   }
 
-  /* Adjust attribution to be above bottom nav */
+  /* Adjust attribution to be above bottom nav (accounts for iOS safe area) */
   .leaflet-bottom {
-    bottom: 60px !important;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* iOS safe area padding utilities */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Content area bottom padding: nav bar height (56px) + safe area */
+  .pb-safe {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Fallback for browsers without env() support */
+.pb-safe {
+  padding-bottom: 56px;
+}
+
+/* Android Material-style touch ripple — only on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .ripple {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ripple::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, rgba(0, 0, 0, 0.12) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  .ripple:active::after {
+    opacity: 1;
+    transition: opacity 0s;
   }
 }

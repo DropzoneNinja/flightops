@@ -2,10 +2,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMediaSearch } from '../hooks/useMedia';
 import { useMediaStore } from '../stores/mediaStore';
 import { useAuth } from '../hooks/useAuth';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { MediaFilters, Media } from '../services/media.service';
 import MediaCard from '../components/Media/MediaCard';
 import MediaViewer from '../components/Media/MediaViewer';
 import UploadModal from '../components/Media/UploadModal';
+import MobilePageLayout from '../components/Mobile/MobilePageLayout';
 import { format, parseISO } from 'date-fns';
 import { useMemo } from 'react';
 
@@ -45,6 +47,7 @@ export default function FilteredGallery() {
     !!filters.year ||
     !!filters.month;
 
+  const isMobile = useIsMobile();
   const { data: media, isLoading, error, refetch } = useMediaSearch(hasFilters ? filters : null);
 
   // Build human-readable filter summary
@@ -81,6 +84,24 @@ export default function FilteredGallery() {
   }, [media]);
 
   if (isLoading) {
+    const skeleton = (
+      <div className="p-4">
+        <div className="bg-white rounded-lg shadow-elevation p-6">
+          <div className="grid grid-cols-2 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-40 bg-sky-midday rounded-lg animate-pulse"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+    if (isMobile) {
+      return (
+        <MobilePageLayout activeTab="media" showBackButton backLabel="Calendar" onBack={() => navigate('/media')}>
+          {skeleton}
+        </MobilePageLayout>
+      );
+    }
     return (
       <div className="min-h-screen bg-sky-midday">
         <header className="bg-white shadow-elevation">
@@ -108,6 +129,22 @@ export default function FilteredGallery() {
   }
 
   if (error) {
+    if (isMobile) {
+      return (
+        <MobilePageLayout activeTab="media" showBackButton backLabel="Calendar" onBack={() => navigate('/media')}>
+          <div className="px-4 py-8">
+            <div className="bg-white rounded-xl shadow-elevation-lg p-8">
+              <h2 className="text-xl font-bold text-sky-night text-center mb-2">Unable to Load Results</h2>
+              <p className="text-sky-dusk text-center mb-6">{error instanceof Error ? error.message : 'An unexpected error occurred.'}</p>
+              <div className="flex flex-col gap-3">
+                <button onClick={() => refetch()} className="px-6 py-3 bg-sky-morning text-white font-medium rounded-lg">Try Again</button>
+                <button onClick={() => navigate('/media')} className="px-6 py-3 bg-white text-sky-dusk border border-sky-midday font-medium rounded-lg">Back to Calendar</button>
+              </div>
+            </div>
+          </div>
+        </MobilePageLayout>
+      );
+    }
     return (
       <div className="min-h-screen bg-gray-100">
         <header className="bg-white shadow-sm border-b-2 border-gray-200 z-10">
@@ -156,6 +193,67 @@ export default function FilteredGallery() {
           </div>
         </main>
       </div>
+    );
+  }
+
+  // Mobile layout
+  if (isMobile) {
+    const allMediaIds = media ? media.map((m) => m.id) : [];
+    return (
+      <MobilePageLayout
+        activeTab="media"
+        showBackButton
+        backLabel="Calendar"
+        onBack={() => navigate('/media')}
+        headerRight={
+          <button onClick={openUploadModal} className="touch-target p-2 text-sky-morning" aria-label="Upload media">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+        }
+      >
+        <div className="px-4 py-4 space-y-4">
+          <div>
+            <h2 className="text-xl font-bold text-sky-night">Search Results</h2>
+            {filterSummary && <p className="text-sm text-sky-dusk">{filterSummary}</p>}
+            {media && <p className="text-sm text-sky-dusk">{media.length} {media.length === 1 ? 'item' : 'items'} found</p>}
+          </div>
+          {!hasFilters ? (
+            <div className="bg-white rounded-xl shadow-elevation-lg p-6 text-center">
+              <p className="text-sky-dusk mb-4">No filters specified.</p>
+              <button onClick={() => navigate('/media')} className="px-6 py-3 bg-sky-morning text-white rounded-lg">Back to Calendar</button>
+            </div>
+          ) : media && media.length > 0 ? (
+            Array.from(mediaByMonth.entries()).map(([monthKey, monthMedia]) => {
+              const date = parseISO(monthKey + '-01');
+              const monthYear = format(date, 'MMMM yyyy');
+              return (
+                <div key={monthKey} className="bg-white rounded-xl shadow-elevation-lg p-4 animate-fade-in">
+                  <div className="mb-3 pb-2 border-b border-sky-midday">
+                    <h3 className="text-base font-bold text-sky-night">{monthYear}</h3>
+                    <p className="text-sm text-sky-dusk">{monthMedia.length} {monthMedia.length === 1 ? 'item' : 'items'}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {monthMedia.map((mediaItem) => (
+                      <MediaCard key={mediaItem.id} media={mediaItem} mediaList={allMediaIds} index={allMediaIds.indexOf(mediaItem.id)} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="bg-white rounded-xl shadow-elevation-lg p-6 text-center">
+              <h3 className="text-lg font-semibold text-sky-night mb-2">No media found</h3>
+              <p className="text-sky-dusk mb-4">No media matches the selected filters.</p>
+              <button onClick={() => navigate('/media')} className="px-6 py-3 bg-sky-morning text-white rounded-lg">Back to Calendar</button>
+            </div>
+          )}
+        </div>
+        <MediaViewer />
+        <UploadModal />
+      </MobilePageLayout>
     );
   }
 

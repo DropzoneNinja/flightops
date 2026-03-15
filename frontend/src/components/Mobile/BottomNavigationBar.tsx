@@ -12,13 +12,21 @@ interface BottomNavigationBarProps {
   activeTab: 'map' | 'sites' | 'media' | 'logout' | 'tools';
   onTabChange: (tab: 'map' | 'sites' | 'media' | 'logout' | 'tools') => void;
   onLogout: () => void;
+  /** Visual variant: 'ios' = frosted glass, 'android' = flat + ripple, 'default' = existing style */
+  variant?: 'ios' | 'android' | 'default';
 }
 
 export default function BottomNavigationBar({
   activeTab,
   onTabChange,
   onLogout,
+  variant = 'default',
 }: BottomNavigationBarProps) {
+  const navBgClass =
+    variant === 'ios'
+      ? 'bg-white/80 backdrop-blur-md border-t border-gray-200'
+      : 'bg-white border-t-2 border-gray-300';
+  const tabRippleClass = variant === 'android' ? 'ripple' : '';
   const tabs = [
     {
       id: 'map' as const,
@@ -75,7 +83,7 @@ export default function BottomNavigationBar({
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 shadow-2xl z-[1000] no-select"
+      className={`fixed bottom-0 left-0 right-0 shadow-2xl z-[1000] no-select ${navBgClass}`}
       role="navigation"
       aria-label="Mobile navigation"
     >
@@ -95,7 +103,7 @@ export default function BottomNavigationBar({
             disabled={tab.disabled}
             aria-label={tab.label}
             aria-current={activeTab === tab.id ? 'page' : undefined}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 touch-target transition-colors ${
+            className={`flex-1 flex flex-col items-center justify-center gap-1 touch-target transition-colors ${tabRippleClass} ${
               activeTab === tab.id
                 ? 'text-blue-600 bg-blue-50'
                 : tab.disabled

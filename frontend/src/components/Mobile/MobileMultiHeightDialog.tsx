@@ -84,6 +84,7 @@ export default function MobileMultiHeightDialog({
       onClose={onClose}
       title={`Multi-Height Wind - ${formatForecastDate(forecast.date)}`}
       height="full"
+      closeLabel="Back to Map"
     >
       <style>{`
         .scroll-container-horizontal {
@@ -154,151 +155,56 @@ export default function MobileMultiHeightDialog({
         </div>
       )}
 
-      {/* Data Table */}
+      {/* Data Table — rows=time, columns=height (fits on screen without horizontal scroll) */}
       {data && !isLoading && !error && (
-        <div className="scroll-container-horizontal -mx-6 px-6">
-          <table className="border-collapse" style={{ width: 'max-content', minWidth: '100%' }}>
+        <div className="-mx-6 px-6">
+          <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th
-                  className="border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 outdoor-text sticky left-0 z-10"
-                  style={{ minWidth: '100px' }}
-                >
-                  Height
+                {/* Time column header */}
+                <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 outdoor-text text-left sticky top-0 z-10 w-20">
+                  Time
                 </th>
-                {filteredHours.map((hourData, index) => {
-                  const time = new Date(hourData.timestamp).toLocaleTimeString([], {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true,
-                  });
-                  return (
-                    <th
-                      key={index}
-                      className="border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 outdoor-text whitespace-nowrap"
-                      style={{ minWidth: '120px' }}
-                    >
-                      {time}
-                    </th>
-                  );
-                })}
+                {/* 33 ft column — with heat bar colour indicator */}
+                <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 outdoor-text text-center sticky top-0 z-10">
+                  33 ft
+                </th>
+                {/* 262 ft column */}
+                <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 outdoor-text text-center sticky top-0 z-10">
+                  262 ft
+                </th>
+                {/* 394 ft column */}
+                <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 outdoor-text text-center sticky top-0 z-10">
+                  394 ft
+                </th>
               </tr>
             </thead>
             <tbody>
-              {/* 120m row (394 ft) */}
-              <tr>
-                <td
-                  className="border border-gray-300 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-900 sticky left-0 z-10"
-                  style={{ minWidth: '100px' }}
-                >
-                  394 ft
-                </td>
-                {filteredHours.map((hourData, index) => (
-                  <td
-                    key={index}
-                    className="border border-gray-300 px-4 py-2 text-center text-sm"
-                    style={{ minWidth: '120px', height: '60px' }}
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      {/* Line 1: Temperature */}
-                      <div className="flex items-center justify-between w-full text-xs">
-                        <span className="text-black font-bold">
-                          {formatTemperature(hourData.wind_120m.temperature, temperatureUnit)}
-                        </span>
-                      </div>
-                      {/* Line 2: Wind Speed */}
-                      <div className="flex items-center justify-center w-full">
-                        <span className="font-medium text-gray-900">
-                          {Math.round(hourData.wind_120m.speed)} km/h
-                        </span>
-                      </div>
-                      {/* Line 3: Wind Arrow | Fog Icon */}
-                      <div className="flex items-center justify-between w-full">
-                        <WindArrow direction={hourData.wind_120m.direction} />
-                        {hourData.wind_120m.fog && (
-                          <img
-                            src="/icon-fog.png"
-                            alt="Fog/Low clouds at this level"
-                            title="Fog/Low clouds at this level"
-                            className="w-4 h-4"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                ))}
-              </tr>
+              {filteredHours.map((hourData, index) => {
+                const time = new Date(hourData.timestamp).toLocaleTimeString([], {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true,
+                });
+                const heatColor = getHeatBarColor(hourData.timestamp);
+                const hasRain =
+                  hourData.wind_10m.precipitation !== null &&
+                  hourData.wind_10m.precipitation !== undefined &&
+                  hourData.wind_10m.precipitation > 0;
 
-              {/* 80m row (262 ft) */}
-              <tr>
-                <td
-                  className="border border-gray-300 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-900 sticky left-0 z-10"
-                  style={{ minWidth: '100px' }}
-                >
-                  262 ft
-                </td>
-                {filteredHours.map((hourData, index) => (
-                  <td
-                    key={index}
-                    className="border border-gray-300 px-4 py-2 text-center text-sm"
-                    style={{ minWidth: '120px', height: '60px' }}
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      {/* Line 1: Temperature */}
-                      <div className="flex items-center justify-between w-full text-xs">
-                        <span className="text-black font-bold">
-                          {formatTemperature(hourData.wind_80m.temperature, temperatureUnit)}
-                        </span>
-                      </div>
-                      {/* Line 2: Wind Speed */}
-                      <div className="flex items-center justify-center w-full">
-                        <span className="font-medium text-gray-900">
-                          {Math.round(hourData.wind_80m.speed)} km/h
-                        </span>
-                      </div>
-                      {/* Line 3: Wind Arrow | Fog Icon */}
-                      <div className="flex items-center justify-between w-full">
-                        <WindArrow direction={hourData.wind_80m.direction} />
-                        {hourData.wind_80m.fog && (
-                          <img
-                            src="/icon-fog.png"
-                            alt="Fog/Low clouds at this level"
-                            title="Fog/Low clouds at this level"
-                            className="w-4 h-4"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                ))}
-              </tr>
+                return (
+                  <tr key={index}>
+                    {/* Time label */}
+                    <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-900 whitespace-nowrap">
+                      {time}
+                    </td>
 
-              {/* 10m row (33 ft) - with heat bar colors */}
-              <tr>
-                <td
-                  className="border border-gray-300 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-900 sticky left-0 z-10"
-                  style={{ minWidth: '100px' }}
-                >
-                  33 ft
-                </td>
-                {filteredHours.map((hourData, index) => {
-                  const hasRain = hourData.wind_10m.precipitation !== null &&
-                                 hourData.wind_10m.precipitation !== undefined &&
-                                 hourData.wind_10m.precipitation > 0;
-                  const heatColor = getHeatBarColor(hourData.timestamp);
-                  return (
+                    {/* 33 ft cell — heat bar background */}
                     <td
-                      key={index}
-                      className="border border-gray-300 px-4 py-2 text-center text-sm"
-                      style={{
-                        minWidth: '120px',
-                        height: '60px',
-                        backgroundColor: heatColor,
-                        opacity: 0.85
-                      }}
+                      className="border border-gray-300 px-3 py-2 text-center text-sm"
+                      style={{ backgroundColor: heatColor, opacity: 0.9 }}
                     >
-                      <div className="flex flex-col items-center gap-1">
-                        {/* Line 1: Temperature | Rain Icon */}
+                      <div className="flex flex-col items-center gap-0.5">
                         <div className="flex items-center justify-between w-full text-xs">
                           <span className="text-black font-bold">
                             {formatTemperature(hourData.wind_10m.temperature, temperatureUnit)}
@@ -312,39 +218,66 @@ export default function MobileMultiHeightDialog({
                             />
                           )}
                         </div>
-                        {/* Line 2: Wind Speed */}
-                        <div className="flex items-center justify-center w-full">
-                          <span className="font-medium text-gray-900">
-                            {Math.round(hourData.wind_10m.speed)} km/h
-                          </span>
-                        </div>
-                        {/* Line 3: Wind Arrow | Fog Icon | Gusts Icon */}
-                        <div className="flex items-center justify-between w-full">
+                        <span className="font-medium text-gray-900 text-xs">
+                          {Math.round(hourData.wind_10m.speed)} km/h
+                        </span>
+                        <div className="flex items-center gap-1">
                           <WindArrow direction={hourData.wind_10m.direction} />
                           {hourData.wind_10m.fog && (
-                            <img
-                              src="/icon-fog.png"
-                              alt="Fog/Low clouds at surface level"
-                              title="Fog/Low clouds at surface level"
-                              className="w-4 h-4"
-                            />
+                            <img src="/icon-fog.png" alt="Fog" title="Fog/Low clouds" className="w-4 h-4" />
                           )}
                           {hourData.wind_10m.gusts !== null &&
-                           hourData.wind_10m.gusts !== undefined &&
-                           hourData.wind_10m.gusts > gustThreshold && (
-                            <img
-                              src="/gusts.webp"
-                              alt={`Gusts: ${hourData.wind_10m.gusts.toFixed(1)} km/h`}
-                              title={`Gusts: ${hourData.wind_10m.gusts.toFixed(1)} km/h`}
-                              className="w-4 h-4"
-                            />
+                            hourData.wind_10m.gusts !== undefined &&
+                            hourData.wind_10m.gusts > gustThreshold && (
+                              <img
+                                src="/gusts.webp"
+                                alt={`Gusts: ${hourData.wind_10m.gusts.toFixed(1)} km/h`}
+                                title={`Gusts: ${hourData.wind_10m.gusts.toFixed(1)} km/h`}
+                                className="w-4 h-4"
+                              />
+                            )}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* 262 ft cell */}
+                    <td className="border border-gray-300 px-3 py-2 text-center text-sm">
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-black font-bold text-xs">
+                          {formatTemperature(hourData.wind_80m.temperature, temperatureUnit)}
+                        </span>
+                        <span className="font-medium text-gray-900 text-xs">
+                          {Math.round(hourData.wind_80m.speed)} km/h
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <WindArrow direction={hourData.wind_80m.direction} />
+                          {hourData.wind_80m.fog && (
+                            <img src="/icon-fog.png" alt="Fog" title="Fog/Low clouds" className="w-4 h-4" />
                           )}
                         </div>
                       </div>
                     </td>
-                  );
-                })}
-              </tr>
+
+                    {/* 394 ft cell */}
+                    <td className="border border-gray-300 px-3 py-2 text-center text-sm">
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-black font-bold text-xs">
+                          {formatTemperature(hourData.wind_120m.temperature, temperatureUnit)}
+                        </span>
+                        <span className="font-medium text-gray-900 text-xs">
+                          {Math.round(hourData.wind_120m.speed)} km/h
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <WindArrow direction={hourData.wind_120m.direction} />
+                          {hourData.wind_120m.fog && (
+                            <img src="/icon-fog.png" alt="Fog" title="Fog/Low clouds" className="w-4 h-4" />
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -2,9 +2,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useMediaByDate } from '../hooks/useMedia';
 import { useMediaStore } from '../stores/mediaStore';
 import { useAuth } from '../hooks/useAuth';
+import { useIsMobile } from '../hooks/useIsMobile';
 import MediaGrid from '../components/Media/MediaGrid';
 import MediaViewer from '../components/Media/MediaViewer';
 import UploadModal from '../components/Media/UploadModal';
+import MobilePageLayout from '../components/Mobile/MobilePageLayout';
 import { format, parseISO } from 'date-fns';
 
 /**
@@ -17,6 +19,7 @@ export default function DailyGallery() {
   const { user } = useAuth();
   const { openUploadModal } = useMediaStore();
 
+  const isMobile = useIsMobile();
   const { data: media, isLoading, error, refetch } = useMediaByDate(date);
 
   // Format the date for display
@@ -34,9 +37,28 @@ export default function DailyGallery() {
     : null;
 
   if (isLoading) {
+    const skeleton = (
+      <div className="p-4">
+        <div className="bg-white rounded-lg shadow-elevation p-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-40 bg-sky-midday rounded-lg animate-pulse"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+
+    if (isMobile) {
+      return (
+        <MobilePageLayout activeTab="media" showBackButton backLabel="Calendar" onBack={() => navigate('/media')}>
+          {skeleton}
+        </MobilePageLayout>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-sky-midday">
-        {/* Header Skeleton */}
         <header className="bg-white shadow-elevation">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center justify-between">
@@ -48,16 +70,11 @@ export default function DailyGallery() {
             </div>
           </div>
         </header>
-
-        {/* Content Skeleton */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-white rounded-lg shadow-elevation p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-64 bg-sky-midday rounded-lg animate-pulse"
-                ></div>
+                <div key={i} className="h-64 bg-sky-midday rounded-lg animate-pulse"></div>
               ))}
             </div>
           </div>
@@ -67,6 +84,36 @@ export default function DailyGallery() {
   }
 
   if (error) {
+    const errorContent = (
+      <main className="px-4 py-8">
+        <div className="bg-white rounded-xl shadow-elevation-lg p-8 animate-scale-in">
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-red-500" fill="none" strokeWidth={2} stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+          </div>
+          <h2 className="text-xl font-bold text-sky-night text-center mb-2">Unable to Load Media</h2>
+          <p className="text-sky-dusk text-center mb-6">
+            {error instanceof Error ? error.message : 'An unexpected error occurred.'}
+          </p>
+          <div className="flex flex-col gap-3">
+            <button onClick={() => refetch()} className="px-6 py-3 bg-sky-morning text-white font-medium rounded-lg hover:bg-sky-dusk transition-all">Try Again</button>
+            <button onClick={() => navigate('/media')} className="px-6 py-3 bg-white text-sky-dusk border border-sky-midday font-medium rounded-lg hover:bg-sky-cloud transition-all">Back to Calendar</button>
+          </div>
+        </div>
+      </main>
+    );
+
+    if (isMobile) {
+      return (
+        <MobilePageLayout activeTab="media" showBackButton backLabel="Calendar" onBack={() => navigate('/media')}>
+          {errorContent}
+        </MobilePageLayout>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-gray-100">
         {/* Header */}
@@ -147,6 +194,47 @@ export default function DailyGallery() {
           </div>
         </main>
       </div>
+    );
+  }
+
+  // Mobile layout
+  if (isMobile) {
+    return (
+      <MobilePageLayout
+        activeTab="media"
+        showBackButton
+        backLabel="Calendar"
+        onBack={() => navigate('/media')}
+        headerRight={
+          <button onClick={openUploadModal} className="touch-target p-2 text-sky-morning" aria-label="Upload media">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+        }
+      >
+        <div className="px-4 py-4">
+          {siteName && <h2 className="text-xl font-bold text-sky-night mb-3">{siteName}</h2>}
+          {!media || media.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-elevation-lg p-6 text-center">
+              <h3 className="text-lg font-semibold text-sky-night mb-2">No Media Yet</h3>
+              <p className="text-sky-dusk mb-4">No photos or videos for {formattedDate}</p>
+              <button onClick={openUploadModal} className="px-6 py-3 bg-sky-morning text-white rounded-lg hover:bg-sky-dusk transition-colors">Upload Media</button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow-elevation-lg p-4 animate-fade-in">
+              <div className="mb-4 pb-3 border-b border-sky-midday">
+                <h2 className="text-lg font-bold text-sky-night">{formattedDate}</h2>
+                <p className="text-sm text-sky-dusk">{media.length} {media.length === 1 ? 'item' : 'items'}</p>
+              </div>
+              <MediaGrid />
+            </div>
+          )}
+        </div>
+        <MediaViewer />
+        <UploadModal defaultDate={date} />
+      </MobilePageLayout>
     );
   }
 
