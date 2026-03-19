@@ -4,6 +4,7 @@ import { useMediaById, useMediaDelete } from '../../hooks/useMedia';
 import { useAuth } from '../../hooks/useAuth';
 import ImageViewer from './ImageViewer';
 import VideoPlayer from './VideoPlayer';
+import EditMediaModal from './EditMediaModal';
 import { mediaService } from '../../services/media.service';
 
 /**
@@ -26,6 +27,7 @@ export default function MediaViewer() {
   const deleteMutation = useMediaDelete();
   const overlayRef = useRef<HTMLDivElement>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Keyboard navigation
   useEffect(() => {
@@ -163,8 +165,9 @@ export default function MediaViewer() {
     setShowDeleteConfirm(false);
   };
 
-  // Check if current user can delete this media
+  // Check if current user can delete/edit this media
   const canDelete = media && user && (user.is_admin || media.uploaded_by === user.username);
+  const canEdit = canDelete;
 
   const hasPrevious = mediaList.length > 1;
   const hasNext = mediaList.length > 1;
@@ -385,6 +388,30 @@ export default function MediaViewer() {
                     <span className="hidden sm:inline">Download</span>
                   </button>
 
+                  {/* Edit Button - Only visible to uploader or admin */}
+                  {canEdit && (
+                    <button
+                      onClick={() => setShowEditModal(true)}
+                      className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-body font-medium rounded-lg transition-colors flex items-center gap-2"
+                      aria-label="Edit media"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        strokeWidth={2}
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
+                        />
+                      </svg>
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
+                  )}
+
                   {/* Delete Button - Only visible to uploader or admin */}
                   {canDelete && (
                     <button
@@ -429,6 +456,15 @@ export default function MediaViewer() {
           • <kbd className="px-2 py-1 bg-white bg-opacity-20 rounded">ESC</kbd>{' '}
           Close
         </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && media && (
+        <EditMediaModal
+          media={media}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={() => setShowEditModal(false)}
+        />
       )}
 
       {/* Delete Confirmation Dialog */}

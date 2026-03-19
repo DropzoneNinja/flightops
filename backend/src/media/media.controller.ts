@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Param,
   Query,
@@ -24,7 +25,7 @@ import { AdminGuard } from '../auth/guards/admin.guard';
 import { MediaTokenService } from '../auth/media-token.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../database/entities/user.entity';
-import { CreateMediaDto } from './dto';
+import { CreateMediaDto, UpdateMediaDto } from './dto';
 import * as fs from 'fs';
 import { createReadStream, statSync } from 'fs';
 
@@ -356,6 +357,26 @@ export class MediaController {
 
     // The pilots array is now automatically transformed by the DTO's @Transform decorator
     return this.mediaService.uploadMedia(file, createMediaDto);
+  }
+
+  /**
+   * PATCH /media/:id
+   * Updates metadata for a media item (admin or uploader only)
+   */
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  async updateMedia(
+    @Param('id') id: string,
+    @Body() updateMediaDto: UpdateMediaDto,
+    @CurrentUser() user: User,
+  ): Promise<any> {
+    const media = await this.mediaService.getMediaById(id);
+
+    if (!user.is_admin && media.uploaded_by !== user.username) {
+      throw new BadRequestException('You can only edit media that you uploaded');
+    }
+
+    return this.mediaService.updateMedia(id, updateMediaDto);
   }
 
   /**

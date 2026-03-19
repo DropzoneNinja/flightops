@@ -5,7 +5,7 @@ import { Media } from '../database/entities/media.entity';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
-import { CreateMediaDto } from './dto';
+import { CreateMediaDto, UpdateMediaDto } from './dto';
 import { FileValidationUtil } from './utils/file-validation.util';
 import { ThumbnailUtil } from './utils/thumbnail.util';
 import { exec } from 'child_process';
@@ -336,6 +336,28 @@ export class MediaService {
     await this.usersService.adjustStorageUsed(createMediaDto.uploaded_by, file.size);
 
     return savedMedia;
+  }
+
+  /**
+   * Update metadata for an existing media item
+   */
+  async updateMedia(id: string, dto: UpdateMediaDto): Promise<Media> {
+    const media = await this.getMediaById(id);
+
+    if (dto.flight_date !== undefined) {
+      media.flight_date = new Date(dto.flight_date);
+    }
+    if (dto.pilots !== undefined) {
+      media.pilots = dto.pilots;
+    }
+    if (dto.notes !== undefined) {
+      media.notes = dto.notes || null;
+    }
+    if (dto.site_id !== undefined) {
+      media.site_id = dto.site_id || null;
+    }
+
+    return this.mediaRepository.save(media);
   }
 
   /**

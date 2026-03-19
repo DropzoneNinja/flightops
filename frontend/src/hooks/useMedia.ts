@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { mediaService, CreateMediaData, MediaFilters } from '../services/media.service';
+import { mediaService, CreateMediaData, MediaFilters, UpdateMediaData } from '../services/media.service';
 
 const MEDIA_QUERY_KEY = ['media'];
 
@@ -135,6 +135,21 @@ export function useMediaUpload() {
     },
     onSuccess: () => {
       // Invalidate all media queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: MEDIA_QUERY_KEY });
+    },
+  });
+}
+
+/**
+ * Hook to update media metadata (uploader or admin only)
+ */
+export function useMediaUpdate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateMediaData }) =>
+      mediaService.updateMedia(id, data),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MEDIA_QUERY_KEY });
     },
   });

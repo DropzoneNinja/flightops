@@ -57,6 +57,13 @@ export interface MediaFilters {
   month?: number;
 }
 
+export interface UpdateMediaData {
+  flight_date?: string;
+  pilots?: string[];
+  notes?: string;
+  site_id?: string | null;
+}
+
 export const mediaService = {
   /**
    * Get all unique dates that have media
@@ -208,6 +215,14 @@ export const mediaService = {
    */
   async deleteMedia(id: string): Promise<void> {
     await api.delete(`/media/${id}`);
+  },
+
+  /**
+   * Update metadata for a media item (uploader or admin only)
+   */
+  async updateMedia(id: string, data: UpdateMediaData): Promise<Media> {
+    const response = await api.patch<Media>(`/media/${id}`, data);
+    return response.data;
   },
 
   /**

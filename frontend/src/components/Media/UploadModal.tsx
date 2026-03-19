@@ -4,6 +4,7 @@ import { useMediaUpload } from '../../hooks/useMedia';
 import { useSites } from '../../hooks/useSites';
 import { useAuth } from '../../hooks/useAuth';
 import { usersService } from '../../services/users.service';
+import { mediaService } from '../../services/media.service';
 import { useToastContext } from '../../contexts/ToastContext';
 
 interface UploadModalProps {
@@ -39,6 +40,8 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isLoadingUsernames, setIsLoadingUsernames] = useState(false);
+  const [showNoSiteConfirm, setShowNoSiteConfirm] = useState(false);
+  const [siteManuallySet, setSiteManuallySet] = useState(false);
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,6 +76,7 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
     if (uploadModalOpen) {
       setFlightDate(defaultDate || new Date().toISOString().split('T')[0]);
       setSelectedSiteId('');
+      setSiteManuallySet(false);
       setSelectedPilots([]);
       setOtherPilots(['']);
       setShowOtherInput(false);
@@ -81,9 +85,40 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
       setFilePreview(null);
       setErrors({});
       setUploadError(null);
+      setShowNoSiteConfirm(false);
       resetUploadProgress();
     }
   }, [uploadModalOpen, defaultDate, resetUploadProgress]);
+
+  // Auto-detect default flying site from media on the same date, or the user's last used site
+  useEffect(() => {
+    if (!uploadModalOpen || siteManuallySet || !uploadedBy) return;
+
+    const autoDetectSite = async () => {
+      try {
+        // Check if any media on this date already has a site
+        const mediaOnDate = await mediaService.getMediaByDate(flightDate);
+        const siteFromDate = mediaOnDate.find(m => m.site_id)?.site_id;
+        if (siteFromDate) {
+          setSelectedSiteId(siteFromDate);
+          return;
+        }
+
+        // No site found for this date — fall back to the user's last used site
+        const userMedia = await mediaService.searchMedia({ uploadedBy });
+        const lastWithSite = userMedia
+          .filter(m => m.site_id)
+          .sort((a, b) => new Date(b.flight_date).getTime() - new Date(a.flight_date).getTime())[0];
+        if (lastWithSite?.site_id) {
+          setSelectedSiteId(lastWithSite.site_id);
+        }
+      } catch (error) {
+        console.error('Failed to auto-detect site:', error);
+      }
+    };
+
+    autoDetectSite();
+  }, [flightDate, uploadModalOpen, uploadedBy, siteManuallySet]);
 
   if (!uploadModalOpen) return null;
 
@@ -209,23 +244,14 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    if (!selectedFile) {
-      return;
-    }
+  const performUpload = async () => {
+    if (!selectedFile) return;
 
     setIsUploading(true);
     setUploadError(null);
     abortControllerRef.current = new AbortController();
 
     try {
-      // Combine selected usernames and other pilots (filtered for non-empty)
       const validOtherPilots = showOtherInput
         ? otherPilots.filter(p => p.trim() !== '')
         : [];
@@ -245,7 +271,6 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
         },
       });
 
-      // Success - show toast and close modal
       toast.success('Media uploaded successfully!');
       closeUploadModal();
     } catch (error: any) {
@@ -261,6 +286,20 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+    if (!selectedFile) return;
+
+    if (!selectedSiteId) {
+      setShowNoSiteConfirm(true);
+      return;
+    }
+
+    await performUpload();
+  };
+
   const handleCancel = () => {
     if (isUploading && abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -271,7 +310,7 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fade-in">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto animate-scale-in">
+      <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto animate-scale-in">
         {/* Header */}
         <div className="border-b border-gray-200 px-6 py-4">
           <h2 className="text-xl font-semibold text-sky-night">Upload Media</h2>
@@ -441,7 +480,7 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
               <select
                 id="site"
                 value={selectedSiteId}
-                onChange={(e) => setSelectedSiteId(e.target.value)}
+                onChange={(e) => { setSelectedSiteId(e.target.value); setSiteManuallySet(true); }}
                 disabled={isUploading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-morning focus:border-sky-morning"
               >
@@ -619,6 +658,34 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
             </button>
           </div>
         </div>
+
+        {/* No Flying Site confirmation dialog */}
+        {showNoSiteConfirm && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black bg-opacity-40 rounded-lg">
+            <div className="bg-white rounded-lg shadow-xl p-6 mx-6 max-w-sm w-full">
+              <h3 className="text-base font-semibold text-sky-night mb-2">No Flying Site Selected</h3>
+              <p className="text-sm text-sky-dusk mb-5">
+                You haven't selected a flying site. Do you want to upload without one?
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowNoSiteConfirm(false)}
+                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+                >
+                  Go Back
+                </button>
+                <button
+                  type="button"
+                  onClick={performUpload}
+                  className="px-4 py-2 bg-sky-morning text-white rounded-lg hover:bg-sky-night text-sm transition-colors"
+                >
+                  Upload Anyway
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
