@@ -97,10 +97,10 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
     };
   }, [videoUrl]);
 
-  // Listen for fullscreen changes
+  // Listen for fullscreen changes (desktop browsers)
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      setIsFullscreen(!!(document.fullscreenElement || (document as any).webkitFullscreenElement));
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -115,6 +115,23 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
   }, []);
+
+  // iOS Safari fires fullscreen events on the video element itself
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleBegin = () => setIsFullscreen(true);
+    const handleEnd = () => setIsFullscreen(false);
+
+    video.addEventListener('webkitbeginfullscreen', handleBegin);
+    video.addEventListener('webkitendfullscreen', handleEnd);
+
+    return () => {
+      video.removeEventListener('webkitbeginfullscreen', handleBegin);
+      video.removeEventListener('webkitendfullscreen', handleEnd);
+    };
+  }, [videoUrl]);
 
   const togglePlayPause = () => {
     if (videoRef.current) {
@@ -155,23 +172,31 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
   };
 
   const toggleFullscreen = async () => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    const video = videoRef.current;
+    if (!container) return;
 
     try {
-      if (!document.fullscreenElement) {
-        // Enter fullscreen - try different browser APIs
-        const element = containerRef.current as any;
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement
+      );
+
+      if (!isCurrentlyFullscreen) {
+        const element = container as any;
         if (element.requestFullscreen) {
           await element.requestFullscreen();
         } else if (element.webkitRequestFullscreen) {
           await element.webkitRequestFullscreen();
+        } else if (video && (video as any).webkitEnterFullscreen) {
+          // iOS Safari: fullscreen is only supported on the video element itself
+          (video as any).webkitEnterFullscreen();
         } else if (element.mozRequestFullScreen) {
           await element.mozRequestFullScreen();
         } else if (element.msRequestFullscreen) {
           await element.msRequestFullscreen();
         }
       } else {
-        // Exit fullscreen - try different browser APIs
         const doc = document as any;
         if (doc.exitFullscreen) {
           await doc.exitFullscreen();
