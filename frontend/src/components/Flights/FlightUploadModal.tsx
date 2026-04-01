@@ -1,7 +1,8 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useFlightUpload, usePilots, usePilotCreate } from '../../hooks/useFlights';
 import { useToastContext } from '../../contexts/ToastContext';
 import { useSites } from '../../hooks/useSites';
+import { usersService } from '../../services/users.service';
 import { parseGpxMeta } from '../../utils/gpx-parser';
 
 function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -19,22 +20,33 @@ interface FlightUploadModalProps {
   date: string;
   open: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 const MAX_GPX_SIZE = 50 * 1024 * 1024; // 50 MB
 
-export default function FlightUploadModal({ date, open, onClose }: FlightUploadModalProps) {
+export default function FlightUploadModal({ date, open, onClose, onSuccess }: FlightUploadModalProps) {
   const uploadMutation = useFlightUpload(date);
   const { data: pilots = [] } = usePilots();
   const createPilotMutation = usePilotCreate();
   const { sites, isLoading: isLoadingSites } = useSites();
   const toast = useToastContext();
 
+  // Pilot list from users (same source as Upload Media dialog)
+  const [availableUsernames, setAvailableUsernames] = useState<string[]>([]);
+  const [isLoadingUsernames, setIsLoadingUsernames] = useState(false);
+
+  useEffect(() => {
+    setIsLoadingUsernames(true);
+    usersService.getUsernames()
+      .then(setAvailableUsernames)
+      .catch(() => {})
+      .finally(() => setIsLoadingUsernames(false));
+  }, []);
+
   // Form state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [pilotId, setPilotId] = useState('');
-  const [newPilotName, setNewPilotName] = useState('');
-  const [showNewPilot, setShowNewPilot] = useState(false);
+  const [selectedUsername, setSelectedUsername] = useState('');
   const [title, setTitle] = useState('');
   const [glider, setGlider] = useState('');
   const [harness, setHarness] = useState('');
@@ -49,6 +61,7 @@ export default function FlightUploadModal({ date, open, onClose }: FlightUploadM
   const [dragActive, setDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileError, setFileError] = useState('');
+  const [pilotError, setPilotError] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -104,9 +117,7 @@ export default function FlightUploadModal({ date, open, onClose }: FlightUploadM
   const handleClose = () => {
     if (uploadMutation.isPending) return;
     setSelectedFile(null);
-    setPilotId('');
-    setNewPilotName('');
-    setShowNewPilot(false);
+    setSelectedUsername('');
     setTitle('');
     setGlider('');
     setHarness('');
@@ -116,6 +127,7 @@ export default function FlightUploadModal({ date, open, onClose }: FlightUploadM
     setGpxParsing(false);
     setUploadProgress(0);
     setFileError('');
+    setPilotError('');
     onClose();
   };
 
@@ -123,17 +135,25 @@ export default function FlightUploadModal({ date, open, onClose }: FlightUploadM
     e.preventDefault();
     if (!selectedFile) return;
 
-    let resolvedPilotId = pilotId;
+    if (!selectedUsername) {
+      setPilotError('Please select a pilot before saving.');
+      return;
+    }
+    setPilotError('');
 
-    // Create pilot inline if requested
-    if (showNewPilot && newPilotName.trim()) {
-      try {
-        const created = await createPilotMutation.mutateAsync(newPilotName.trim());
+    // Resolve username → pilot_id; create the pilot record if it doesn't exist yet
+    let resolvedPilotId: string | undefined;
+    try {
+      const existing = pilots.find((p) => p.display_name === selectedUsername);
+      if (existing) {
+        resolvedPilotId = existing.id;
+      } else {
+        const created = await createPilotMutation.mutateAsync(selectedUsername);
         resolvedPilotId = created.id;
-      } catch {
-        toast.error('Failed to create pilot');
-        return;
       }
+    } catch {
+      toast.error('Failed to resolve pilot');
+      return;
     }
 
     // Use the GPX date if extracted, otherwise fall back to the calendar date
@@ -154,6 +174,7 @@ export default function FlightUploadModal({ date, open, onClose }: FlightUploadM
         onProgress: setUploadProgress,
       });
       toast.success('GPX file uploaded — parsing in progress');
+      onSuccess?.();
       handleClose();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Upload failed';
@@ -256,44 +277,19 @@ export default function FlightUploadModal({ date, open, onClose }: FlightUploadM
           {/* Pilot */}
           <div>
             <label className="block text-sm font-medium text-sky-night mb-1">Pilot</label>
-            {!showNewPilot ? (
-              <div className="flex gap-2">
-                <select
-                  value={pilotId}
-                  onChange={(e) => setPilotId(e.target.value)}
-                  className="flex-1 border border-sky-midday rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-morning"
-                >
-                  <option value="">— Select pilot —</option>
-                  {pilots.map((p) => (
-                    <option key={p.id} value={p.id}>{p.display_name}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setShowNewPilot(true)}
-                  className="px-3 py-2 border border-sky-morning text-sky-morning text-sm rounded-lg hover:bg-sky-morning hover:text-white transition-colors"
-                >
-                  + New
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newPilotName}
-                  onChange={(e) => setNewPilotName(e.target.value)}
-                  placeholder="Pilot name"
-                  className="flex-1 border border-sky-midday rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-morning"
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => { setShowNewPilot(false); setNewPilotName(''); }}
-                  className="px-3 py-2 border border-sky-midday text-sky-dusk text-sm rounded-lg hover:bg-sky-cloud transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
+            <select
+              value={selectedUsername}
+              onChange={(e) => { setSelectedUsername(e.target.value); setPilotError(''); }}
+              className="w-full border border-sky-midday rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-morning"
+              disabled={isLoadingUsernames}
+            >
+              <option value="">{isLoadingUsernames ? 'Loading pilots…' : '— Select pilot —'}</option>
+              {availableUsernames.sort((a, b) => a.localeCompare(b)).map((username) => (
+                <option key={username} value={username}>{username}</option>
+              ))}
+            </select>
+            {pilotError && (
+              <p className="mt-1 text-xs text-red-600">{pilotError}</p>
             )}
           </div>
 

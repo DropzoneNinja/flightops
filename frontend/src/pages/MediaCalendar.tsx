@@ -199,6 +199,7 @@ export default function MediaCalendar() {
         date={today}
         open={flightUploadOpen}
         onClose={() => setFlightUploadOpen(false)}
+        onSuccess={refetch}
       />
     </div>
   );

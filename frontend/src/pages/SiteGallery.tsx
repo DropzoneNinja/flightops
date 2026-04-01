@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMediaBySite } from '../hooks/useMedia';
 import { useMediaStore } from '../stores/mediaStore';
@@ -6,10 +7,10 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import MediaCard from '../components/Media/MediaCard';
 import MediaViewer from '../components/Media/MediaViewer';
 import UploadModal from '../components/Media/UploadModal';
+import FlightUploadModal from '../components/Flights/FlightUploadModal';
 import MobilePageLayout from '../components/Mobile/MobilePageLayout';
 import { Media } from '../services/media.service';
 import { format, parseISO } from 'date-fns';
-import { useMemo } from 'react';
 
 /**
  * SiteGallery Page
@@ -20,6 +21,7 @@ export default function SiteGallery() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { openUploadModal } = useMediaStore();
+  const [flightUploadOpen, setFlightUploadOpen] = useState(false);
 
   const isMobile = useIsMobile();
   const { data: media, isLoading, error, refetch } = useMediaBySite(siteId);
@@ -275,11 +277,10 @@ export default function SiteGallery() {
             <div className="flex items-center justify-end space-x-4 ml-auto">
               <span className="text-sm text-gray-600">{user?.username || user?.email}</span>
               <button
-                onClick={openUploadModal}
-                disabled={isLoading}
-                className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setFlightUploadOpen(true)}
+                className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors"
               >
-                Upload Media
+                Upload Flight
               </button>
               <button
                 onClick={() => navigate('/media')}
@@ -384,6 +385,11 @@ export default function SiteGallery() {
 
       {/* Upload Modal */}
       <UploadModal />
+      <FlightUploadModal
+        date={new Date().toISOString().split('T')[0]}
+        open={flightUploadOpen}
+        onClose={() => setFlightUploadOpen(false)}
+      />
     </div>
   );
 }

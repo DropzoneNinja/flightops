@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useRef, useEffect, useState } from 'react';
 import {
   AreaChart, Area, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
@@ -107,124 +108,308 @@ function makeMouseHandlers(
   };
 }
 
+// ─── Overlay position line ────────────────────────────────────────────────────
+// Instead of using Recharts ReferenceLine (which forces the entire chart SVG to
+// re-render on every position update), we position an absolutely-placed div on
+// top of the chart and move it via direct DOM manipulation.  The inner chart
+// component is memoized so it never re-renders due to position changes alone.
+
+function nearestPoint(elapsed: number | null | undefined, data: ChartPoint[]): ChartPoint | null {
+  if (elapsed == null || data.length === 0) return null;
+  let closest = data[0];
+  let minDiff = Math.abs(data[0].elapsed - elapsed);
+  for (const d of data) {
+    const diff = Math.abs(d.elapsed - elapsed);
+    if (diff < minDiff) { minDiff = diff; closest = d; }
+  }
+  return closest;
+}
+
+function elapsedToLeft(
+  elapsed: number | null | undefined,
+  data: ChartPoint[],
+  yAxisWidth: number,
+  containerWidth: number,
+  rightMargin = 8,
+): number | null {
+  if (elapsed == null || data.length === 0 || containerWidth === 0) return null;
+  const minE = data[0].elapsed;
+  const maxE = data[data.length - 1].elapsed;
+  if (maxE === minE) return null;
+  const fraction = Math.max(0, Math.min(1, (elapsed - minE) / (maxE - minE)));
+  return yAxisWidth + fraction * (containerWidth - rightMargin - yAxisWidth);
+}
+
+interface OverlayChartProps {
+  height: number;
+  yAxisWidth: number;
+  activeElapsed: number | null | undefined;
+  pinnedElapsed: number | null | undefined;
+  activeValue?: string | null;
+  pinnedValue?: string | null;
+  data: ChartPoint[];
+  children: React.ReactNode;
+}
+
+function OverlayChart({ height, yAxisWidth, activeElapsed, pinnedElapsed, activeValue, pinnedValue, data, children }: OverlayChartProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const activeLineRef = useRef<HTMLDivElement>(null);
+  const activeLabelRef = useRef<HTMLDivElement>(null);
+  const pinnedLineRef = useRef<HTMLDivElement>(null);
+  const pinnedLabelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    setContainerWidth(el.getBoundingClientRect().width);
+    const ro = new ResizeObserver(([entry]) => setContainerWidth(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const left = elapsedToLeft(activeElapsed, data, yAxisWidth, containerWidth);
+    const lineEl = activeLineRef.current;
+    const labelEl = activeLabelRef.current;
+    if (left != null) {
+      if (lineEl) { lineEl.style.display = 'block'; lineEl.style.left = `${left}px`; }
+      if (labelEl && activeValue != null) {
+        labelEl.style.display = 'block';
+        labelEl.style.left = `${left}px`;
+        labelEl.textContent = activeValue;
+      } else if (labelEl) {
+        labelEl.style.display = 'none';
+      }
+    } else {
+      if (lineEl) lineEl.style.display = 'none';
+      if (labelEl) labelEl.style.display = 'none';
+    }
+  }, [activeElapsed, activeValue, data, yAxisWidth, containerWidth]);
+
+  useEffect(() => {
+    const left = elapsedToLeft(pinnedElapsed, data, yAxisWidth, containerWidth);
+    const lineEl = pinnedLineRef.current;
+    const labelEl = pinnedLabelRef.current;
+    if (left != null) {
+      if (lineEl) { lineEl.style.display = 'block'; lineEl.style.left = `${left}px`; }
+      if (labelEl && pinnedValue != null) {
+        labelEl.style.display = 'block';
+        labelEl.style.left = `${left}px`;
+        labelEl.textContent = pinnedValue;
+      } else if (labelEl) {
+        labelEl.style.display = 'none';
+      }
+    } else {
+      if (lineEl) lineEl.style.display = 'none';
+      if (labelEl) labelEl.style.display = 'none';
+    }
+  }, [pinnedElapsed, pinnedValue, data, yAxisWidth, containerWidth]);
+
+  const labelBase: React.CSSProperties = {
+    position: 'absolute',
+    top: 6,
+    transform: 'translateX(-50%)',
+    borderRadius: 3,
+    padding: '1px 4px',
+    fontSize: 10,
+    fontWeight: 600,
+    whiteSpace: 'nowrap',
+    display: 'none',
+    pointerEvents: 'none',
+    zIndex: 11,
+  };
+
+  return (
+    <div ref={wrapperRef} style={{ height, position: 'relative' }}>
+      {children}
+      {/* Pinned position line (amber) */}
+      <div
+        ref={pinnedLineRef}
+        style={{
+          position: 'absolute',
+          top: 4,
+          bottom: 20,
+          width: 2,
+          backgroundColor: '#f59e0b',
+          display: 'none',
+          pointerEvents: 'none',
+          zIndex: 10,
+        }}
+      />
+      {/* Pinned value label */}
+      <div
+        ref={pinnedLabelRef}
+        style={{ ...labelBase, color: '#b45309', background: 'rgba(255,255,255,0.92)', border: '1px solid #f59e0b' }}
+      />
+      {/* Active/hover position line (cyan dashed) */}
+      <div
+        ref={activeLineRef}
+        style={{
+          position: 'absolute',
+          top: 4,
+          bottom: 20,
+          width: 2,
+          backgroundImage: 'repeating-linear-gradient(to bottom, #0ea5e9 0, #0ea5e9 4px, transparent 4px, transparent 6px)',
+          display: 'none',
+          pointerEvents: 'none',
+          zIndex: 10,
+        }}
+      />
+      {/* Active value label */}
+      <div
+        ref={activeLabelRef}
+        style={{ ...labelBase, color: '#0369a1', background: 'rgba(255,255,255,0.92)', border: '1px solid #0ea5e9' }}
+      />
+    </div>
+  );
+}
+
 // ─── Altitude chart ───────────────────────────────────────────────────────────
+
+type InnerChartProps = Omit<ChartProps, 'activeElapsed' | 'pinnedElapsed'>;
+
+const AltitudeChartInner = React.memo(function AltitudeChartInner({
+  data, eventLines = [], onHover, onClick,
+}: InnerChartProps) {
+  const handlers = makeMouseHandlers(onHover, onClick);
+  return (
+    <ResponsiveContainer width="100%" height={130}>
+      <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} {...handlers}>
+        <defs>
+          <linearGradient id="altGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <XAxis dataKey="elapsed" tickFormatter={timeTickFormatter} tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+        <YAxis tick={{ fontSize: 10 }} width={42} />
+        <Tooltip
+          formatter={(v: any) => [`${Number(v).toFixed(0)} ft`, 'Altitude']}
+          labelFormatter={(v: any) => `T+${formatMinutes(Number(v))}`}
+          contentStyle={{ fontSize: 11 }}
+        />
+        {eventLines.map((el, i) => (
+          <ReferenceLine key={i} x={el.elapsed} stroke="#94a3b8" strokeDasharray="4 2" />
+        ))}
+        <Area type="monotone" dataKey="altitude_ft" stroke="#3b82f6" strokeWidth={1.5} fill="url(#altGrad)" dot={false} connectNulls />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+});
 
 function AltitudeChart({ data, eventLines = [], activeElapsed, pinnedElapsed, onHover, onClick }: ChartProps) {
   if (!data.some((d) => d.altitude_ft !== null)) return null;
-  const handlers = makeMouseHandlers(onHover, onClick);
-
+  const av = nearestPoint(activeElapsed, data)?.altitude_ft;
+  const pv = nearestPoint(pinnedElapsed, data)?.altitude_ft;
   return (
     <div>
       <p className="text-xs font-medium text-sky-dusk mb-1">Altitude (ft AMSL)</p>
-      <ResponsiveContainer width="100%" height={130}>
-        <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} {...handlers}>
-          <defs>
-            <linearGradient id="altGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="elapsed" tickFormatter={timeTickFormatter} tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-          <YAxis tick={{ fontSize: 10 }} width={42} />
-          <Tooltip
-            formatter={(v: any) => [`${Number(v).toFixed(0)} ft`, 'Altitude']}
-            labelFormatter={(v: any) => `T+${formatMinutes(Number(v))}`}
-            contentStyle={{ fontSize: 11 }}
-          />
-          {eventLines.map((el, i) => (
-            <ReferenceLine key={i} x={el.elapsed} stroke="#94a3b8" strokeDasharray="4 2" />
-          ))}
-          {pinnedElapsed != null && (
-            <ReferenceLine x={pinnedElapsed} stroke="#f59e0b" strokeWidth={2} />
-          )}
-          {activeElapsed != null && (
-            <ReferenceLine x={activeElapsed} stroke="#0ea5e9" strokeWidth={1.5} strokeDasharray="4 2" />
-          )}
-          <Area type="monotone" dataKey="altitude_ft" stroke="#3b82f6" strokeWidth={1.5} fill="url(#altGrad)" dot={false} connectNulls />
-        </AreaChart>
-      </ResponsiveContainer>
+      <OverlayChart height={130} yAxisWidth={42} activeElapsed={activeElapsed} pinnedElapsed={pinnedElapsed}
+        activeValue={av != null ? `${av.toLocaleString()} ft` : null}
+        pinnedValue={pv != null ? `${pv.toLocaleString()} ft` : null}
+        data={data}>
+        <AltitudeChartInner data={data} eventLines={eventLines} onHover={onHover} onClick={onClick} />
+      </OverlayChart>
     </div>
   );
 }
 
 // ─── Speed chart ──────────────────────────────────────────────────────────────
 
+const SpeedChartInner = React.memo(function SpeedChartInner({
+  data, eventLines = [], onHover, onClick,
+}: InnerChartProps) {
+  const handlers = makeMouseHandlers(onHover, onClick);
+  return (
+    <ResponsiveContainer width="100%" height={110}>
+      <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} {...handlers}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <XAxis dataKey="elapsed" tickFormatter={timeTickFormatter} tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+        <YAxis tick={{ fontSize: 10 }} width={38} />
+        <Tooltip
+          formatter={(v: any) => [`${Number(v).toFixed(1)} km/h`, 'Speed']}
+          labelFormatter={(v: any) => `T+${formatMinutes(Number(v))}`}
+          contentStyle={{ fontSize: 11 }}
+        />
+        {eventLines.map((el, i) => (
+          <ReferenceLine key={i} x={el.elapsed} stroke="#94a3b8" strokeDasharray="4 2" />
+        ))}
+        <Line type="monotone" dataKey="speed_kmh" stroke="#f97316" strokeWidth={1.5} dot={false} connectNulls />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+});
+
 function SpeedChart({ data, eventLines = [], activeElapsed, pinnedElapsed, onHover, onClick }: ChartProps) {
   if (!data.some((d) => d.speed_kmh !== null)) return null;
-  const handlers = makeMouseHandlers(onHover, onClick);
-
+  const av = nearestPoint(activeElapsed, data)?.speed_kmh;
+  const pv = nearestPoint(pinnedElapsed, data)?.speed_kmh;
   return (
     <div>
       <p className="text-xs font-medium text-sky-dusk mb-1">Ground Speed (km/h)</p>
-      <ResponsiveContainer width="100%" height={110}>
-        <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} {...handlers}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="elapsed" tickFormatter={timeTickFormatter} tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-          <YAxis tick={{ fontSize: 10 }} width={38} />
-          <Tooltip
-            formatter={(v: any) => [`${Number(v).toFixed(1)} km/h`, 'Speed']}
-            labelFormatter={(v: any) => `T+${formatMinutes(Number(v))}`}
-            contentStyle={{ fontSize: 11 }}
-          />
-          {eventLines.map((el, i) => (
-            <ReferenceLine key={i} x={el.elapsed} stroke="#94a3b8" strokeDasharray="4 2" />
-          ))}
-          {pinnedElapsed != null && (
-            <ReferenceLine x={pinnedElapsed} stroke="#f59e0b" strokeWidth={2} />
-          )}
-          {activeElapsed != null && (
-            <ReferenceLine x={activeElapsed} stroke="#0ea5e9" strokeWidth={1.5} strokeDasharray="4 2" />
-          )}
-          <Line type="monotone" dataKey="speed_kmh" stroke="#f97316" strokeWidth={1.5} dot={false} connectNulls />
-        </LineChart>
-      </ResponsiveContainer>
+      <OverlayChart height={110} yAxisWidth={38} activeElapsed={activeElapsed} pinnedElapsed={pinnedElapsed}
+        activeValue={av != null ? `${av.toFixed(1)} km/h` : null}
+        pinnedValue={pv != null ? `${pv.toFixed(1)} km/h` : null}
+        data={data}>
+        <SpeedChartInner data={data} eventLines={eventLines} onHover={onHover} onClick={onClick} />
+      </OverlayChart>
     </div>
   );
 }
 
 // ─── Vertical speed chart ─────────────────────────────────────────────────────
 
+const VerticalSpeedChartInner = React.memo(function VerticalSpeedChartInner({
+  data, eventLines = [], onHover, onClick,
+}: InnerChartProps) {
+  const handlers = makeMouseHandlers(onHover, onClick);
+  return (
+    <ResponsiveContainer width="100%" height={110}>
+      <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} {...handlers}>
+        <defs>
+          <linearGradient id="vsGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.3} />
+            <stop offset="50%" stopColor="#22c55e" stopOpacity={0.05} />
+            <stop offset="95%" stopColor="#ef4444"  stopOpacity={0.2} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <XAxis dataKey="elapsed" tickFormatter={timeTickFormatter} tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+        <YAxis tick={{ fontSize: 10 }} width={38} />
+        <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+        <Tooltip
+          formatter={(v: any) => {
+            const n = Number(v);
+            return [`${n > 0 ? '+' : ''}${n.toFixed(1)} m/s`, 'Vert. speed'];
+          }}
+          labelFormatter={(v: any) => `T+${formatMinutes(Number(v))}`}
+          contentStyle={{ fontSize: 11 }}
+        />
+        {eventLines.map((el, i) => (
+          <ReferenceLine key={i} x={el.elapsed} stroke="#94a3b8" strokeDasharray="4 2" />
+        ))}
+        <Area type="monotone" dataKey="vspeed_mps" stroke="#22c55e" strokeWidth={1.5} fill="url(#vsGrad)" dot={false} connectNulls />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+});
+
 function VerticalSpeedChart({ data, eventLines = [], activeElapsed, pinnedElapsed, onHover, onClick }: ChartProps) {
   if (!data.some((d) => d.vspeed_mps !== null)) return null;
-  const handlers = makeMouseHandlers(onHover, onClick);
-
+  const av = nearestPoint(activeElapsed, data)?.vspeed_mps;
+  const pv = nearestPoint(pinnedElapsed, data)?.vspeed_mps;
+  const fmtVs = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)} m/s`;
   return (
     <div>
       <p className="text-xs font-medium text-sky-dusk mb-1">Vertical Speed (m/s)</p>
-      <ResponsiveContainer width="100%" height={110}>
-        <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} {...handlers}>
-          <defs>
-            <linearGradient id="vsGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.3} />
-              <stop offset="50%" stopColor="#22c55e" stopOpacity={0.05} />
-              <stop offset="95%" stopColor="#ef4444"  stopOpacity={0.2} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="elapsed" tickFormatter={timeTickFormatter} tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-          <YAxis tick={{ fontSize: 10 }} width={38} />
-          <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-          <Tooltip
-            formatter={(v: any) => {
-              const n = Number(v);
-              return [`${n > 0 ? '+' : ''}${n.toFixed(1)} m/s`, 'Vert. speed'];
-            }}
-            labelFormatter={(v: any) => `T+${formatMinutes(Number(v))}`}
-            contentStyle={{ fontSize: 11 }}
-          />
-          {eventLines.map((el, i) => (
-            <ReferenceLine key={i} x={el.elapsed} stroke="#94a3b8" strokeDasharray="4 2" />
-          ))}
-          {pinnedElapsed != null && (
-            <ReferenceLine x={pinnedElapsed} stroke="#f59e0b" strokeWidth={2} />
-          )}
-          {activeElapsed != null && (
-            <ReferenceLine x={activeElapsed} stroke="#0ea5e9" strokeWidth={1.5} strokeDasharray="4 2" />
-          )}
-          <Area type="monotone" dataKey="vspeed_mps" stroke="#22c55e" strokeWidth={1.5} fill="url(#vsGrad)" dot={false} connectNulls />
-        </AreaChart>
-      </ResponsiveContainer>
+      <OverlayChart height={110} yAxisWidth={38} activeElapsed={activeElapsed} pinnedElapsed={pinnedElapsed}
+        activeValue={av != null ? fmtVs(av) : null}
+        pinnedValue={pv != null ? fmtVs(pv) : null}
+        data={data}>
+        <VerticalSpeedChartInner data={data} eventLines={eventLines} onHover={onHover} onClick={onClick} />
+      </OverlayChart>
     </div>
   );
 }
