@@ -14,6 +14,7 @@ interface MediaDateCount {
   date: string;
   image_count: number;
   video_count: number;
+  flight_count: number;
 }
 
 interface CalendarViewProps {
@@ -40,11 +41,12 @@ export default function CalendarView({
 
   // Create a map of date to counts for quick lookup
   const dateCountsMap = useMemo(() => {
-    const map = new Map<string, { image_count: number; video_count: number }>();
+    const map = new Map<string, { image_count: number; video_count: number; flight_count: number }>();
     mediaDateCounts.forEach((item) => {
       map.set(item.date, {
         image_count: item.image_count,
         video_count: item.video_count,
+        flight_count: item.flight_count,
       });
     });
     return map;

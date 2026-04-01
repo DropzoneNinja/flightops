@@ -39,6 +39,7 @@ export interface MediaDateCount {
   date: string;
   image_count: number;
   video_count: number;
+  flight_count: number;
 }
 
 export interface SiteMediaCount {

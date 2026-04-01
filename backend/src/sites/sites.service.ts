@@ -94,6 +94,22 @@ export class SitesService {
   }
 
   /**
+   * Find sites whose takeoff point is within radiusM metres of the given coordinates.
+   * Used to auto-detect the launch site from a GPX takeoff point.
+   */
+  async findNear(
+    lat: number,
+    lon: number,
+    radiusM: number,
+  ): Promise<FlightSite[]> {
+    const all = await this.siteRepository.find();
+    return all.filter((site) => {
+      const dist = haversineM(lat, lon, Number(site.takeoff_lat), Number(site.takeoff_lon));
+      return dist <= radiusM;
+    });
+  }
+
+  /**
    * Reverse geocode parking coordinates to get nearest address
    * Uses database caching to avoid repeated API calls
    */
@@ -144,4 +160,15 @@ export class SitesService {
       throw new Error('Unable to fetch address for coordinates');
     }
   }
+}
+
+function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }

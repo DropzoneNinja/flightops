@@ -128,6 +128,7 @@ export class MediaService {
     date: string;
     image_count: number;
     video_count: number;
+    flight_count: number;
   }>> {
     const qb = this.mediaRepository
       .createQueryBuilder('media')
@@ -157,13 +158,40 @@ export class MediaService {
     qb.groupBy("TO_CHAR(media.flight_date, 'YYYY-MM-DD')")
       .orderBy('date', 'DESC');
 
-    const result = await qb.getRawMany();
+    const mediaResult = await qb.getRawMany();
 
-    return result.map((row) => ({
-      date: row.date,
-      image_count: parseInt(row.image_count, 10) || 0,
-      video_count: parseInt(row.video_count, 10) || 0,
-    }));
+    let flightCountsByDate = new Map<string, number>();
+    try {
+      const flightCountsRaw: Array<{ date: string; flight_count: string }> =
+        await this.mediaRepository.manager.query(
+          `SELECT TO_CHAR(flight_date, 'YYYY-MM-DD') as date, COUNT(*) as flight_count FROM flights GROUP BY TO_CHAR(flight_date, 'YYYY-MM-DD')`
+        );
+      flightCountsByDate = new Map(
+        flightCountsRaw.map((r) => [r.date, parseInt(r.flight_count, 10) || 0]),
+      );
+    } catch (e) {
+      // flights table may not exist yet — degrade gracefully
+    }
+
+    // Build a map of media results for merging
+    const mediaByDate = new Map(
+      mediaResult.map((row) => [row.date, {
+        image_count: parseInt(row.image_count, 10) || 0,
+        video_count: parseInt(row.video_count, 10) || 0,
+      }]),
+    );
+
+    // Union of all dates from media AND flights
+    const allDates = new Set([...mediaByDate.keys(), ...flightCountsByDate.keys()]);
+
+    return Array.from(allDates)
+      .sort((a, b) => b.localeCompare(a))
+      .map((date) => ({
+        date,
+        image_count: mediaByDate.get(date)?.image_count ?? 0,
+        video_count: mediaByDate.get(date)?.video_count ?? 0,
+        flight_count: flightCountsByDate.get(date) ?? 0,
+      }));
   }
 
   /**

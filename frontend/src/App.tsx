@@ -9,6 +9,11 @@ import MediaCalendar from './pages/MediaCalendar';
 import DailyGallery from './pages/DailyGallery';
 import SiteGallery from './pages/SiteGallery';
 import FilteredGallery from './pages/FilteredGallery';
+import FlightAnalysis from './pages/FlightAnalysis';
+import GaggleView from './pages/GaggleView';
+import Leaderboards from './pages/Leaderboards';
+import PilotPerformance from './pages/PilotPerformance';
+import FlightComparison from './pages/FlightComparison';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './contexts/ToastContext';
@@ -84,6 +89,56 @@ function App() {
             <ErrorBoundary>
               <ProtectedRoute>
                 <SiteGallery />
+              </ProtectedRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/flights/compare"
+          element={
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <FlightComparison />
+              </ProtectedRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/flights/gaggle"
+          element={
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <GaggleView />
+              </ProtectedRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/flights/:id"
+          element={
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <FlightAnalysis />
+              </ProtectedRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/leaderboards"
+          element={
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <Leaderboards />
+              </ProtectedRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/pilots/:id"
+          element={
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <PilotPerformance />
               </ProtectedRoute>
             </ErrorBoundary>
           }

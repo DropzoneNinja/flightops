@@ -10,6 +10,7 @@ import FiltersCard from '../components/Media/FiltersCard';
 import UploadModal from '../components/Media/UploadModal';
 import MediaSitesMap from '../components/Media/MediaSitesMap';
 import MobilePageLayout from '../components/Mobile/MobilePageLayout';
+import FlightUploadModal from '../components/Flights/FlightUploadModal';
 
 /**
  * MediaCalendar Page
@@ -21,6 +22,8 @@ export default function MediaCalendar() {
   const { user } = useAuth();
   const { openUploadModal } = useMediaStore();
   const isMobile = useIsMobile();
+  const [flightUploadOpen, setFlightUploadOpen] = useState(false);
+  const today = new Date().toISOString().split('T')[0];
 
   // Calendar navigation state
   const [referenceMonth, setReferenceMonth] = useState(new Date());
@@ -129,11 +132,11 @@ export default function MediaCalendar() {
             <div className="flex items-center justify-end space-x-4 ml-auto">
               <span className="text-sm text-gray-600">{user?.username || user?.email}</span>
               <button
-                onClick={openUploadModal}
+                onClick={() => setFlightUploadOpen(true)}
                 disabled={isLoading}
                 className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Upload Media
+                Upload Flight
               </button>
               <button
                 onClick={() => navigate('/')}
@@ -192,6 +195,11 @@ export default function MediaCalendar() {
 
       {/* Upload Modal */}
       <UploadModal />
+      <FlightUploadModal
+        date={today}
+        open={flightUploadOpen}
+        onClose={() => setFlightUploadOpen(false)}
+      />
     </div>
   );
 }

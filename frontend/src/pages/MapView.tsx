@@ -134,7 +134,7 @@ export default function MapView() {
 
   // Mobile state
   const isMobile = useIsMobile(900);
-  const [mobileActiveTab, setMobileActiveTab] = useState<'map' | 'sites' | 'media' | 'logout' | 'tools'>('map');
+  const [mobileActiveTab, setMobileActiveTab] = useState<'map' | 'sites' | 'media' | 'leaderboards' | 'logout' | 'tools'>('map');
   const [selectedMobileSite, setSelectedMobileSite] = useState<FlightSite | null>(null);
   const [showMobileMultiHeight, setShowMobileMultiHeight] = useState(false);
   const [selectedMobileHeightForecast, setSelectedMobileHeightForecast] = useState<any>(null);
@@ -158,10 +158,12 @@ export default function MapView() {
     localStorage.setItem('enabledAirspaceClasses', JSON.stringify(classesArray));
   }, [enabledAirspaceClasses]);
 
-  // Handle mobile media tab navigation
+  // Handle mobile tab navigation
   useEffect(() => {
     if (mobileActiveTab === 'media') {
       navigate('/media');
+    } else if (mobileActiveTab === 'leaderboards') {
+      navigate('/leaderboards');
     }
   }, [mobileActiveTab, navigate]);
 

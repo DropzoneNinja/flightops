@@ -5,3 +5,7 @@ export { WeatherHourly } from './weather-hourly.entity';
 export { Setting } from './setting.entity';
 export { PreAuthorizedEmail } from './pre-authorized-email.entity';
 export { BackupHistory } from './backup-history.entity';
+export { Pilot } from './pilot.entity';
+export { Flight } from './flight.entity';
+export { FlightEvent } from './flight-event.entity';
+export { FlightScore } from './flight-score.entity';

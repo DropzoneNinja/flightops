@@ -14,6 +14,9 @@ import { WeatherModule } from './weather/weather.module';
 import { AirspaceModule } from './airspace/airspace.module';
 import { BackupModule } from './backup/backup.module';
 import { MediaModule } from './media/media.module';
+import { FlightsModule } from './flights/flights.module';
+import { PilotsModule } from './pilots/pilots.module';
+import { LeaderboardsModule } from './leaderboards/leaderboards.module';
 
 @Module({
   imports: [
@@ -44,6 +47,9 @@ import { MediaModule } from './media/media.module';
     AirspaceModule,
     BackupModule,
     MediaModule,
+    FlightsModule,
+    PilotsModule,
+    LeaderboardsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

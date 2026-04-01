@@ -42,6 +42,27 @@ export class SitesController {
   }
 
   /**
+   * GET /sites/near?lat=X&lon=Y&radius=1000
+   * Find sites whose takeoff point is within radius metres of the given coordinates.
+   */
+  @Get('near')
+  async findNear(
+    @Query('lat') lat: string,
+    @Query('lon') lon: string,
+    @Query('radius') radius?: string,
+  ) {
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lon);
+    const radiusM = radius ? parseFloat(radius) : 1000;
+
+    if (isNaN(latitude) || isNaN(longitude)) {
+      throw new BadRequestException('Invalid latitude or longitude');
+    }
+
+    return this.sitesService.findNear(latitude, longitude, radiusM);
+  }
+
+  /**
    * GET /sites/geocode/reverse
    * Reverse geocode coordinates to get nearest address
    */

@@ -12,7 +12,7 @@ import {
 
 interface MonthCalendarProps {
   month: Date;
-  dateCountsMap: Map<string, { image_count: number; video_count: number }>;
+  dateCountsMap: Map<string, { image_count: number; video_count: number; flight_count: number }>;
   onDateClick: (date: Date) => void;
 }
 
@@ -144,6 +144,24 @@ function MonthCalendar({
                         />
                       </svg>
                       <span className="font-medium">{mediaCounts.video_count}</span>
+                    </div>
+                  )}
+                  {mediaCounts.flight_count > 0 && (
+                    <div className="flex items-center gap-1 text-emerald-600">
+                      <svg
+                        className="w-3 h-3 sm:w-4 sm:h-4"
+                        fill="none"
+                        strokeWidth={2}
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"
+                        />
+                      </svg>
+                      <span className="font-medium">{mediaCounts.flight_count}</span>
                     </div>
                   )}
                 </div>

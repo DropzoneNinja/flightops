@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMediaByDate } from '../hooks/useMedia';
 import { useMediaStore } from '../stores/mediaStore';
@@ -7,17 +8,21 @@ import MediaGrid from '../components/Media/MediaGrid';
 import MediaViewer from '../components/Media/MediaViewer';
 import UploadModal from '../components/Media/UploadModal';
 import MobilePageLayout from '../components/Mobile/MobilePageLayout';
+import FlightsSection from '../components/Flights/FlightsSection';
 import { format, parseISO } from 'date-fns';
 
 /**
  * DailyGallery Page
  * Shows all media for a specific date with grid layout
  */
+type GalleryTab = 'media' | 'flights';
+
 export default function DailyGallery() {
   const { date } = useParams<{ date: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { openUploadModal } = useMediaStore();
+  const [activeTab, setActiveTab] = useState<GalleryTab>('media');
 
   const isMobile = useIsMobile();
   const { data: media, isLoading, error, refetch } = useMediaByDate(date);
@@ -216,7 +221,32 @@ export default function DailyGallery() {
       >
         <div className="px-4 py-4">
           {siteName && <h2 className="text-xl font-bold text-sky-night mb-3">{siteName}</h2>}
-          {!media || media.length === 0 ? (
+
+          {/* Mobile tab bar */}
+          <div className="flex gap-1 mb-4 bg-white rounded-xl shadow-elevation p-1">
+            <button
+              onClick={() => setActiveTab('media')}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'media' ? 'bg-sky-morning text-white' : 'text-sky-dusk'
+              }`}
+            >
+              Photos / Videos
+            </button>
+            <button
+              onClick={() => setActiveTab('flights')}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'flights' ? 'bg-sky-morning text-white' : 'text-sky-dusk'
+              }`}
+            >
+              Flights
+            </button>
+          </div>
+
+          {activeTab === 'flights' ? (
+            <div className="bg-white rounded-xl shadow-elevation-lg p-4 animate-fade-in">
+              <FlightsSection date={date!} />
+            </div>
+          ) : !media || media.length === 0 ? (
             <div className="bg-white rounded-xl shadow-elevation-lg p-6 text-center">
               <h3 className="text-lg font-semibold text-sky-night mb-2">No Media Yet</h3>
               <p className="text-sky-dusk mb-4">No photos or videos for {formattedDate}</p>
@@ -285,8 +315,36 @@ export default function DailyGallery() {
           </div>
         )}
 
-        {/* Media for the day */}
-        {!media || media.length === 0 ? (
+        {/* Tab navigation */}
+        <div className="flex gap-1 mb-6 bg-white rounded-xl shadow-elevation p-1 inline-flex w-fit">
+          <button
+            onClick={() => setActiveTab('media')}
+            className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'media'
+                ? 'bg-sky-morning text-white shadow-sm'
+                : 'text-sky-dusk hover:text-sky-night'
+            }`}
+          >
+            Photos / Videos
+          </button>
+          <button
+            onClick={() => setActiveTab('flights')}
+            className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'flights'
+                ? 'bg-sky-morning text-white shadow-sm'
+                : 'text-sky-dusk hover:text-sky-night'
+            }`}
+          >
+            Flights
+          </button>
+        </div>
+
+        {/* Tab content */}
+        {activeTab === 'flights' ? (
+          <div className="bg-white rounded-xl shadow-elevation-lg p-6 sm:p-8 animate-fade-in">
+            <FlightsSection date={date!} />
+          </div>
+        ) : !media || media.length === 0 ? (
           <div className="bg-white rounded-xl shadow-elevation-lg p-6 sm:p-8">
             <div className="text-center py-12">
               <div className="mb-4">
