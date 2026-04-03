@@ -309,7 +309,7 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fade-in">
+    <div className="fixed inset-0 z-[1001] flex items-center justify-center bg-black bg-opacity-50 animate-fade-in">
       <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto animate-scale-in">
         {/* Header */}
         <div className="border-b border-gray-200 px-6 py-4">

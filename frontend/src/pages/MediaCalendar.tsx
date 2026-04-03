@@ -132,6 +132,13 @@ export default function MediaCalendar() {
             <div className="flex items-center justify-end space-x-4 ml-auto">
               <span className="text-sm text-gray-600">{user?.username || user?.email}</span>
               <button
+                onClick={openUploadModal}
+                disabled={isLoading}
+                className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Upload Media
+              </button>
+              <button
                 onClick={() => setFlightUploadOpen(true)}
                 disabled={isLoading}
                 className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

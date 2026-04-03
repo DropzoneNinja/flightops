@@ -275,6 +275,12 @@ export default function FilteredGallery() {
             <div className="flex items-center justify-end space-x-4 ml-auto">
               <span className="text-sm text-gray-600">{user?.username || user?.email}</span>
               <button
+                onClick={openUploadModal}
+                className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors"
+              >
+                Upload Media
+              </button>
+              <button
                 onClick={() => setFlightUploadOpen(true)}
                 className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors"
               >
