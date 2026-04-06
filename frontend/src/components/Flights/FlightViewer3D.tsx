@@ -97,25 +97,33 @@ function getTakeoffElevation(trackpoints: Trackpoint[]): number {
   const tp = trackpoints.find(
     (t) => t.phase === 'pre_takeoff' || t.phase === 'takeoff',
   ) ?? trackpoints[0];
-  return tp?.elevation_m ?? 0;
+  const elev = Number(tp?.elevation_m);
+  return Number.isFinite(elev) ? elev : 0;
 }
 
 function buildWallQuads(trackpoints: Trackpoint[], groundElevation: number): WallQuad[] {
+  const safeGround = Number.isFinite(groundElevation) ? groundElevation : 0;
   const quads: WallQuad[] = [];
   for (let i = 0; i < trackpoints.length - 1; i++) {
     const a = trackpoints[i];
     const b = trackpoints[i + 1];
-    const elevA = a.elevation_m ?? groundElevation;
-    const elevB = b.elevation_m ?? groundElevation;
+    // Coerce — lat/lon may arrive as strings from the DB despite the TypeScript type
+    const aLon = Number(a.lon), aLat = Number(a.lat);
+    const bLon = Number(b.lon), bLat = Number(b.lat);
+    if (!Number.isFinite(aLon) || !Number.isFinite(aLat) || !Number.isFinite(bLon) || !Number.isFinite(bLat)) continue;
+    // Clamp to ground so GPS dips below takeoff elevation don't produce self-intersecting quads
+    const elevA = Math.max(Number.isFinite(a.elevation_m) ? a.elevation_m! : safeGround, safeGround);
+    const elevB = Math.max(Number.isFinite(b.elevation_m) ? b.elevation_m! : safeGround, safeGround);
     // Skip segments at or below ground level
-    if (elevA <= groundElevation && elevB <= groundElevation) continue;
+    if (elevA <= safeGround + 1 && elevB <= safeGround + 1) continue;
     quads.push({
       phase: a.phase,
       polygon: [
-        [a.lon, a.lat, elevA],
-        [b.lon, b.lat, elevB],
-        [b.lon, b.lat, groundElevation],
-        [a.lon, a.lat, groundElevation],
+        [aLon, aLat, elevA],
+        [bLon, bLat, elevB],
+        [bLon, bLat, safeGround],
+        [aLon, aLat, safeGround],
+        [aLon, aLat, elevA],  // close the ring (required by SolidPolygonLayer)
       ],
     });
   }
@@ -159,10 +167,10 @@ export default function FlightViewer3D({
   const initialViewState = useMemo<MapViewState>(() => {
     const lon = bbox
       ? (bbox.minLon + bbox.maxLon) / 2
-      : (trackpoints[0]?.lon ?? 0);
+      : Number(trackpoints[0]?.lon ?? 0);
     const lat = bbox
       ? (bbox.minLat + bbox.maxLat) / 2
-      : (trackpoints[0]?.lat ?? 0);
+      : Number(trackpoints[0]?.lat ?? 0);
     return { longitude: lon, latitude: lat, zoom: 12, pitch: 50, bearing: 0, maxPitch: 85, minPitch: 0 };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -210,7 +218,7 @@ export default function FlightViewer3D({
     if (cameraMode !== 'follow') return;
     const pt = trackpoints[Math.min(playbackIdx, trackpoints.length - 1)];
     if (!pt) return;
-    setViewState((prev) => ({ ...prev, longitude: pt.lon, latitude: pt.lat }));
+    setViewState((prev) => ({ ...prev, longitude: Number(pt.lon), latitude: Number(pt.lat) }));
   }, [cameraMode, playbackIdx, trackpoints]);
 
   // ── Camera: orbit mode ───────────────────────────────────────────────────
