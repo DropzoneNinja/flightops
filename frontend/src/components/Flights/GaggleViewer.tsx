@@ -45,7 +45,8 @@ function getTakeoffElevation(trackpoints: Trackpoint[]): number {
   const tp = trackpoints.find(
     (t) => t.phase === 'pre_takeoff' || t.phase === 'takeoff',
   ) ?? trackpoints[0];
-  return tp?.elevation_m ?? 0;
+  const elev = Number(tp?.elevation_m);
+  return Number.isFinite(elev) ? elev : 0;
 }
 
 function buildWallQuads(
@@ -53,20 +54,25 @@ function buildWallQuads(
   groundElevation: number,
   color: [number, number, number, number],
 ): WallQuad[] {
+  const safeGround = Number.isFinite(groundElevation) ? groundElevation : 0;
   const quads: WallQuad[] = [];
   for (let i = 0; i < trackpoints.length - 1; i++) {
     const a = trackpoints[i];
     const b = trackpoints[i + 1];
-    const elevA = a.elevation_m ?? groundElevation;
-    const elevB = b.elevation_m ?? groundElevation;
-    if (elevA <= groundElevation && elevB <= groundElevation) continue;
+    const aLon = Number(a.lon), aLat = Number(a.lat);
+    const bLon = Number(b.lon), bLat = Number(b.lat);
+    if (!Number.isFinite(aLon) || !Number.isFinite(aLat) || !Number.isFinite(bLon) || !Number.isFinite(bLat)) continue;
+    const elevA = Math.max(Number.isFinite(a.elevation_m) ? a.elevation_m! : safeGround, safeGround);
+    const elevB = Math.max(Number.isFinite(b.elevation_m) ? b.elevation_m! : safeGround, safeGround);
+    if (elevA <= safeGround + 1 && elevB <= safeGround + 1) continue;
     quads.push({
       color,
       polygon: [
-        [a.lon, a.lat, elevA],
-        [b.lon, b.lat, elevB],
-        [b.lon, b.lat, groundElevation],
-        [a.lon, a.lat, groundElevation],
+        [aLon, aLat, elevA],
+        [bLon, bLat, elevB],
+        [bLon, bLat, safeGround],
+        [aLon, aLat, safeGround],
+        [aLon, aLat, elevA],  // close the ring
       ],
     });
   }
@@ -182,9 +188,9 @@ export default function GaggleViewer({
         }
       }
 
-      // Build path array
+      // Build path array (coerce — lat/lon may be strings from the DB)
       const path: [number, number, number][] = visibleTps.map(
-        (tp) => [tp.lon, tp.lat, (tp.elevation_m ?? 0) + 2],
+        (tp) => [Number(tp.lon), Number(tp.lat), (Number(tp.elevation_m) || 0) + 2],
       );
 
       // Wall quads — only while the pilot's flight is currently in progress
@@ -253,7 +259,7 @@ export default function GaggleViewer({
           id: `dot-${id}`,
           data: [currentTp],
           getPosition: (tp: Trackpoint) =>
-            [tp.lon, tp.lat, (tp.elevation_m ?? 0) + 15] as [number, number, number],
+            [Number(tp.lon), Number(tp.lat), (Number(tp.elevation_m) || 0) + 15] as [number, number, number],
           getRadius: 8,
           radiusUnits: 'pixels',
           getFillColor: color,
@@ -268,7 +274,7 @@ export default function GaggleViewer({
       result.push(
         new TextLayer({
           id: `label-${id}`,
-          data: [{ position: [currentTp.lon, currentTp.lat, (currentTp.elevation_m ?? 0) + 40] as [number, number, number], text: pilot.pilotName }],
+          data: [{ position: [Number(currentTp.lon), Number(currentTp.lat), (Number(currentTp.elevation_m) || 0) + 40] as [number, number, number], text: pilot.pilotName }],
           getPosition: (d: { position: [number, number, number] }) => d.position,
           getText: (d: { text: string }) => d.text,
           getSize: 13,
@@ -292,18 +298,20 @@ export default function GaggleViewer({
         for (let j = i + 1; j < pilotSlices.length; j++) {
           const a = pilotSlices[i];
           const b = pilotSlices[j];
-          const dist = haversineMeters(a.currentTp.lat, a.currentTp.lon, b.currentTp.lat, b.currentTp.lon);
+          const aLat = Number(a.currentTp.lat), aLon = Number(a.currentTp.lon);
+          const bLat = Number(b.currentTp.lat), bLon = Number(b.currentTp.lon);
+          const dist = haversineMeters(aLat, aLon, bLat, bLon);
           const distLabel = dist >= 1000
             ? `${(dist / 1000).toFixed(2)} km`
             : `${Math.round(dist)} m`;
-          const elevA = (a.currentTp.elevation_m ?? 0) + 10;
-          const elevB = (b.currentTp.elevation_m ?? 0) + 10;
+          const elevA = (Number(a.currentTp.elevation_m) || 0) + 10;
+          const elevB = (Number(b.currentTp.elevation_m) || 0) + 10;
           const midElev = Math.max(elevA, elevB) + 20;
 
           result.push(
             new PathLayer({
               id: `dist-line-${i}-${j}`,
-              data: [{ path: [[a.currentTp.lon, a.currentTp.lat, elevA], [b.currentTp.lon, b.currentTp.lat, elevB]] }],
+              data: [{ path: [[aLon, aLat, elevA], [bLon, bLat, elevB]] }],
               getPath: (d: { path: [number, number, number][] }) => d.path,
               getColor: [251, 191, 36, 220] as [number, number, number, number],
               getWidth: 2,
@@ -317,8 +325,8 @@ export default function GaggleViewer({
               id: `dist-label-${i}-${j}`,
               data: [{
                 position: [
-                  (a.currentTp.lon + b.currentTp.lon) / 2,
-                  (a.currentTp.lat + b.currentTp.lat) / 2,
+                  (aLon + bLon) / 2,
+                  (aLat + bLat) / 2,
                   midElev,
                 ] as [number, number, number],
                 text: distLabel,
