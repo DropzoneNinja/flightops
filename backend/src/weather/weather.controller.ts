@@ -36,7 +36,8 @@ export class WeatherController {
     const forecastDays = await this.settingsService.getValue(
       SettingKey.WEATHER_FORECAST_DAYS,
     ) as number;
-    await this.weatherFetchJob.triggerManualFetch(forecastDays);
+    // Fire and forget — don't await, avoids proxy timeout on multi-site fetches
+    this.weatherFetchJob.triggerManualFetch(forecastDays).catch(() => {});
     return { message: 'Weather fetch initiated successfully' };
   }
 
