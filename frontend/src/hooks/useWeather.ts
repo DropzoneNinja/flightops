@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { weatherService, WeatherForecast } from '../services/weather.service';
 
 export function useWeather(siteId: string | null) {
@@ -6,48 +6,32 @@ export function useWeather(siteId: string | null) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Memoize fetch function so it can be used in multiple effects
-  const fetchForecasts = useCallback(async () => {
+  useEffect(() => {
     if (!siteId) {
       setForecasts([]);
       return;
     }
 
+    let cancelled = false;
+
     setIsLoading(true);
     setError(null);
-    try {
-      const data = await weatherService.getForecastBySite(siteId);
-      setForecasts(data);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch weather data');
-      setForecasts([]);
-    } finally {
-      setIsLoading(false);
-    }
+    weatherService.getForecastBySite(siteId)
+      .then((data) => {
+        if (!cancelled) setForecasts(data);
+      })
+      .catch((err: any) => {
+        if (!cancelled) {
+          setError(err.response?.data?.message || 'Failed to fetch weather data');
+          setForecasts([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => { cancelled = true; };
   }, [siteId]);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchForecasts();
-  }, [fetchForecasts]);
-
-  // Connect to real-time updates via SSE
-  useEffect(() => {
-    if (!siteId) return;
-
-    const eventSource = weatherService.connectToWeatherUpdates((updatedSiteId) => {
-      // Only refetch if update is for current site
-      if (updatedSiteId === siteId) {
-        console.log(`Weather updated for site ${siteId}, refreshing...`);
-        fetchForecasts();
-      }
-    });
-
-    // Cleanup on unmount
-    return () => {
-      eventSource.close();
-    };
-  }, [siteId, fetchForecasts]);
 
   return { forecasts, isLoading, error };
 }

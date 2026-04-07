@@ -119,12 +119,13 @@ export class WeatherService {
       ) as number;
 
       // Trigger async refresh (don't wait - serve cached data immediately)
+      // Note: do NOT emit SSE here - that would cause the client to re-fetch,
+      // see stale data again (race), and create an infinite refresh loop.
+      // SSE notifications are handled by the scheduled cron job instead.
       this.weatherProcessorService
         .processSiteWeather(siteId, forecastDays)
         .then(() => {
           this.logger.log(`Successfully refreshed weather for site ${siteId}`);
-          // Emit event to connected clients for real-time updates
-          this.weatherEventsService.emitWeatherUpdate(siteId);
         })
         .catch((error) => {
           this.logger.error(

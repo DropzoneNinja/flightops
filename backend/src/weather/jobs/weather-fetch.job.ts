@@ -7,6 +7,7 @@ import { SettingsService } from '../../settings/settings.service';
 import { SettingKey } from '../../settings/constants/default-settings';
 import { FlightSite } from '../../database/entities/flight-site.entity';
 import { WeatherService } from '../weather.service';
+import { WeatherEventsService } from '../weather-events.service';
 
 @Injectable()
 export class WeatherFetchJob {
@@ -18,6 +19,7 @@ export class WeatherFetchJob {
     private readonly settingsService: SettingsService,
     @Inject(forwardRef(() => WeatherService))
     private readonly weatherService: WeatherService,
+    private readonly weatherEventsService: WeatherEventsService,
     @InjectRepository(FlightSite)
     private readonly siteRepository: Repository<FlightSite>,
   ) {}
@@ -67,6 +69,7 @@ export class WeatherFetchJob {
         if (needsRefresh) {
           this.logger.log(`Refreshing weather for site: ${site.name} (${site.id})`);
           await this.weatherProcessor.processSiteWeather(site.id, forecastDays);
+          this.weatherEventsService.emitWeatherUpdate(site.id);
           refreshedCount++;
         } else {
           this.logger.log(`Skipping site ${site.name} - data still fresh`);

@@ -76,6 +76,7 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
   const [showParkingModal, setShowParkingModal] = useState(false);
   const markerRef = useRef<L.Marker | null>(null);
   const rootRef = useRef<Root | null>(null);
+  const rootContainerRef = useRef<Element | null>(null);
 
   // Check if heatbar debug mode is enabled
   const isDebugMode = settingsMap['debug.heatbar_debug_mode'] === true;
@@ -119,12 +120,17 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
     const container = markerElement.querySelector('.weather-bars-container');
     if (!container) return;
 
-    // Create root only once
-    if (!rootRef.current) {
-      rootRef.current = createRoot(container);
+    // If the container changed (icon recreated), unmount old root and create a new one
+    if (rootRef.current && rootContainerRef.current !== container) {
+      rootRef.current.unmount();
+      rootRef.current = null;
     }
 
-    // Always render weather bars
+    if (!rootRef.current) {
+      rootRef.current = createRoot(container);
+      rootContainerRef.current = container;
+    }
+
     rootRef.current.render(
       <WeatherForecastBars
         forecasts={forecasts}
@@ -145,11 +151,11 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
       />
     );
 
-    // Cleanup on unmount only
     return () => {
       if (rootRef.current) {
         rootRef.current.unmount();
         rootRef.current = null;
+        rootContainerRef.current = null;
       }
     };
   }, [forecasts, isLoadingWeather, currentZoom, parkingIconZoomLevel, forecastDays]);
