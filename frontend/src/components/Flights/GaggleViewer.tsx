@@ -29,8 +29,14 @@ export interface GaggleViewerProps {
   trailPercent: number;
   /** Combined bounding box of all pilots, for initial camera fit */
   bbox: { minLon: number; minLat: number; maxLon: number; maxLat: number } | null;
-  /** When true, draw dashed lines between all pilot pairs at the current position with distance labels */
+  /** When true, draw lines between all pilot pairs at the current position */
   showDistances?: boolean;
+  /** When true, show speed (km/h) next to each pilot label and speed diff on comparison lines */
+  showSpeed?: boolean;
+  /** When true, show height (m) next to each pilot label and height diff on comparison lines */
+  showHeight?: boolean;
+  /** When true, show distance between pilots on comparison lines */
+  showLineDistance?: boolean;
   className?: string;
 }
 
@@ -136,6 +142,9 @@ export default function GaggleViewer({
   trailPercent,
   bbox,
   showDistances = false,
+  showSpeed = false,
+  showHeight = false,
+  showLineDistance = false,
   className = '',
 }: GaggleViewerProps) {
   const initialViewState = useMemo<MapViewState>(() => {
@@ -271,10 +280,17 @@ export default function GaggleViewer({
       );
 
       // 4. Pilot name label above dot
+      const labelParts = [pilot.pilotName];
+      if (showSpeed && currentTp.speed_mps != null) {
+        labelParts.push(`${(Number(currentTp.speed_mps) * 3.6).toFixed(0)} km/h`);
+      }
+      if (showHeight && currentTp.elevation_m != null) {
+        labelParts.push(`${Math.round(Number(currentTp.elevation_m))} m`);
+      }
       result.push(
         new TextLayer({
           id: `label-${id}`,
-          data: [{ position: [Number(currentTp.lon), Number(currentTp.lat), (Number(currentTp.elevation_m) || 0) + 40] as [number, number, number], text: pilot.pilotName }],
+          data: [{ position: [Number(currentTp.lon), Number(currentTp.lat), (Number(currentTp.elevation_m) || 0) + 40] as [number, number, number], text: labelParts.join('\n') }],
           getPosition: (d: { position: [number, number, number] }) => d.position,
           getText: (d: { text: string }) => d.text,
           getSize: 13,
@@ -300,10 +316,6 @@ export default function GaggleViewer({
           const b = pilotSlices[j];
           const aLat = Number(a.currentTp.lat), aLon = Number(a.currentTp.lon);
           const bLat = Number(b.currentTp.lat), bLon = Number(b.currentTp.lon);
-          const dist = haversineMeters(aLat, aLon, bLat, bLon);
-          const distLabel = dist >= 1000
-            ? `${(dist / 1000).toFixed(2)} km`
-            : `${Math.round(dist)} m`;
           const elevA = (Number(a.currentTp.elevation_m) || 0) + 10;
           const elevB = (Number(b.currentTp.elevation_m) || 0) + 10;
           const midElev = Math.max(elevA, elevB) + 20;
@@ -320,37 +332,62 @@ export default function GaggleViewer({
             }),
           );
 
-          result.push(
-            new TextLayer({
-              id: `dist-label-${i}-${j}`,
-              data: [{
-                position: [
-                  (aLon + bLon) / 2,
-                  (aLat + bLat) / 2,
-                  midElev,
-                ] as [number, number, number],
-                text: distLabel,
-              }],
-              getPosition: (d: { position: [number, number, number] }) => d.position,
-              getText: (d: { text: string }) => d.text,
-              getSize: 13,
-              getColor: [255, 255, 255, 240] as [number, number, number, number],
-              getBackgroundColor: [15, 23, 42, 210] as [number, number, number, number],
-              background: true,
-              backgroundPadding: [5, 3, 5, 3],
-              getTextAnchor: 'middle',
-              fontFamily: 'system-ui, sans-serif',
-              fontWeight: 600,
-              pickable: false,
-              billboard: true,
-            } as any), // eslint-disable-line @typescript-eslint/no-explicit-any
-          );
+          const lineLabelParts: string[] = [];
+          if (showLineDistance) {
+            const dist = haversineMeters(aLat, aLon, bLat, bLon);
+            lineLabelParts.push(dist >= 1000 ? `${(dist / 1000).toFixed(2)} km` : `${Math.round(dist)} m`);
+          }
+          if (showSpeed) {
+            const sA = a.currentTp.speed_mps != null ? Number(a.currentTp.speed_mps) : null;
+            const sB = b.currentTp.speed_mps != null ? Number(b.currentTp.speed_mps) : null;
+            if (sA != null && sB != null) {
+              const diff = (sA - sB) * 3.6;
+              lineLabelParts.push(`${diff >= 0 ? '+' : ''}${diff.toFixed(1)} km/h`);
+            }
+          }
+          if (showHeight) {
+            const eA = a.currentTp.elevation_m != null ? Number(a.currentTp.elevation_m) : null;
+            const eB = b.currentTp.elevation_m != null ? Number(b.currentTp.elevation_m) : null;
+            if (eA != null && eB != null) {
+              const diff = Math.round(eA - eB);
+              lineLabelParts.push(`${diff >= 0 ? '+' : ''}${diff} m`);
+            }
+          }
+          const lineLabel = lineLabelParts.join('\n');
+
+          if (lineLabel) {
+            result.push(
+              new TextLayer({
+                id: `dist-label-${i}-${j}`,
+                data: [{
+                  position: [
+                    (aLon + bLon) / 2,
+                    (aLat + bLat) / 2,
+                    midElev,
+                  ] as [number, number, number],
+                  text: lineLabel,
+                }],
+                getPosition: (d: { position: [number, number, number] }) => d.position,
+                getText: (d: { text: string }) => d.text,
+                getSize: 13,
+                getColor: [255, 255, 255, 240] as [number, number, number, number],
+                getBackgroundColor: [15, 23, 42, 210] as [number, number, number, number],
+                background: true,
+                backgroundPadding: [5, 3, 5, 3],
+                getTextAnchor: 'middle',
+                fontFamily: 'system-ui, sans-serif',
+                fontWeight: 600,
+                pickable: false,
+                billboard: true,
+              } as any), // eslint-disable-line @typescript-eslint/no-explicit-any
+            );
+          }
         }
       }
     }
 
     return result;
-  }, [pilotSlices, wallOpacity, showDistances]);
+  }, [pilotSlices, wallOpacity, showDistances, showSpeed, showHeight, showLineDistance]);
 
   if (pilots.length === 0) {
     return (

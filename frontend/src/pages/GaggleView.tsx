@@ -286,6 +286,9 @@ export default function GaggleView() {
   const [wallOpacity, setWallOpacity] = useState(0.35);
   const [trailPercent, setTrailPercent] = useState(100);
   const [showDistances, setShowDistances] = useState(false);
+  const [showSpeed, setShowSpeed] = useState(false);
+  const [showHeight, setShowHeight] = useState(false);
+  const [showLineDistance, setShowLineDistance] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   // playbackOffset = ms offset from globalStart (0 = start, sessionDurationMs = end)
   const [playbackOffset, setPlaybackOffset] = useState(0);
@@ -500,6 +503,9 @@ export default function GaggleView() {
                 trailPercent={trailPercent}
                 bbox={combinedBbox}
                 showDistances={showDistances}
+                showSpeed={showSpeed}
+                showHeight={showHeight}
+                showLineDistance={showLineDistance}
                 className="w-full h-full"
               />
             </Suspense>
@@ -570,10 +576,10 @@ export default function GaggleView() {
           style={{ width: 320, flexShrink: 0, overflowY: 'auto', background: '#fff', borderLeft: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}
         >
 
-          {/* ── Distance lines toggle ────────────────────────────────────────── */}
+          {/* ── Comparison Lines toggle ──────────────────────────────────────── */}
           {visiblePilots.length >= 2 && (
             <div className="border-b border-slate-200 px-4 py-3">
-              <p className="text-xs font-semibold text-sky-night mb-2 uppercase tracking-wide">Pilot Distances</p>
+              <p className="text-xs font-semibold text-sky-night mb-2 uppercase tracking-wide">Comparison Lines</p>
               <button
                 onClick={() => setShowDistances((v) => !v)}
                 className={`w-full py-1.5 px-3 text-xs font-medium rounded-lg border transition-colors ${
@@ -582,8 +588,25 @@ export default function GaggleView() {
                     : 'border-slate-300 text-sky-night hover:bg-slate-50'
                 }`}
               >
-                {showDistances ? 'Hide Distance Lines' : 'Show Distance Lines'}
+                {showDistances ? 'Hide Comparison Lines' : 'Show Comparison Lines'}
               </button>
+              <div className="mt-2 space-y-1.5">
+                {([
+                  { label: 'Speed',    checked: showSpeed,        set: setShowSpeed },
+                  { label: 'Height',   checked: showHeight,       set: setShowHeight },
+                  { label: 'Distance', checked: showLineDistance, set: setShowLineDistance },
+                ] as { label: string; checked: boolean; set: (v: boolean) => void }[]).map(({ label, checked, set }) => (
+                  <label key={label} className="flex items-center gap-2 text-xs text-sky-night cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => set(e.target.checked)}
+                      className="accent-sky-500"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
             </div>
           )}
 
