@@ -170,20 +170,6 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function positionAt(pilot: GagglePilot, playbackTime: number): { lon: number; lat: number } | null {
-  const { trackpoints, firstTimestampMs } = pilot;
-  if (trackpoints.length === 0) return null;
-  if (firstTimestampMs !== null && playbackTime < firstTimestampMs) return null;
-  let idx = trackpoints.length - 1;
-  for (let i = 0; i < trackpoints.length; i++) {
-    if (trackpoints[i].timestamp === null) continue;
-    const ts = new Date(trackpoints[i].timestamp!).getTime();
-    if (ts > playbackTime) { idx = Math.max(0, i - 1); break; }
-  }
-  const tp = trackpoints[idx];
-  return { lon: Number(tp.lon), lat: Number(tp.lat) };
-}
-
 // Live metrics at a given unix ms for a pilot
 function metricsAt(
   pilot: GagglePilot,
@@ -380,29 +366,53 @@ export default function GaggleView() {
     [gagglePilots, selectedIds],
   );
 
-  // Map of pilotId → { otherPilotId → distance in meters } at current playback time
-  const pilotDistances = useMemo<Map<string, Map<string, number>>>(() => {
+  // Minimum distance each pilot pair ever achieved across their overlapping flight time
+  const minPilotDistances = useMemo<Map<string, Map<string, number>>>(() => {
     const result = new Map<string, Map<string, number>>();
-    if (playbackTime === null || playbackOffset === 0) return result;
-    const positions = new Map<string, { lon: number; lat: number }>();
-    for (const p of visiblePilots) {
-      const pos = positionAt(p, playbackTime);
-      if (pos) positions.set(p.id, pos);
-    }
-    for (const a of visiblePilots) {
-      const posA = positions.get(a.id);
-      if (!posA) continue;
-      const dists = new Map<string, number>();
-      for (const b of visiblePilots) {
-        if (b.id === a.id) continue;
-        const posB = positions.get(b.id);
-        if (!posB) continue;
-        dists.set(b.id, haversineMeters(posA.lat, posA.lon, posB.lat, posB.lon));
+    if (gagglePilots.length < 2) return result;
+    for (let i = 0; i < gagglePilots.length; i++) {
+      for (let j = i + 1; j < gagglePilots.length; j++) {
+        const a = gagglePilots[i];
+        const b = gagglePilots[j];
+        if (a.trackpoints.length === 0 || b.trackpoints.length === 0) continue;
+        // Build ms timestamp array for B to binary-search by time
+        const bTimes = b.trackpoints.map((tp) =>
+          tp.timestamp ? new Date(tp.timestamp).getTime() : null,
+        );
+        let minDist = Infinity;
+        for (const tpA of a.trackpoints) {
+          if (!tpA.timestamp) continue;
+          const tsA = new Date(tpA.timestamp).getTime();
+          // Only scan while both pilots are airborne
+          if (a.firstTimestampMs !== null && tsA < a.firstTimestampMs) continue;
+          if (a.lastTimestampMs !== null && tsA > a.lastTimestampMs) continue;
+          if (b.firstTimestampMs !== null && tsA < b.firstTimestampMs) continue;
+          if (b.lastTimestampMs !== null && tsA > b.lastTimestampMs) continue;
+          // Binary search for closest timestamp in B
+          let lo = 0, hi = b.trackpoints.length - 1;
+          while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            const tB = bTimes[mid];
+            if (tB !== null && tB <= tsA) lo = mid + 1;
+            else hi = mid;
+          }
+          for (const idx of [lo, lo - 1]) {
+            if (idx < 0 || idx >= b.trackpoints.length) continue;
+            const tpB = b.trackpoints[idx];
+            const d = haversineMeters(Number(tpA.lat), Number(tpA.lon), Number(tpB.lat), Number(tpB.lon));
+            if (d < minDist) minDist = d;
+          }
+        }
+        if (minDist < Infinity) {
+          if (!result.has(a.id)) result.set(a.id, new Map());
+          if (!result.has(b.id)) result.set(b.id, new Map());
+          result.get(a.id)!.set(b.id, minDist);
+          result.get(b.id)!.set(a.id, minDist);
+        }
       }
-      result.set(a.id, dists);
     }
     return result;
-  }, [visiblePilots, playbackTime, playbackOffset]);
+  }, [gagglePilots]);
 
   // ── Handle play/reset ─────────────────────────────────────────────────────
   function handlePlayPause() {
@@ -815,9 +825,9 @@ export default function GaggleView() {
                     </div>
                   )}
 
-                  {/* Distance to other pilots */}
+                  {/* Closest approach to each other pilot */}
                   {isSelected && (() => {
-                    const dists = pilotDistances.get(pilot.id);
+                    const dists = minPilotDistances.get(pilot.id);
                     if (!dists || dists.size === 0) return null;
                     const rows = Array.from(dists.entries())
                       .sort((a, b) => a[1] - b[1])
@@ -842,7 +852,7 @@ export default function GaggleView() {
                       });
                     return (
                       <div className="mt-1.5 border-t border-slate-100 pt-1.5">
-                        <p className="text-[10px] text-sky-dusk uppercase tracking-wide mb-1">Distance to</p>
+                        <p className="text-[10px] text-sky-dusk uppercase tracking-wide mb-1">Closest Approach</p>
                         <table className="w-full text-xs text-sky-dusk">
                           <tbody>{rows}</tbody>
                         </table>
