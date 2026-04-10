@@ -366,43 +366,70 @@ export default function GaggleView() {
     [gagglePilots, selectedIds],
   );
 
-  // Minimum distance each pilot pair ever achieved across their overlapping flight time
+  // Minimum distance each pilot pair achieved when both were airborne at the same time.
+  // For each timestamp in either pilot's track, we find the other pilot's position at
+  // that exact moment (nearest recorded sample), ensuring both are time-synchronized.
   const minPilotDistances = useMemo<Map<string, Map<string, number>>>(() => {
     const result = new Map<string, Map<string, number>>();
     if (gagglePilots.length < 2) return result;
+
+    // Returns the trackpoint in `tps` whose timestamp is nearest to `tsMs`
+    function nearestTp(tps: Trackpoint[], times: (number | null)[], tsMs: number) {
+      let lo = 0, hi = tps.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        const t = times[mid];
+        if (t !== null && t <= tsMs) lo = mid + 1;
+        else hi = mid;
+      }
+      let best = null as Trackpoint | null;
+      let bestDiff = Infinity;
+      for (const idx of [lo, lo - 1]) {
+        if (idx < 0 || idx >= tps.length) continue;
+        const t = times[idx];
+        if (t === null) continue;
+        const diff = Math.abs(t - tsMs);
+        if (diff < bestDiff) { bestDiff = diff; best = tps[idx]; }
+      }
+      return best;
+    }
+
     for (let i = 0; i < gagglePilots.length; i++) {
       for (let j = i + 1; j < gagglePilots.length; j++) {
         const a = gagglePilots[i];
         const b = gagglePilots[j];
         if (a.trackpoints.length === 0 || b.trackpoints.length === 0) continue;
-        // Build ms timestamp array for B to binary-search by time
-        const bTimes = b.trackpoints.map((tp) =>
-          tp.timestamp ? new Date(tp.timestamp).getTime() : null,
-        );
+
+        const aTimes = a.trackpoints.map((tp) => tp.timestamp ? new Date(tp.timestamp).getTime() : null);
+        const bTimes = b.trackpoints.map((tp) => tp.timestamp ? new Date(tp.timestamp).getTime() : null);
+
+        // Only consider the window when both pilots were airborne simultaneously
+        const overlapStart = Math.max(a.firstTimestampMs ?? -Infinity, b.firstTimestampMs ?? -Infinity);
+        const overlapEnd   = Math.min(a.lastTimestampMs  ??  Infinity, b.lastTimestampMs  ??  Infinity);
+        if (overlapStart >= overlapEnd) continue;
+
         let minDist = Infinity;
-        for (const tpA of a.trackpoints) {
-          if (!tpA.timestamp) continue;
-          const tsA = new Date(tpA.timestamp).getTime();
-          // Only scan while both pilots are airborne
-          if (a.firstTimestampMs !== null && tsA < a.firstTimestampMs) continue;
-          if (a.lastTimestampMs !== null && tsA > a.lastTimestampMs) continue;
-          if (b.firstTimestampMs !== null && tsA < b.firstTimestampMs) continue;
-          if (b.lastTimestampMs !== null && tsA > b.lastTimestampMs) continue;
-          // Binary search for closest timestamp in B
-          let lo = 0, hi = b.trackpoints.length - 1;
-          while (lo < hi) {
-            const mid = (lo + hi) >> 1;
-            const tB = bTimes[mid];
-            if (tB !== null && tB <= tsA) lo = mid + 1;
-            else hi = mid;
-          }
-          for (const idx of [lo, lo - 1]) {
-            if (idx < 0 || idx >= b.trackpoints.length) continue;
-            const tpB = b.trackpoints[idx];
-            const d = haversineMeters(Number(tpA.lat), Number(tpA.lon), Number(tpB.lat), Number(tpB.lon));
-            if (d < minDist) minDist = d;
-          }
+
+        // Check at each of A's recorded timestamps within the overlap
+        for (let ai = 0; ai < a.trackpoints.length; ai++) {
+          const tsA = aTimes[ai];
+          if (tsA === null || tsA < overlapStart || tsA > overlapEnd) continue;
+          const tpB = nearestTp(b.trackpoints, bTimes, tsA);
+          if (!tpB) continue;
+          const d = haversineMeters(Number(a.trackpoints[ai].lat), Number(a.trackpoints[ai].lon), Number(tpB.lat), Number(tpB.lon));
+          if (d < minDist) minDist = d;
         }
+
+        // Also check at each of B's recorded timestamps — catches cases where B samples more frequently
+        for (let bi = 0; bi < b.trackpoints.length; bi++) {
+          const tsB = bTimes[bi];
+          if (tsB === null || tsB < overlapStart || tsB > overlapEnd) continue;
+          const tpA = nearestTp(a.trackpoints, aTimes, tsB);
+          if (!tpA) continue;
+          const d = haversineMeters(Number(tpA.lat), Number(tpA.lon), Number(b.trackpoints[bi].lat), Number(b.trackpoints[bi].lon));
+          if (d < minDist) minDist = d;
+        }
+
         if (minDist < Infinity) {
           if (!result.has(a.id)) result.set(a.id, new Map());
           if (!result.has(b.id)) result.set(b.id, new Map());
