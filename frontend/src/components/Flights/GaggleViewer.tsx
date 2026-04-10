@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import DeckGL from '@deck.gl/react';
 import { Map } from 'react-map-gl/maplibre';
 import { PathLayer, ScatterplotLayer, SolidPolygonLayer, TextLayer } from '@deck.gl/layers';
+import { CollisionFilterExtension } from '@deck.gl/extensions';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { MapViewState } from '@deck.gl/core';
 import type { Trackpoint } from '../../services/flights.service';
@@ -33,7 +34,7 @@ export interface GaggleViewerProps {
   showDistances?: boolean;
   /** When true, show speed (km/h) next to each pilot label and speed diff on comparison lines */
   showSpeed?: boolean;
-  /** When true, show height (m) next to each pilot label and height diff on comparison lines */
+  /** When true, show height (ft) next to each pilot label and height diff on comparison lines */
   showHeight?: boolean;
   /** When true, show distance between pilots on comparison lines */
   showLineDistance?: boolean;
@@ -310,7 +311,7 @@ export default function GaggleViewer({
         labelParts.push(`${(Number(currentTp.speed_mps) * 3.6).toFixed(0)} km/h`);
       }
       if (showHeight && currentTp.elevation_m != null) {
-        labelParts.push(`${Math.round(Number(currentTp.elevation_m))} m`);
+        labelParts.push(`${Math.round(Number(currentTp.elevation_m) * 3.28084)} ft`);
       }
       result.push(
         new TextLayer({
@@ -329,6 +330,10 @@ export default function GaggleViewer({
           fontWeight: 600,
           pickable: false,
           billboard: true,
+          extensions: [new CollisionFilterExtension()],
+          collideEnabled: true,
+          collisionGroup: 'gaggle-labels',
+          getCollisionPriority: 1,
         } as any), // eslint-disable-line @typescript-eslint/no-explicit-any
       );
     }
@@ -374,8 +379,8 @@ export default function GaggleViewer({
             const eA = a.currentTp.elevation_m != null ? Number(a.currentTp.elevation_m) : null;
             const eB = b.currentTp.elevation_m != null ? Number(b.currentTp.elevation_m) : null;
             if (eA != null && eB != null) {
-              const diff = Math.round(eA - eB);
-              lineLabelParts.push(`${diff >= 0 ? '+' : ''}${diff} m`);
+              const diff = Math.round((eA - eB) * 3.28084);
+              lineLabelParts.push(`${diff >= 0 ? '+' : ''}${diff} ft`);
             }
           }
           const lineLabel = lineLabelParts.join('\n');
@@ -404,6 +409,10 @@ export default function GaggleViewer({
                 fontWeight: 600,
                 pickable: false,
                 billboard: true,
+                extensions: [new CollisionFilterExtension()],
+                collideEnabled: true,
+                collisionGroup: 'gaggle-labels',
+                getCollisionPriority: 0,
               } as any), // eslint-disable-line @typescript-eslint/no-explicit-any
             );
           }

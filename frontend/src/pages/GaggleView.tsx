@@ -162,6 +162,28 @@ function resolveTimestamps(trackpoints: Trackpoint[], flight: Flight): Trackpoin
   }));
 }
 
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6_371_000;
+  const φ1 = (lat1 * Math.PI) / 180, φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180, Δλ = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function positionAt(pilot: GagglePilot, playbackTime: number): { lon: number; lat: number } | null {
+  const { trackpoints, firstTimestampMs } = pilot;
+  if (trackpoints.length === 0) return null;
+  if (firstTimestampMs !== null && playbackTime < firstTimestampMs) return null;
+  let idx = trackpoints.length - 1;
+  for (let i = 0; i < trackpoints.length; i++) {
+    if (trackpoints[i].timestamp === null) continue;
+    const ts = new Date(trackpoints[i].timestamp!).getTime();
+    if (ts > playbackTime) { idx = Math.max(0, i - 1); break; }
+  }
+  const tp = trackpoints[idx];
+  return { lon: Number(tp.lon), lat: Number(tp.lat) };
+}
+
 // Live metrics at a given unix ms for a pilot
 function metricsAt(
   pilot: GagglePilot,
@@ -357,6 +379,30 @@ export default function GaggleView() {
     () => gagglePilots.filter((p) => selectedIds.has(p.id)),
     [gagglePilots, selectedIds],
   );
+
+  // Map of pilotId → { otherPilotId → distance in meters } at current playback time
+  const pilotDistances = useMemo<Map<string, Map<string, number>>>(() => {
+    const result = new Map<string, Map<string, number>>();
+    if (playbackTime === null || playbackOffset === 0) return result;
+    const positions = new Map<string, { lon: number; lat: number }>();
+    for (const p of visiblePilots) {
+      const pos = positionAt(p, playbackTime);
+      if (pos) positions.set(p.id, pos);
+    }
+    for (const a of visiblePilots) {
+      const posA = positions.get(a.id);
+      if (!posA) continue;
+      const dists = new Map<string, number>();
+      for (const b of visiblePilots) {
+        if (b.id === a.id) continue;
+        const posB = positions.get(b.id);
+        if (!posB) continue;
+        dists.set(b.id, haversineMeters(posA.lat, posA.lon, posB.lat, posB.lon));
+      }
+      result.set(a.id, dists);
+    }
+    return result;
+  }, [visiblePilots, playbackTime, playbackOffset]);
 
   // ── Handle play/reset ─────────────────────────────────────────────────────
   function handlePlayPause() {
@@ -768,6 +814,41 @@ export default function GaggleView() {
                       </div>
                     </div>
                   )}
+
+                  {/* Distance to other pilots */}
+                  {isSelected && (() => {
+                    const dists = pilotDistances.get(pilot.id);
+                    if (!dists || dists.size === 0) return null;
+                    const rows = Array.from(dists.entries())
+                      .sort((a, b) => a[1] - b[1])
+                      .map(([otherId, meters]) => {
+                        const other = gagglePilots.find((p) => p.id === otherId);
+                        if (!other) return null;
+                        const [or, og, ob] = other.color;
+                        const label = meters >= 1000
+                          ? `${(meters / 1000).toFixed(2)} km`
+                          : `${Math.round(meters)} m`;
+                        return (
+                          <tr key={otherId}>
+                            <td className="py-0.5 pr-1.5">
+                              <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: `rgb(${or},${og},${ob})` }} />
+                                <span className="truncate max-w-[80px]">{other.pilotName}</span>
+                              </span>
+                            </td>
+                            <td className="py-0.5 font-mono tabular-nums text-right text-sky-night">{label}</td>
+                          </tr>
+                        );
+                      });
+                    return (
+                      <div className="mt-1.5 border-t border-slate-100 pt-1.5">
+                        <p className="text-[10px] text-sky-dusk uppercase tracking-wide mb-1">Distance to</p>
+                        <table className="w-full text-xs text-sky-dusk">
+                          <tbody>{rows}</tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
