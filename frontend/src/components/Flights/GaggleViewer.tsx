@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import DeckGL from '@deck.gl/react';
 import { Map } from 'react-map-gl/maplibre';
 import { PathLayer, ScatterplotLayer, SolidPolygonLayer, TextLayer } from '@deck.gl/layers';
@@ -37,8 +37,12 @@ export interface GaggleViewerProps {
   showHeight?: boolean;
   /** When true, show distance between pilots on comparison lines */
   showLineDistance?: boolean;
+  /** Whether playback is currently running (used to lock camera in follow mode) */
+  isPlaying?: boolean;
   className?: string;
 }
+
+type CameraMode = 'free' | 'orbit' | 'follow';
 
 // ─── Geometry helpers ────────────────────────────────────────────────────────
 
@@ -145,6 +149,7 @@ export default function GaggleViewer({
   showSpeed = false,
   showHeight = false,
   showLineDistance = false,
+  isPlaying = false,
   className = '',
 }: GaggleViewerProps) {
   const initialViewState = useMemo<MapViewState>(() => {
@@ -154,6 +159,7 @@ export default function GaggleViewer({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [viewState, setViewState] = useState<MapViewState>(initialViewState);
+  const [cameraMode, setCameraMode] = useState<CameraMode>('free');
 
   // ── Per-pilot visible trail slices ────────────────────────────────────────
   const pilotSlices = useMemo(() => {
@@ -220,6 +226,25 @@ export default function GaggleViewer({
       color: [number, number, number];
     }[];
   }, [pilots, playbackTime, wallOpacity, trailPercent]);
+
+  // ── Camera: orbit mode ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (cameraMode === 'orbit') {
+      setViewState((prev) => ({ ...prev, pitch: 65 }));
+    } else if (cameraMode === 'free') {
+      setViewState((prev) => ({ ...prev, pitch: 50 }));
+    }
+  }, [cameraMode]);
+
+  // ── Camera: follow mode (center on centroid of active pilots) ─────────────
+  useEffect(() => {
+    if (cameraMode !== 'follow') return;
+    const active = pilotSlices.filter((s) => s.currentTp);
+    if (active.length === 0) return;
+    const lon = active.reduce((sum, s) => sum + Number(s.currentTp.lon), 0) / active.length;
+    const lat = active.reduce((sum, s) => sum + Number(s.currentTp.lat), 0) / active.length;
+    setViewState((prev) => ({ ...prev, longitude: lon, latitude: lat }));
+  }, [cameraMode, pilotSlices]);
 
   // ── Build Deck.GL layers ──────────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -401,8 +426,11 @@ export default function GaggleViewer({
     <div className={`relative ${className}`} style={{ overflow: 'hidden' }}>
       <DeckGL
         viewState={viewState}
-        onViewStateChange={({ viewState: vs }) => setViewState(vs as MapViewState)}
-        controller
+        onViewStateChange={({ viewState: vs }) => {
+          if (cameraMode === 'follow' && isPlaying) return;
+          setViewState(vs as MapViewState);
+        }}
+        controller={!(cameraMode === 'follow' && isPlaying)}
         layers={layers}
         style={{ width: '100%', height: '100%' }}
       >
@@ -412,6 +440,30 @@ export default function GaggleViewer({
           attributionControl={false}
         />
       </DeckGL>
+
+      {/* ── Camera mode selector ─────────────────────────────────────────── */}
+      <div className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur-sm rounded-lg shadow p-1 flex gap-1">
+        {(['free', 'orbit', 'follow'] as CameraMode[]).map((mode) => (
+          <button
+            key={mode}
+            onClick={() => setCameraMode(mode)}
+            title={
+              mode === 'free'
+                ? 'Free: pan, zoom, tilt freely'
+                : mode === 'orbit'
+                  ? 'Orbit: elevated viewing angle'
+                  : 'Follow: camera tracks playback position'
+            }
+            className={`px-2 py-0.5 text-xs rounded capitalize transition-colors ${
+              cameraMode === mode
+                ? 'bg-sky-morning text-white'
+                : 'text-sky-dusk hover:bg-sky-cloud'
+            }`}
+          >
+            {mode}
+          </button>
+        ))}
+      </div>
 
       {/* Attribution */}
       <div className="absolute bottom-2 right-2 text-[9px] text-gray-300 bg-black/30 px-1 rounded z-10">

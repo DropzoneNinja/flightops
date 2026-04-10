@@ -292,6 +292,7 @@ export default function GaggleView() {
   const [isPlaying, setIsPlaying] = useState(false);
   // playbackOffset = ms offset from globalStart (0 = start, sessionDurationMs = end)
   const [playbackOffset, setPlaybackOffset] = useState(0);
+  const [stepIncrement, setStepIncrement] = useState<15 | 30 | 60>(30);
 
   // Initialize selectedIds when pilots load
   useEffect(() => {
@@ -368,6 +369,16 @@ export default function GaggleView() {
   function handleReset() {
     setIsPlaying(false);
     setPlaybackOffset(0);
+  }
+
+  function handleStepBack() {
+    setIsPlaying(false);
+    setPlaybackOffset((prev) => Math.max(0, prev - stepIncrement * 1000));
+  }
+
+  function handleStepForward() {
+    setIsPlaying(false);
+    setPlaybackOffset((prev) => Math.min(sessionDurationMs, prev + stepIncrement * 1000));
   }
 
   // ── Leaderboard ───────────────────────────────────────────────────────────
@@ -506,6 +517,7 @@ export default function GaggleView() {
                 showSpeed={showSpeed}
                 showHeight={showHeight}
                 showLineDistance={showLineDistance}
+                isPlaying={isPlaying}
                 className="w-full h-full"
               />
             </Suspense>
@@ -534,6 +546,36 @@ export default function GaggleView() {
                 >
                   {isPlaying ? '⏸' : '▶'}
                 </button>
+                {/* Step back */}
+                {sessionDurationMs > 0 && (
+                  <button
+                    onClick={handleStepBack}
+                    className="w-7 h-7 rounded-full bg-sky-dusk/20 hover:bg-sky-dusk/40 text-sky-night text-xs flex items-center justify-center shrink-0 transition-colors"
+                    aria-label={`Step back ${stepIncrement}s`}
+                    title={`Step back ${stepIncrement}s`}
+                  >
+                    ◀
+                  </button>
+                )}
+                {/* Increment selector */}
+                {sessionDurationMs > 0 && (
+                  <div className="flex items-center shrink-0 rounded overflow-hidden border border-sky-dusk/30 text-[10px] font-medium">
+                    {([15, 30, 60] as const).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setStepIncrement(s)}
+                        className={`px-1.5 py-0.5 leading-none transition-colors ${
+                          stepIncrement === s
+                            ? 'bg-sky-morning text-white'
+                            : 'bg-transparent text-sky-dusk hover:bg-sky-dusk/10'
+                        }`}
+                        aria-pressed={stepIncrement === s}
+                      >
+                        {s}s
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {/* Scrubber */}
                 <input
                   type="range"
@@ -547,6 +589,17 @@ export default function GaggleView() {
                   className="flex-1 cursor-pointer accent-sky-500"
                   style={{ height: '4px' }}
                 />
+                {/* Step forward */}
+                {sessionDurationMs > 0 && (
+                  <button
+                    onClick={handleStepForward}
+                    className="w-7 h-7 rounded-full bg-sky-dusk/20 hover:bg-sky-dusk/40 text-sky-night text-xs flex items-center justify-center shrink-0 transition-colors"
+                    aria-label={`Step forward ${stepIncrement}s`}
+                    title={`Step forward ${stepIncrement}s`}
+                  >
+                    ▶
+                  </button>
+                )}
                 {/* Current wall-clock time */}
                 <span className="text-xs text-sky-dusk tabular-nums shrink-0 w-20 text-right">
                   {playbackTime !== null && playbackOffset > 0 ? formatFlightTime(playbackTime, sessionTimezone) : '—'}
@@ -555,7 +608,7 @@ export default function GaggleView() {
 
               {/* Quarter-time tick labels */}
               {globalStart !== null && sessionDurationMs > 0 && (
-                <div className="relative flex justify-between text-[10px] text-sky-dusk/70 tabular-nums" style={{ paddingLeft: '76px', paddingRight: '88px' }}>
+                <div className="relative flex justify-between text-[10px] text-sky-dusk/70 tabular-nums" style={{ paddingLeft: '168px', paddingRight: '116px' }}>
                   {[0, 0.25, 0.5, 0.75, 1].map((frac) => (
                     <span
                       key={frac}

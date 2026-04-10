@@ -2,5 +2,3 @@ COMPLETED: when uploading a gpx/flight dialog get the pilot from a pulldown (sim
 
 
 Gaggle: Green comparison line when equal
-    Step through 15,30,60 second increments
-    Follow pilot checkbox
