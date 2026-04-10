@@ -44,6 +44,25 @@ export interface GaggleViewerProps {
 }
 
 type CameraMode = 'free' | 'orbit' | 'follow';
+type MapStyle = 'dark' | 'satellite';
+
+const MAP_STYLES: Record<MapStyle, string | object> = {
+  dark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  satellite: {
+    version: 8,
+    sources: {
+      esri: {
+        type: 'raster',
+        tiles: [
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        ],
+        tileSize: 256,
+        attribution: '© Esri, Maxar, Earthstar Geographics',
+      },
+    },
+    layers: [{ id: 'esri-satellite', type: 'raster', source: 'esri' }],
+  },
+};
 
 // ─── Geometry helpers ────────────────────────────────────────────────────────
 
@@ -161,6 +180,7 @@ export default function GaggleViewer({
 
   const [viewState, setViewState] = useState<MapViewState>(initialViewState);
   const [cameraMode, setCameraMode] = useState<CameraMode>('free');
+  const [mapStyle, setMapStyle] = useState<MapStyle>('dark');
 
   // ── Per-pilot visible trail slices ────────────────────────────────────────
   const pilotSlices = useMemo(() => {
@@ -444,39 +464,57 @@ export default function GaggleViewer({
         style={{ width: '100%', height: '100%' }}
       >
         <Map
-          mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+          mapStyle={MAP_STYLES[mapStyle] as string}
           reuseMaps
           attributionControl={false}
         />
       </DeckGL>
 
       {/* ── Camera mode selector ─────────────────────────────────────────── */}
-      <div className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur-sm rounded-lg shadow p-1 flex gap-1">
-        {(['free', 'orbit', 'follow'] as CameraMode[]).map((mode) => (
-          <button
-            key={mode}
-            onClick={() => setCameraMode(mode)}
-            title={
-              mode === 'free'
-                ? 'Free: pan, zoom, tilt freely'
-                : mode === 'orbit'
-                  ? 'Orbit: elevated viewing angle'
-                  : 'Follow: camera tracks playback position'
-            }
-            className={`px-2 py-0.5 text-xs rounded capitalize transition-colors ${
-              cameraMode === mode
-                ? 'bg-sky-morning text-white'
-                : 'text-sky-dusk hover:bg-sky-cloud'
-            }`}
-          >
-            {mode}
-          </button>
-        ))}
+      <div className="absolute top-2 right-2 z-10 flex flex-col gap-1 items-end">
+        <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow p-1 flex gap-1">
+          {(['free', 'orbit', 'follow'] as CameraMode[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setCameraMode(mode)}
+              title={
+                mode === 'free'
+                  ? 'Free: pan, zoom, tilt freely'
+                  : mode === 'orbit'
+                    ? 'Orbit: elevated viewing angle'
+                    : 'Follow: camera tracks playback position'
+              }
+              className={`px-2 py-0.5 text-xs rounded capitalize transition-colors ${
+                cameraMode === mode
+                  ? 'bg-sky-morning text-white'
+                  : 'text-sky-dusk hover:bg-sky-cloud'
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+        <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow p-1 flex gap-1">
+          {(['dark', 'satellite'] as MapStyle[]).map((style) => (
+            <button
+              key={style}
+              onClick={() => setMapStyle(style)}
+              title={style === 'dark' ? 'Dark map' : 'Satellite imagery'}
+              className={`px-2 py-0.5 text-xs rounded capitalize transition-colors ${
+                mapStyle === style
+                  ? 'bg-sky-morning text-white'
+                  : 'text-sky-dusk hover:bg-sky-cloud'
+              }`}
+            >
+              {style === 'satellite' ? '🛰 sat' : '🌑 dark'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Attribution */}
       <div className="absolute bottom-2 right-2 text-[9px] text-gray-300 bg-black/30 px-1 rounded z-10">
-        © CartoDB
+        {mapStyle === 'satellite' ? '© Esri, Maxar' : '© CartoDB'}
       </div>
     </div>
   );
