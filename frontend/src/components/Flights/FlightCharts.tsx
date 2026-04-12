@@ -35,7 +35,7 @@ interface ChartPoint {
   originalIndex: number;
   altitude_ft: number | null;
   speed_kmh: number | null;
-  vspeed_mps: number | null;
+  vspeed_fpm: number | null;
 }
 
 function buildChartData(trackpoints: Trackpoint[]): ChartPoint[] {
