@@ -71,6 +71,12 @@ async function bootstrap() {
     }),
   );
 
+  // Disable Node.js's default 5-minute requestTimeout (introduced in Node 18).
+  // Large file uploads on slow connections easily exceed this, causing the server
+  // to reset the socket mid-upload and nginx to return 408 to the client.
+  const httpServer = app.getHttpServer();
+  httpServer.requestTimeout = 0;
+
   const port = process.env.PORT || 3000;
   await app.listen(port);
   console.log(`🚀 Backend server running on http://localhost:${port}`);
