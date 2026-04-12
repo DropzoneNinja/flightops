@@ -49,7 +49,7 @@ function formatSpeed(mps: number | null): string {
 
 function formatClimb(mps: number | null): string {
   if (mps === null) return '—';
-  return `${mps.toFixed(1)} m/s`;
+  return `${Math.round(mps * 196.85)} f/m`;
 }
 
 function label(entry: ComparisonEntry): string {
@@ -120,7 +120,7 @@ function buildChartData(
       const pt: NormalizedComparisonPoint | undefined = pts[pts.length - 1];
       row[`alt_${i}`] = pt?.elevation_m != null ? pt.elevation_m * 3.28084 : null; // to ft
       row[`spd_${i}`] = pt?.speed_mps != null ? pt.speed_mps * 3.6 : null; // to km/h
-      row[`vspd_${i}`] = pt?.vertical_speed_mps ?? null;
+      row[`vspd_${i}`] = pt?.vertical_speed_mps != null ? pt.vertical_speed_mps * 196.85 : null; // to f/m
     }
     return row;
   });
@@ -501,13 +501,13 @@ export default function FlightComparison() {
           {/* Vertical speed chart */}
           {activeTab === 'vspeed' && (
             <div className="bg-white rounded-xl shadow-elevation border border-sky-midday/30 p-4">
-              <h2 className="text-sm font-semibold text-sky-night mb-3">Vertical Speed (m/s) — time since takeoff</h2>
+              <h2 className="text-sm font-semibold text-sky-night mb-3">Vertical Speed (f/m) — time since takeoff</h2>
               <ResponsiveContainer width="100%" height={280}>
                 <AreaChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: -10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="t" tickFormatter={formatTime} tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} unit=" m/s" />
-                  <Tooltip labelFormatter={(t) => `T+${formatTime(t as number)}`} formatter={(v, name) => [typeof v === 'number' ? `${v.toFixed(2)} m/s` : '—', name as string]} />
+                  <YAxis tick={{ fontSize: 10 }} unit=" f/m" />
+                  <Tooltip labelFormatter={(t) => `T+${formatTime(t as number)}`} formatter={(v, name) => [typeof v === 'number' ? `${Math.round(v)} f/m` : '—', name as string]} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   {entries.map((entry, i) => (
                     <Area

@@ -53,7 +53,7 @@ function buildChartData(trackpoints: Trackpoint[]): ChartPoint[] {
       originalIndex: tp.seq ?? i,
       altitude_ft: tp.elevation_m !== null ? +( tp.elevation_m * 3.28084).toFixed(0) : null,
       speed_kmh: tp.speed_mps !== null ? +(tp.speed_mps * 3.6).toFixed(1) : null,
-      vspeed_mps: tp.vertical_speed_mps !== null ? +tp.vertical_speed_mps.toFixed(2) : null,
+      vspeed_fpm: tp.vertical_speed_mps !== null ? Math.round(tp.vertical_speed_mps * 196.85) : null,
     };
   });
 }
@@ -382,7 +382,7 @@ const VerticalSpeedChartInner = React.memo(function VerticalSpeedChartInner({
         <Tooltip
           formatter={(v: any) => {
             const n = Number(v);
-            return [`${n > 0 ? '+' : ''}${n.toFixed(1)} m/s`, 'Vert. speed'];
+            return [`${n > 0 ? '+' : ''}${Math.round(n)} f/m`, 'Vert. speed'];
           }}
           labelFormatter={(v: any) => `T+${formatMinutes(Number(v))}`}
           contentStyle={{ fontSize: 11 }}
@@ -390,20 +390,20 @@ const VerticalSpeedChartInner = React.memo(function VerticalSpeedChartInner({
         {eventLines.map((el, i) => (
           <ReferenceLine key={i} x={el.elapsed} stroke="#94a3b8" strokeDasharray="4 2" />
         ))}
-        <Area type="monotone" dataKey="vspeed_mps" stroke="#22c55e" strokeWidth={1.5} fill="url(#vsGrad)" dot={false} connectNulls />
+        <Area type="monotone" dataKey="vspeed_fpm" stroke="#22c55e" strokeWidth={1.5} fill="url(#vsGrad)" dot={false} connectNulls />
       </AreaChart>
     </ResponsiveContainer>
   );
 });
 
 function VerticalSpeedChart({ data, eventLines = [], activeElapsed, pinnedElapsed, onHover, onClick }: ChartProps) {
-  if (!data.some((d) => d.vspeed_mps !== null)) return null;
-  const av = nearestPoint(activeElapsed, data)?.vspeed_mps;
-  const pv = nearestPoint(pinnedElapsed, data)?.vspeed_mps;
-  const fmtVs = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)} m/s`;
+  if (!data.some((d) => d.vspeed_fpm !== null)) return null;
+  const av = nearestPoint(activeElapsed, data)?.vspeed_fpm;
+  const pv = nearestPoint(pinnedElapsed, data)?.vspeed_fpm;
+  const fmtVs = (v: number) => `${v > 0 ? '+' : ''}${Math.round(v)} f/m`;
   return (
     <div>
-      <p className="text-xs font-medium text-sky-dusk mb-1">Vertical Speed (m/s)</p>
+      <p className="text-xs font-medium text-sky-dusk mb-1">Vertical Speed (f/m)</p>
       <OverlayChart height={110} yAxisWidth={38} activeElapsed={activeElapsed} pinnedElapsed={pinnedElapsed}
         activeValue={av != null ? fmtVs(av) : null}
         pinnedValue={pv != null ? fmtVs(pv) : null}

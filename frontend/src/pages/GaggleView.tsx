@@ -174,7 +174,7 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
 function metricsAt(
   pilot: GagglePilot,
   playbackTime: number,
-): { altitude_ft: number | null; speed_kmh: number | null; vspeed_mps: number | null } | null {
+): { altitude_ft: number | null; speed_kmh: number | null; vspeed_fpm: number | null } | null {
   const { trackpoints, firstTimestampMs } = pilot;
   if (trackpoints.length === 0) return null;
   if (firstTimestampMs !== null && playbackTime < firstTimestampMs) return null;
@@ -191,7 +191,7 @@ function metricsAt(
   return {
     altitude_ft: tp.elevation_m !== null ? Math.round(tp.elevation_m * 3.28084) : null,
     speed_kmh: tp.speed_mps !== null ? parseFloat((tp.speed_mps * 3.6).toFixed(1)) : null,
-    vspeed_mps: tp.vertical_speed_mps !== null ? parseFloat(tp.vertical_speed_mps.toFixed(1)) : null,
+    vspeed_fpm: tp.vertical_speed_mps !== null ? Math.round(tp.vertical_speed_mps * 196.85) : null,
   };
 }
 
@@ -270,27 +270,34 @@ export default function GaggleView() {
     return isFinite(minLon) ? { minLon, minLat, maxLon, maxLat } : null;
   }, [loadedFlights]);
 
-  // ── Playback globals ──────────────────────────────────────────────────────
+  // ── Selection ─────────────────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const visiblePilots = useMemo(
+    () => gagglePilots.filter((p) => selectedIds.has(p.id)),
+    [gagglePilots, selectedIds],
+  );
+
+  // ── Playback globals (based on selected flights only) ─────────────────────
   const globalStart = useMemo(
     () =>
-      gagglePilots.reduce<number | null>((acc, p) => {
+      visiblePilots.reduce<number | null>((acc, p) => {
         if (p.firstTimestampMs === null) return acc;
         return acc === null ? p.firstTimestampMs : Math.min(acc, p.firstTimestampMs);
       }, null),
-    [gagglePilots],
+    [visiblePilots],
   );
   const globalEnd = useMemo(
     () =>
-      gagglePilots.reduce<number | null>((acc, p) => {
+      visiblePilots.reduce<number | null>((acc, p) => {
         if (p.lastTimestampMs === null) return acc;
         return acc === null ? p.lastTimestampMs : Math.max(acc, p.lastTimestampMs);
       }, null),
-    [gagglePilots],
+    [visiblePilots],
   );
   const sessionDurationMs = globalStart !== null && globalEnd !== null ? globalEnd - globalStart : 0;
 
   // ── UI State ──────────────────────────────────────────────────────────────
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [wallOpacity, setWallOpacity] = useState(0.35);
   const [trailPercent, setTrailPercent] = useState(100);
   const [showDistances, setShowDistances] = useState(false);
@@ -351,6 +358,13 @@ export default function GaggleView() {
     };
   }, [isPlaying, tick]);
 
+  // Clamp playbackOffset when the selection changes and sessionDurationMs shrinks
+  useEffect(() => {
+    if (sessionDurationMs > 0) {
+      setPlaybackOffset((prev) => Math.min(prev, sessionDurationMs));
+    }
+  }, [sessionDurationMs]);
+
   // ── Pilot toggle ──────────────────────────────────────────────────────────
   function togglePilot(id: string) {
     setSelectedIds((prev) => {
@@ -360,11 +374,6 @@ export default function GaggleView() {
       return next;
     });
   }
-
-  const visiblePilots = useMemo(
-    () => gagglePilots.filter((p) => selectedIds.has(p.id)),
-    [gagglePilots, selectedIds],
-  );
 
   // Minimum distance each pilot pair achieved when both were airborne at the same time.
   // For each timestamp in either pilot's track, we find the other pilot's position at
@@ -542,10 +551,10 @@ export default function GaggleView() {
   }, [loadedFlights, gagglePilots]);
 
   // ── VS formatting ─────────────────────────────────────────────────────────
-  function formatVS(mps: number | null): string {
-    if (mps === null) return '—';
-    const sign = mps >= 0 ? '+' : '';
-    return `${sign}${mps.toFixed(1)} m/s`;
+  function formatVS(fpm: number | null): string {
+    if (fpm === null) return '—';
+    const sign = fpm >= 0 ? '+' : '';
+    return `${sign}${fpm} f/m`;
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -811,6 +820,11 @@ export default function GaggleView() {
                       style={{ background: `rgb(${r},${g},${b})` }}
                     />
                     <span className="flex-1 text-sm font-medium text-sky-night truncate">{pilot.pilotName}</span>
+                    {pilot.firstTimestampMs !== null && (
+                      <span className="text-xs text-sky-dusk tabular-nums shrink-0">
+                        {formatFlightTime(pilot.firstTimestampMs, sessionTimezone)}
+                      </span>
+                    )}
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -839,14 +853,14 @@ export default function GaggleView() {
                         <span className="text-sky-dusk">VS</span>
                         <div
                           className={`font-mono tabular-nums ${
-                            metrics?.vspeed_mps != null
-                              ? metrics.vspeed_mps >= 0
+                            metrics?.vspeed_fpm != null
+                              ? metrics.vspeed_fpm >= 0
                                 ? 'text-green-600'
                                 : 'text-red-500'
                               : 'text-sky-night'
                           }`}
                         >
-                          {metrics?.vspeed_mps != null ? formatVS(metrics.vspeed_mps) : '—'}
+                          {metrics?.vspeed_fpm != null ? formatVS(metrics.vspeed_fpm) : '—'}
                         </div>
                       </div>
                     </div>
