@@ -23,9 +23,7 @@ services:
     restart: unless-stopped
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/dropzoneninja/flightops-backend:latest
     container_name: flightops-backend
     environment:
       DATABASE_HOST: postgres
@@ -60,12 +58,9 @@ services:
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: ghcr.io/dropzoneninja/flightops-frontend:latest
     container_name: flightops-frontend
     environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
       TZ: ${TIMEZONE}
     ports:
       - "5173:80"
