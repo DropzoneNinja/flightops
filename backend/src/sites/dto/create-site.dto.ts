@@ -1,6 +1,4 @@
-import { IsString, IsNumber, Min, Max, Length, IsOptional, IsObject, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
-import { PlotDataDto } from './plot-data.dto';
+import { IsString, IsNumber, Min, Max, Length, IsOptional } from 'class-validator';
 
 export class CreateSiteDto {
   @IsString()
@@ -42,9 +40,4 @@ export class CreateSiteDto {
   @Length(0, 10000, { message: 'Weather notes must not exceed 10000 characters' })
   weather_notes?: string;
 
-  @IsOptional()
-  @IsObject()
-  @ValidateNested()
-  @Type(() => PlotDataDto)
-  plot_data?: PlotDataDto | null;
 }

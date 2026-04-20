@@ -1,3 +1,6 @@
+# Local Docker overrides (machine-specific)
+docker-compose.override.yml
+
 # Dependencies
 node_modules/
 */node_modules/

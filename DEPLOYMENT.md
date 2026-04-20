@@ -16,3 +16,12 @@ Ongoing deploy flow:
 git tag v1.2.0 && git push --tags   # triggers the build (~3–5 min)
 # then on server:
 docker compose pull && docker compose up -d
+
+
+Version management:
+npm --prefix ./frontend version 1.5.2 --no-git-tag-version
+npm --prefix ./backend version 1.5.2 --no-git-tag-version
+git add frontend/package.json backend/package.json
+git commit -m "v1.5.2"
+git tag v1.5.2
+git push && git push --tags

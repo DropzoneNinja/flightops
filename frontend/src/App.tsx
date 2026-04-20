@@ -14,6 +14,8 @@ import GaggleView from './pages/GaggleView';
 import Leaderboards from './pages/Leaderboards';
 import PilotPerformance from './pages/PilotPerformance';
 import FlightComparison from './pages/FlightComparison';
+import MissionsPage from './pages/MissionsPage';
+import MissionEditorPage from './pages/MissionEditorPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './contexts/ToastContext';
@@ -139,6 +141,26 @@ function App() {
             <ErrorBoundary>
               <ProtectedRoute>
                 <PilotPerformance />
+              </ProtectedRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/missions"
+          element={
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <MissionsPage />
+              </ProtectedRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/missions/:id"
+          element={
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <MissionEditorPage />
               </ProtectedRoute>
             </ErrorBoundary>
           }

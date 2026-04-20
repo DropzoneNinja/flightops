@@ -53,6 +53,9 @@ export enum SettingKey {
   // Debug Settings
   HEATBAR_DEBUG_MODE = 'debug.heatbar_debug_mode',
 
+  // Fuel Planning
+  FUEL_RESERVE = 'fuel.reserve_percentage',
+
   // Backup Settings
   BACKUP_ENABLED = 'backup.enabled',
   BACKUP_FREQUENCY = 'backup.frequency',
@@ -238,13 +241,13 @@ export const DEFAULT_SETTINGS: DefaultSetting[] = [
     category: 'Units',
   },
 
-  // Plot Settings
+  // Mission Planning
   {
     key: SettingKey.PLOT_AVERAGE_SPEED,
     value: 30,
     type: SettingType.NUMBER,
     description: 'Average speed for plot time calculations (km/h)',
-    category: 'Plot',
+    category: 'Mission Planning',
   },
 
   // Map Display Settings
@@ -253,7 +256,7 @@ export const DEFAULT_SETTINGS: DefaultSetting[] = [
     value: true,
     type: SettingType.BOOLEAN,
     description: 'Show zoom level indicator on map',
-    category: 'Map Display',
+    category: 'Debug',
   },
   {
     key: SettingKey.PARKING_ICON_ZOOM_LEVEL,
@@ -270,6 +273,14 @@ export const DEFAULT_SETTINGS: DefaultSetting[] = [
     type: SettingType.BOOLEAN,
     description: 'Show multi-height wind data grid in detail view',
     category: 'Debug',
+  },
+
+  {
+    key: SettingKey.FUEL_RESERVE,
+    value: 10,
+    type: SettingType.NUMBER,
+    description: 'Fuel reserve (%)',
+    category: 'Mission Planning',
   },
 
   // Backup Settings

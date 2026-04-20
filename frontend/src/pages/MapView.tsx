@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MapContainer, TileLayer, useMapEvents, Marker, Popup, useMap } from 'react-leaflet';
 import { LatLng } from 'leaflet';
 import { useSites } from '../hooks/useSites';
@@ -11,18 +11,18 @@ import AddSitePanel from '../components/Site/AddSitePanel';
 import AirspaceOverlay from '../components/Airspace/AirspaceOverlay';
 import AirspaceClassFilter from '../components/Airspace/AirspaceClassFilter';
 import AirspaceLayerVisualization from '../components/Airspace/AirspaceLayerVisualization';
-import PlotOverlay from '../components/Plot/PlotOverlay';
-import TotalDistanceMarker from '../components/Plot/TotalDistanceMarker';
-import PlotControls from '../components/Plot/PlotControls';
 import BottomNavigationBar from '../components/Mobile/BottomNavigationBar';
 import WeatherStatusBanner from '../components/Mobile/WeatherStatusBanner';
 import MobileAddSiteSheet from '../components/Mobile/MobileAddSiteSheet';
 import MobileToolsSheet from '../components/Mobile/MobileToolsSheet';
 import MobileMultiHeightDialog from '../components/Mobile/MobileMultiHeightDialog';
+import MissionMarker from '../components/Mission/MissionMarker';
+import MissionPlot from '../components/Mission/MissionPlot';
 import { useAirspace } from '../hooks/useAirspace';
 import { AirspaceClass } from '../services/airspace.service';
 import { FlightSite } from '../services/sites.service';
-import { api } from '../services/api';
+import { MissionWaypoint, missionsService } from '../services/missions.service';
+import { useMissionsStore } from '../stores/missionsStore';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default marker icons in React-Leaflet
@@ -89,17 +89,20 @@ function MapController({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null
 }
 
 export default function MapView() {
-  const { sites, isLoading, updateSiteMutation } = useSites();
+  const { sites, isLoading } = useSites();
   const { logout, user } = useAuth();
   const { settingsMap, isLoadingMap } = useSettings();
   const { airspace } = useAirspace();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const mapRef = useRef<L.Map | null>(null);
   const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
   const [activeLocationSelection, setActiveLocationSelection] = useState<'takeoff' | 'parking' | null>(null);
   const [pendingLocation, setPendingLocation] = useState<LatLng | null>(null);
   const [pendingLocationType, setPendingLocationType] = useState<'takeoff' | 'parking' | null>(null);
-  const [isFetchingWeather, setIsFetchingWeather] = useState(false);
+  const [isMissionMode, setIsMissionMode] = useState(false);
+  const [waypointsByMission, setWaypointsByMission] = useState<Map<string, MissionWaypoint[]>>(new Map());
+  const { missions, fetchMissions } = useMissionsStore();
   const [currentZoom, setCurrentZoom] = useState(9);
   const [showZoomIndicator, setShowZoomIndicator] = useState(true);
   const [parkingIconZoomLevel, setParkingIconZoomLevel] = useState(10);
@@ -119,18 +122,6 @@ export default function MapView() {
     return new Set(['A', 'C', 'CTR', 'D', 'Q', 'R']);
   });
   const [selectedSiteForAirspace, setSelectedSiteForAirspace] = useState<FlightSite | null>(null);
-  const [selectedPlotNode, setSelectedPlotNode] = useState<{
-    nodeIndex: number;
-    lat: number;
-    lon: number;
-  } | null>(null);
-
-  // Plot state
-  const [isPlottingMode, setIsPlottingMode] = useState(false);
-  const [selectedSiteForPlot, setSelectedSiteForPlot] = useState<FlightSite | null>(null);
-  const [currentPlotPoints, setCurrentPlotPoints] = useState<Array<{ lat: number; lon: number }>>([]);
-  const [isPlotClosed, setIsPlotClosed] = useState(false);
-  const [showPlotLabels, setShowPlotLabels] = useState(true);
 
   // Mobile state
   const isMobile = useIsMobile(900);
@@ -158,6 +149,18 @@ export default function MapView() {
     localStorage.setItem('enabledAirspaceClasses', JSON.stringify(classesArray));
   }, [enabledAirspaceClasses]);
 
+  // Fetch waypoints for each mission when in high-zoom mission mode
+  useEffect(() => {
+    if (!isMissionMode || currentZoom < parkingIconZoomLevel) return;
+    missions.forEach(mission => {
+      if (!waypointsByMission.has(mission.id)) {
+        missionsService.getWaypoints(mission.id).then(wps => {
+          setWaypointsByMission(prev => new Map(prev).set(mission.id, wps));
+        });
+      }
+    });
+  }, [isMissionMode, currentZoom, parkingIconZoomLevel, missions]);
+
   // Handle mobile tab navigation
   useEffect(() => {
     if (mobileActiveTab === 'media') {
@@ -168,12 +171,6 @@ export default function MapView() {
   }, [mobileActiveTab, navigate]);
 
   const handleMapClick = (latlng: LatLng) => {
-    // Plot mode takes priority
-    if (isPlottingMode && selectedSiteForPlot && !isPlotClosed) {
-      setCurrentPlotPoints((prev) => [...prev, { lat: latlng.lat, lon: latlng.lng }]);
-      return;
-    }
-
     // Only handle clicks when actively selecting a location
     if (activeLocationSelection) {
       setPendingLocation(latlng);
@@ -203,20 +200,22 @@ export default function MapView() {
     }
   }, []);
 
-  const handleFetchWeather = async () => {
-    setIsFetchingWeather(true);
-    try {
-      await api.post('/weather/fetch');
-      alert('Weather data fetched successfully! Refresh the page to see updated forecasts.');
-      window.location.reload();
-    } catch (error: any) {
-      console.error('Weather fetch error:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to fetch weather data. Please try again.';
-      alert(errorMessage);
-    } finally {
-      setIsFetchingWeather(false);
+  useEffect(() => {
+    if (searchParams.get('view') === 'missions') {
+      fetchMissions();
+      setIsMissionMode(true);
     }
-  };
+  }, []);
+
+  const handleToggleMissionMode = useCallback(() => {
+    if (!isMissionMode) {
+      fetchMissions();
+      setIsMissionMode(true);
+    } else {
+      setIsMissionMode(false);
+      setWaypointsByMission(new Map());
+    }
+  }, [isMissionMode, fetchMissions]);
 
   const handleToggleAirspaceClass = (airspaceClass: AirspaceClass) => {
     setEnabledAirspaceClasses(prev => {
@@ -231,155 +230,18 @@ export default function MapView() {
   };
 
   const handleTakeoffClick = (site: FlightSite) => {
-    // If in plotting mode and switching to different site, cancel current plot
-    if (isPlottingMode && selectedSiteForPlot && selectedSiteForPlot.id !== site.id) {
-      const hasUnsavedChanges =
-        JSON.stringify(currentPlotPoints) !==
-        JSON.stringify(selectedSiteForPlot?.plot_data?.points || []);
-
-      if (hasUnsavedChanges && currentPlotPoints.length > 0) {
-        if (!confirm('Switching sites will cancel your current plot. Continue?')) {
-          return;
-        }
-      }
-
-      // Cancel plotting
-      setIsPlottingMode(false);
-      setSelectedSiteForPlot(null);
-      setCurrentPlotPoints([]);
-      setIsPlotClosed(false);
-    }
-
-    // Mobile: Set selected site
     if (isMobile) {
       setSelectedMobileSite(site);
     } else {
-      // Desktop: Turn on airspace if not already showing
       if (!showAirspace) {
         setShowAirspace(true);
       }
-      // Clear selected plot node when switching sites
-      setSelectedPlotNode(null);
-      // Set selected site (one visualization at a time)
       setSelectedSiteForAirspace(site);
     }
   };
 
   const handleCloseAirspaceVisualization = () => {
     setSelectedSiteForAirspace(null);
-    setSelectedPlotNode(null);
-  };
-
-  // Plot handlers
-  const handlePlotClick = () => {
-    if (!selectedSiteForAirspace) return;
-
-    setIsPlottingMode(true);
-    setSelectedSiteForPlot(selectedSiteForAirspace);
-    // Clear selected plot node when entering plotting mode
-    setSelectedPlotNode(null);
-
-    // Load existing plot if available
-    if (selectedSiteForAirspace.plot_data?.points) {
-      setCurrentPlotPoints(selectedSiteForAirspace.plot_data.points);
-      setIsPlotClosed(true);
-    } else {
-      setCurrentPlotPoints([]);
-      setIsPlotClosed(false);
-    }
-  };
-
-  const handleSavePlot = async () => {
-    if (!selectedSiteForPlot || currentPlotPoints.length < 2 || !isPlotClosed) return;
-
-    try {
-      await updateSiteMutation.mutateAsync({
-        id: selectedSiteForPlot.id,
-        data: {
-          plot_data: { points: currentPlotPoints },
-        },
-      });
-
-      // Exit plotting mode
-      setIsPlottingMode(false);
-      setSelectedSiteForPlot(null);
-      setCurrentPlotPoints([]);
-      setIsPlotClosed(false);
-    } catch (error: any) {
-      console.error('Failed to save plot:', error);
-      alert(error.response?.data?.message || 'Failed to save plot. Please try again.');
-    }
-  };
-
-  const handleDeleteLastPoint = () => {
-    if (currentPlotPoints.length === 0 || isPlotClosed) return;
-
-    setCurrentPlotPoints((prev) => prev.slice(0, -1));
-  };
-
-  const handleClearPlot = () => {
-    if (confirm('Are you sure you want to clear all points?')) {
-      setCurrentPlotPoints([]);
-      setIsPlotClosed(false);
-    }
-  };
-
-  const handleDeletePlot = async () => {
-    if (!selectedSiteForPlot) return;
-
-    if (confirm('Are you sure you want to delete this plot?')) {
-      try {
-        await updateSiteMutation.mutateAsync({
-          id: selectedSiteForPlot.id,
-          data: {
-            plot_data: null,
-          },
-        });
-
-        // Exit plotting mode
-        setIsPlottingMode(false);
-        setSelectedSiteForPlot(null);
-        setCurrentPlotPoints([]);
-        setIsPlotClosed(false);
-      } catch (error: any) {
-        console.error('Failed to delete plot:', error);
-        alert(error.response?.data?.message || 'Failed to delete plot. Please try again.');
-      }
-    }
-  };
-
-  const handleClosePlotControls = () => {
-    const hasUnsavedChanges =
-      JSON.stringify(currentPlotPoints) !==
-      JSON.stringify(selectedSiteForPlot?.plot_data?.points || []);
-
-    if (hasUnsavedChanges && currentPlotPoints.length > 0) {
-      if (confirm('You have unsaved changes. Do you want to exit without saving?')) {
-        setIsPlottingMode(false);
-        setSelectedSiteForPlot(null);
-        setCurrentPlotPoints([]);
-        setIsPlotClosed(false);
-      }
-    } else {
-      setIsPlottingMode(false);
-      setSelectedSiteForPlot(null);
-      setCurrentPlotPoints([]);
-      setIsPlotClosed(false);
-    }
-  };
-
-  const handleCompleteClick = () => {
-    if (currentPlotPoints.length >= 3 && !isPlotClosed) {
-      setIsPlotClosed(true);
-    }
-  };
-
-  const handlePlotNodeClick = (nodeIndex: number, lat: number, lon: number) => {
-    setSelectedPlotNode({ nodeIndex, lat, lon });
-  };
-
-  const handleToggleLabels = () => {
-    setShowPlotLabels((prev) => !prev);
   };
 
   return (
@@ -427,12 +289,6 @@ export default function MapView() {
             <div className="flex items-center justify-end space-x-4 ml-auto">
               <span className="text-sm text-gray-600">{user?.username || user?.email}</span>
               <button
-                onClick={handleAddSiteClick}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-              >
-                Add Site
-              </button>
-              <button
                 onClick={() => setShowAirspace(!showAirspace)}
                 className={`px-4 py-2 text-white rounded-md text-sm font-medium transition-colors ${
                   showAirspace
@@ -443,18 +299,20 @@ export default function MapView() {
                 {showAirspace ? 'Hide Airspace' : 'Show Airspace'}
               </button>
               <button
-                onClick={handlePlotClick}
-                disabled={!selectedSiteForAirspace}
+                onClick={isMissionMode ? () => navigate('/missions') : handleAddSiteClick}
                 className={`px-4 py-2 text-white rounded-md text-sm font-medium transition-colors ${
-                  isPlottingMode
-                    ? 'bg-orange-600 hover:bg-orange-700'
-                    : selectedSiteForAirspace
-                    ? 'bg-blue-600 hover:bg-blue-700'
-                    : 'bg-gray-400 cursor-not-allowed'
+                  isMissionMode ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-blue-600 hover:bg-blue-700'
                 }`}
-                title={!selectedSiteForAirspace ? 'Select a takeoff icon to enable plotting' : ''}
               >
-                {isPlottingMode ? 'Plotting...' : 'Plot'}
+                {isMissionMode ? 'New Mission' : 'Add Site'}
+              </button>
+              <button
+                onClick={handleToggleMissionMode}
+                className={`px-4 py-2 text-white rounded-md text-sm font-medium transition-colors ${
+                  isMissionMode ? 'bg-sky-600 hover:bg-sky-700' : 'bg-indigo-600 hover:bg-indigo-700'
+                }`}
+              >
+                {isMissionMode ? 'Weather' : 'Missions'}
               </button>
               <button
                 onClick={() => navigate('/media')}
@@ -463,21 +321,12 @@ export default function MapView() {
                 Album
               </button>
               {user?.is_admin && (
-                <>
-                  <button
-                    onClick={handleFetchWeather}
-                    disabled={isFetchingWeather}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isFetchingWeather ? 'Fetching...' : 'Fetch Weather'}
-                  </button>
-                  <button
-                    onClick={() => navigate('/settings')}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
-                  >
-                    Settings
-                  </button>
-                </>
+                <button
+                  onClick={() => navigate('/settings')}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
+                >
+                  Settings
+                </button>
               )}
               <button
                 onClick={logout}
@@ -510,15 +359,9 @@ export default function MapView() {
             center={[-37.8136, 144.9631]} // Default center (Melbourne, Australia)
             zoom={9}
             className={`h-full w-full ${
-              activeLocationSelection || (isPlottingMode && !isPlotClosed)
-                ? 'cursor-crosshair'
-                : ''
+              activeLocationSelection ? 'cursor-crosshair' : ''
             }`}
-            style={
-              activeLocationSelection || (isPlottingMode && !isPlotClosed)
-                ? { cursor: 'crosshair' }
-                : {}
-            }
+            style={activeLocationSelection ? { cursor: 'crosshair' } : {}}
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -538,7 +381,7 @@ export default function MapView() {
             )}
 
             {/* Render site markers */}
-            {sites.filter(site => site.enabled || user?.is_admin).map((site) => (
+            {!isMissionMode && sites.filter(site => site.enabled || user?.is_admin).map((site) => (
               <SiteMarker
                 key={site.id}
                 site={site}
@@ -547,16 +390,41 @@ export default function MapView() {
                 onTakeoffClick={handleTakeoffClick}
                 isSelectedForAirspace={selectedSiteForAirspace?.id === site.id}
                 onMobileDayClick={isMobile ? (forecast) => {
-                  // Set the selected site if not already set
                   if (selectedMobileSite?.id !== site.id) {
                     setSelectedMobileSite(site);
                   }
-                  // Open mobile multi-height dialog directly
                   setSelectedMobileHeightForecast(forecast);
                   setShowMobileMultiHeight(true);
                 } : undefined}
               />
             ))}
+
+            {/* Mission markers — shown in mission mode */}
+            {isMissionMode && missions.map((mission) => {
+              const lat = mission.launch_site?.takeoff_lat ?? mission.waypoints?.[0]?.latitude;
+              const lon = mission.launch_site?.takeoff_lon ?? mission.waypoints?.[0]?.longitude;
+              if (lat == null || lon == null) return null;
+              const pos: [number, number] = [Number(lat), Number(lon)];
+              return (
+                <React.Fragment key={mission.id}>
+                  {currentZoom < parkingIconZoomLevel && (
+                    <MissionMarker
+                      mission={mission}
+                      position={pos}
+                      onClick={() => navigate(`/missions/${mission.id}`)}
+                    />
+                  )}
+                  {currentZoom >= parkingIconZoomLevel && (
+                    <MissionPlot
+                      mission={mission}
+                      position={pos}
+                      waypoints={waypointsByMission.get(mission.id) ?? []}
+                      onClick={() => navigate(`/missions/${mission.id}`)}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            })}
 
             {/* Temporary marker for location selection */}
             {pendingLocation && (
@@ -574,58 +442,6 @@ export default function MapView() {
             )}
 
             {/* Plot overlay - show saved plots only for selected site */}
-            {sites.filter(site => site.enabled).map((site) => {
-              // Skip if no plot data
-              if (!site.plot_data?.points || site.plot_data.points.length < 2) return null;
-
-              // Only show plot if this site is selected for airspace (takeoff icon highlighted)
-              if (selectedSiteForAirspace?.id !== site.id) return null;
-
-              // Don't render if this is the site being actively edited
-              if (isPlottingMode && selectedSiteForPlot?.id === site.id) return null;
-
-              return (
-                <>
-                  <PlotOverlay
-                    key={`plot-${site.id}`}
-                    points={site.plot_data.points}
-                    isClosed={true}
-                    isEditing={false}
-                    distanceUnit={(settingsMap['units.distance'] as 'km' | 'mi') || 'km'}
-                    averageSpeed={(settingsMap['plot.average_speed'] as number) || 30}
-                    showLabels={showPlotLabels}
-                    onNodeClick={handlePlotNodeClick}
-                  />
-                  <TotalDistanceMarker
-                    key={`plot-total-${site.id}`}
-                    points={site.plot_data.points}
-                    distanceUnit={(settingsMap['units.distance'] as 'km' | 'mi') || 'km'}
-                    averageSpeed={(settingsMap['plot.average_speed'] as number) || 30}
-                  />
-                </>
-              );
-            })}
-
-            {/* Current plot being edited */}
-            {isPlottingMode && selectedSiteForPlot && currentPlotPoints.length > 0 && (
-              <>
-                <PlotOverlay
-                  points={currentPlotPoints}
-                  isClosed={isPlotClosed}
-                  isEditing={true}
-                  distanceUnit={(settingsMap['units.distance'] as 'km' | 'mi') || 'km'}
-                  averageSpeed={(settingsMap['plot.average_speed'] as number) || 30}
-                  showLabels={showPlotLabels}
-                />
-                {isPlotClosed && (
-                  <TotalDistanceMarker
-                    points={currentPlotPoints}
-                    distanceUnit={(settingsMap['units.distance'] as 'km' | 'mi') || 'km'}
-                    averageSpeed={(settingsMap['plot.average_speed'] as number) || 30}
-                  />
-                )}
-              </>
-            )}
           </MapContainer>
         )}
 
@@ -658,31 +474,8 @@ export default function MapView() {
                 site={selectedSiteForAirspace}
                 airspace={airspace}
                 onClose={handleCloseAirspaceVisualization}
-                selectedPlotNode={selectedPlotNode}
               />
             )}
-
-            {/* Plot controls */}
-            {isPlottingMode && selectedSiteForPlot && (
-          <PlotControls
-            site={selectedSiteForPlot}
-            currentPoints={currentPlotPoints}
-            isClosed={isPlotClosed}
-            hasUnsavedChanges={
-              JSON.stringify(currentPlotPoints) !==
-              JSON.stringify(selectedSiteForPlot.plot_data?.points || [])
-            }
-            showLabels={showPlotLabels}
-            onSave={handleSavePlot}
-            onComplete={handleCompleteClick}
-            onDeleteLastPoint={handleDeleteLastPoint}
-            onClear={handleClearPlot}
-            onDeletePlot={handleDeletePlot}
-            onToggleLabels={handleToggleLabels}
-            onClose={handleClosePlotControls}
-            isSaving={updateSiteMutation.isPending}
-          />
-        )}
           </>
         )}
       </div>
@@ -752,26 +545,8 @@ export default function MapView() {
           enabledAirspaceClasses={enabledAirspaceClasses}
           onToggleAirspaceClass={handleToggleAirspaceClass}
           onToggleAirspace={() => setShowAirspace(!showAirspace)}
-          isPlottingMode={isPlottingMode}
-          selectedSiteForPlot={selectedSiteForPlot}
-          currentPlotPoints={currentPlotPoints}
-          isPlotClosed={isPlotClosed}
-          hasUnsavedChanges={
-            JSON.stringify(currentPlotPoints) !==
-            JSON.stringify(selectedSiteForPlot?.plot_data?.points || [])
-          }
-          showPlotLabels={showPlotLabels}
-          onSavePlot={handleSavePlot}
-          onCompletePlot={handleCompleteClick}
-          onDeleteLastPoint={handleDeleteLastPoint}
-          onClearPlot={handleClearPlot}
-          onDeletePlot={handleDeletePlot}
-          onToggleLabels={handleToggleLabels}
-          onClosePlot={handleClosePlotControls}
-          isSavingPlot={updateSiteMutation.isPending}
-          isAdmin={user?.is_admin || false}
-          onFetchWeather={handleFetchWeather}
-          isFetchingWeather={isFetchingWeather}
+          isMissionMode={isMissionMode}
+          onToggleMissionMode={handleToggleMissionMode}
         />
       )}
     </div>

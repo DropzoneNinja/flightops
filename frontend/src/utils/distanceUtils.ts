@@ -126,6 +126,42 @@ export function calculatePlotDistance(
 }
 
 /**
+ * Calculate compass bearing from point A to point B
+ * @returns Bearing in degrees (0–360, clockwise from North)
+ */
+export function calculateBearing(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const dLon = toRad(lon2 - lon1);
+  const lat1R = toRad(lat1);
+  const lat2R = toRad(lat2);
+  const y = Math.sin(dLon) * Math.cos(lat2R);
+  const x = Math.cos(lat1R) * Math.sin(lat2R) - Math.sin(lat1R) * Math.cos(lat2R) * Math.cos(dLon);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+/**
+ * Effective ground speed accounting for wind.
+ * @param airSpeed Aircraft airspeed in km/h
+ * @param windSpeed Wind speed in km/h
+ * @param windFromDeg Direction wind is coming FROM in degrees (meteorological convention)
+ * @param bearingDeg Flight bearing in degrees
+ * @returns Ground speed in km/h (minimum 1)
+ */
+export function windAdjustedSpeed(
+  airSpeed: number,
+  windSpeed: number,
+  windFromDeg: number,
+  bearingDeg: number,
+): number {
+  const headwind = windSpeed * Math.cos(toRad(bearingDeg - windFromDeg));
+  return Math.max(1, airSpeed - headwind);
+}
+
+/**
  * Calculate total time for a plot based on average speed
  * @param points Array of lat/lon points
  * @param speedKmh Average speed in km/h

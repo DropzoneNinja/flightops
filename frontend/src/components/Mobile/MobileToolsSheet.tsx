@@ -2,16 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomSheet from './BottomSheet';
 import { AirspaceClass } from '../../services/airspace.service';
-import { FlightSite } from '../../services/sites.service';
-
-/**
- * MobileToolsSheet - Mobile bottom sheet for tools with sub-tabs
- *
- * Provides access to:
- * - Airspace: Filter airspace classes
- * - Plot: Plot editing controls
- * - Settings: Navigate to settings page
- */
 
 interface MobileToolsSheetProps {
   isOpen: boolean;
@@ -23,26 +13,9 @@ interface MobileToolsSheetProps {
   onToggleAirspaceClass: (airspaceClass: AirspaceClass) => void;
   onToggleAirspace: () => void;
 
-  // Plot props
-  isPlottingMode: boolean;
-  selectedSiteForPlot: FlightSite | null;
-  currentPlotPoints: Array<{ lat: number; lon: number }>;
-  isPlotClosed: boolean;
-  hasUnsavedChanges: boolean;
-  showPlotLabels: boolean;
-  onSavePlot: () => void;
-  onCompletePlot: () => void;
-  onDeleteLastPoint: () => void;
-  onClearPlot: () => void;
-  onDeletePlot: () => void;
-  onToggleLabels: () => void;
-  onClosePlot: () => void;
-  isSavingPlot: boolean;
-
-  // Admin
-  isAdmin: boolean;
-  onFetchWeather: () => void;
-  isFetchingWeather: boolean;
+  // Mission mode
+  isMissionMode: boolean;
+  onToggleMissionMode: () => void;
 }
 
 export default function MobileToolsSheet({
@@ -52,26 +25,11 @@ export default function MobileToolsSheet({
   enabledAirspaceClasses,
   onToggleAirspaceClass,
   onToggleAirspace,
-  isPlottingMode,
-  selectedSiteForPlot,
-  currentPlotPoints,
-  isPlotClosed,
-  hasUnsavedChanges,
-  showPlotLabels,
-  onSavePlot,
-  onCompletePlot,
-  onDeleteLastPoint,
-  onClearPlot,
-  onDeletePlot,
-  onToggleLabels,
-  onClosePlot,
-  isSavingPlot,
-  isAdmin,
-  onFetchWeather,
-  isFetchingWeather,
+  isMissionMode,
+  onToggleMissionMode,
 }: MobileToolsSheetProps) {
   const navigate = useNavigate();
-  const [activeSubTab, setActiveSubTab] = useState<'airspace' | 'plot' | 'settings'>('airspace');
+  const [activeSubTab, setActiveSubTab] = useState<'airspace' | 'missions' | 'settings'>('airspace');
 
   return (
     <BottomSheet
@@ -93,14 +51,14 @@ export default function MobileToolsSheet({
           Airspace
         </button>
         <button
-          onClick={() => setActiveSubTab('plot')}
+          onClick={() => setActiveSubTab('missions')}
           className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors touch-target ${
-            activeSubTab === 'plot'
+            activeSubTab === 'missions'
               ? 'border-blue-600 text-blue-600'
               : 'border-transparent text-gray-600'
           }`}
         >
-          Plot
+          Missions
         </button>
         <button
           onClick={() => setActiveSubTab('settings')}
@@ -118,7 +76,6 @@ export default function MobileToolsSheet({
       <div className="flex-1 overflow-y-auto">
         {activeSubTab === 'airspace' && (
           <div className="space-y-4">
-            {/* Airspace Toggle */}
             <div className="flex items-center justify-between">
               <span className="text-base font-semibold outdoor-text">Show Airspace</span>
               <button
@@ -133,7 +90,6 @@ export default function MobileToolsSheet({
               </button>
             </div>
 
-            {/* Airspace Class Filter */}
             {showAirspace && (
               <div>
                 <h3 className="text-base font-semibold outdoor-text mb-3">Airspace Classes</h3>
@@ -158,120 +114,36 @@ export default function MobileToolsSheet({
           </div>
         )}
 
-        {activeSubTab === 'plot' && (
+        {activeSubTab === 'missions' && (
           <div className="space-y-4">
-            {isPlottingMode && selectedSiteForPlot ? (
-              // Plot controls when in plotting mode
-              <div className="space-y-4">
-                <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
-                  <h3 className="text-lg font-bold text-blue-900 mb-2">{selectedSiteForPlot.name}</h3>
-                  <div className="text-sm text-blue-800">
-                    <p>Points: {currentPlotPoints.length}</p>
-                    <p>Status: {isPlotClosed ? 'Closed' : 'Drawing...'}</p>
-                  </div>
-                </div>
-
-                {/* Plot Actions */}
-                <div className="space-y-2">
-                  {!isPlotClosed && currentPlotPoints.length >= 3 && (
-                    <button
-                      onClick={onCompletePlot}
-                      className="w-full px-4 py-4 bg-green-600 text-white rounded-lg font-semibold touch-target-lg active:bg-green-700 transition-colors"
-                    >
-                      Complete Plot
-                    </button>
-                  )}
-
-                  {isPlotClosed && (
-                    <button
-                      onClick={onSavePlot}
-                      disabled={!hasUnsavedChanges || isSavingPlot}
-                      className="w-full px-4 py-4 bg-blue-600 text-white rounded-lg font-semibold touch-target-lg disabled:bg-gray-400 disabled:cursor-not-allowed active:bg-blue-700 transition-colors"
-                    >
-                      {isSavingPlot ? 'Saving...' : 'Save Plot'}
-                    </button>
-                  )}
-
-                  <button
-                    onClick={onToggleLabels}
-                    className="w-full px-4 py-4 bg-gray-600 text-white rounded-lg font-semibold touch-target-lg active:bg-gray-700 transition-colors"
-                  >
-                    {showPlotLabels ? 'Hide Labels' : 'Show Labels'}
-                  </button>
-
-                  {!isPlotClosed && currentPlotPoints.length > 0 && (
-                    <button
-                      onClick={onDeleteLastPoint}
-                      className="w-full px-4 py-4 bg-orange-600 text-white rounded-lg font-semibold touch-target-lg active:bg-orange-700 transition-colors"
-                    >
-                      Delete Last Point
-                    </button>
-                  )}
-
-                  {currentPlotPoints.length > 0 && (
-                    <button
-                      onClick={onClearPlot}
-                      className="w-full px-4 py-4 bg-red-600 text-white rounded-lg font-semibold touch-target-lg active:bg-red-700 transition-colors"
-                    >
-                      Clear All Points
-                    </button>
-                  )}
-
-                  {selectedSiteForPlot.plot_data && (
-                    <button
-                      onClick={onDeletePlot}
-                      className="w-full px-4 py-4 bg-red-800 text-white rounded-lg font-semibold touch-target-lg active:bg-red-900 transition-colors"
-                    >
-                      Delete Saved Plot
-                    </button>
-                  )}
-
-                  <button
-                    onClick={onClosePlot}
-                    className="w-full px-4 py-4 bg-gray-400 text-white rounded-lg font-semibold touch-target-lg active:bg-gray-500 transition-colors"
-                  >
-                    Cancel Plotting
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-600">
-                <p className="text-base mb-2">Select a site to start plotting</p>
-                <p className="text-sm">Tap a takeoff icon on the map, then tap "Plot" in the header</p>
-              </div>
-            )}
+            <p className="text-sm text-gray-600">
+              {isMissionMode ? 'Mission pins are shown on the map.' : 'Show your missions on the map.'}
+            </p>
+            <button
+              onClick={() => { onToggleMissionMode(); onClose(); }}
+              className={`w-full px-4 py-4 text-white rounded-lg font-semibold touch-target-lg transition-colors ${
+                isMissionMode ? 'bg-sky-600 active:bg-sky-700' : 'bg-indigo-600 active:bg-indigo-700'
+              }`}
+            >
+              {isMissionMode ? 'Show Weather' : 'Show Missions'}
+            </button>
+            <button
+              onClick={() => { navigate('/missions'); onClose(); }}
+              className="w-full px-4 py-4 bg-white border border-indigo-300 text-indigo-700 rounded-lg font-semibold touch-target-lg active:bg-indigo-50 transition-colors"
+            >
+              Open Mission Planner
+            </button>
           </div>
         )}
 
         {activeSubTab === 'settings' && (
           <div className="space-y-4">
-            {isAdmin && (
-              <>
-                <button
-                  onClick={onFetchWeather}
-                  disabled={isFetchingWeather}
-                  className="w-full px-4 py-4 bg-purple-600 text-white rounded-lg font-semibold touch-target-lg disabled:opacity-50 disabled:cursor-not-allowed active:bg-purple-700 transition-colors"
-                >
-                  {isFetchingWeather ? 'Fetching...' : 'Fetch Weather'}
-                </button>
-
-                <button
-                  onClick={() => {
-                    navigate('/settings');
-                    onClose();
-                  }}
-                  className="w-full px-4 py-4 bg-gray-600 text-white rounded-lg font-semibold touch-target-lg active:bg-gray-700 transition-colors"
-                >
-                  Open Settings
-                </button>
-              </>
-            )}
-
-            {!isAdmin && (
-              <div className="text-center py-8 text-gray-600">
-                <p className="text-base">Admin access required</p>
-              </div>
-            )}
+            <button
+              onClick={() => { navigate('/settings'); onClose(); }}
+              className="w-full px-4 py-4 bg-gray-600 text-white rounded-lg font-semibold touch-target-lg active:bg-gray-700 transition-colors"
+            >
+              Open Settings
+            </button>
           </div>
         )}
       </div>

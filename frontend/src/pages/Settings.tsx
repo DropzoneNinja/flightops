@@ -10,6 +10,7 @@ import { useSites } from '../hooks/useSites';
 import { backupService, BackupStatus, BackupFileInfo } from '../services/backup.service';
 import { RestoreModal } from '../components/RestoreModal';
 import { mediaService } from '../services/media.service';
+import { api } from '../services/api';
 
 export default function Settings() {
   const { settings, defaults, isLoading, updateManyMutation, resetToDefaultsMutation } =
@@ -45,6 +46,9 @@ export default function Settings() {
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [backupFiles, setBackupFiles] = useState<BackupFileInfo[]>([]);
   const [loadingBackupFiles, setLoadingBackupFiles] = useState(false);
+
+  // Fetch weather state (admin only)
+  const [isFetchingWeather, setIsFetchingWeather] = useState(false);
 
   // Thumbnail regeneration state (admin only)
   const [regeneratingThumbnails, setRegeneratingThumbnails] = useState(false);
@@ -289,6 +293,21 @@ export default function Settings() {
       console.error('Failed to load weather stats:', error);
     } finally {
       setLoadingWeatherStats(false);
+    }
+  };
+
+  const handleFetchWeather = async () => {
+    setIsFetchingWeather(true);
+    try {
+      await api.post('/weather/fetch');
+      alert('Weather data fetched successfully! Refresh the page to see updated forecasts.');
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Weather fetch error:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to fetch weather data. Please try again.';
+      alert(errorMessage);
+    } finally {
+      setIsFetchingWeather(false);
     }
   };
 
@@ -593,6 +612,8 @@ export default function Settings() {
                                   ? 'mm/hr'
                                   : setting.setting_key.includes('frequency')
                                   ? 'hours'
+                                  : setting.setting_key.includes('reserve')
+                                  ? '%'
                                   : ''}
                               </span>
                             )}
@@ -927,12 +948,21 @@ export default function Settings() {
                     Track usage of weather forecast endpoints
                   </p>
                 </div>
-                <button
-                  onClick={handleResetWeatherStats}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
-                >
-                  Reset Stats
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleFetchWeather}
+                    disabled={isFetchingWeather}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isFetchingWeather ? 'Fetching...' : 'Fetch Weather'}
+                  </button>
+                  <button
+                    onClick={handleResetWeatherStats}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
+                  >
+                    Reset Stats
+                  </button>
+                </div>
               </div>
             </div>
 

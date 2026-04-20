@@ -17,6 +17,7 @@ import { MediaModule } from './media/media.module';
 import { FlightsModule } from './flights/flights.module';
 import { PilotsModule } from './pilots/pilots.module';
 import { LeaderboardsModule } from './leaderboards/leaderboards.module';
+import { MissionsModule } from './missions/missions.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { LeaderboardsModule } from './leaderboards/leaderboards.module';
     FlightsModule,
     PilotsModule,
     LeaderboardsModule,
+    MissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
