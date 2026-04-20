@@ -194,7 +194,7 @@ export default function MissionEditorPage() {
       {/* Header */}
       <header className="bg-white border-b border-sky-midday/20 shadow-sm shrink-0 z-10">
         <div className="px-4 py-2 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <button
               onClick={() => navigate('/?view=missions')}
               className="px-4 py-2 bg-gray-600 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors shrink-0"
