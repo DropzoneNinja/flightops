@@ -16,6 +16,7 @@ import PilotPerformance from './pages/PilotPerformance';
 import FlightComparison from './pages/FlightComparison';
 import MissionsPage from './pages/MissionsPage';
 import MissionEditorPage from './pages/MissionEditorPage';
+import MissionMediaPage from './pages/MissionMediaPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './contexts/ToastContext';
@@ -161,6 +162,16 @@ function App() {
             <ErrorBoundary>
               <ProtectedRoute>
                 <MissionEditorPage />
+              </ProtectedRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/missions/:id/media"
+          element={
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <MissionMediaPage />
               </ProtectedRoute>
             </ErrorBoundary>
           }

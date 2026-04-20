@@ -20,6 +20,7 @@ export interface Media {
   file_size: number;
   thumbnail_path: string | null;
   site_id: string | null;
+  mission_id?: string | null;
   site?: FlightSite; // Optional site relation
   view_count: number;
   download_count: number;
@@ -33,6 +34,7 @@ export interface CreateMediaData {
   pilots?: string[];
   notes?: string;
   site_id?: string;
+  mission_id?: string;
 }
 
 export interface MediaDateCount {
@@ -142,6 +144,14 @@ export const mediaService = {
   },
 
   /**
+   * Get all media for a specific mission
+   */
+  async getMediaByMission(missionId: string): Promise<Media[]> {
+    const response = await api.get<Media[]>(`/media/mission/${missionId}`);
+    return response.data;
+  },
+
+  /**
    * Get a single media item by ID
    */
   async getMediaById(id: string): Promise<Media> {
@@ -199,6 +209,10 @@ export const mediaService = {
 
     if (data.site_id) {
       formData.append('site_id', data.site_id);
+    }
+
+    if (data.mission_id) {
+      formData.append('mission_id', data.mission_id);
     }
 
     const response = await api.post<Media>('/media', formData, {

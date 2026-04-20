@@ -256,6 +256,17 @@ export class MediaService {
   }
 
   /**
+   * Get all media for a specific mission
+   */
+  async getMediaByMission(missionId: string): Promise<Media[]> {
+    return this.mediaRepository.find({
+      where: { mission_id: missionId },
+      order: { created_at: 'DESC' },
+      relations: ['site'],
+    });
+  }
+
+  /**
    * Get a single media item by ID
    */
   async getMediaById(id: string): Promise<Media> {
@@ -356,6 +367,7 @@ export class MediaService {
       file_size: file.size,
       thumbnail_path: thumbnailPath,
       site_id: createMediaDto.site_id,
+      mission_id: createMediaDto.mission_id ?? null,
     });
 
     const savedMedia = await this.mediaRepository.save(media);

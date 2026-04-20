@@ -98,6 +98,20 @@ export function useMediaBySite(siteId: string | undefined) {
 }
 
 /**
+ * Hook to get all media for a specific mission
+ */
+export function useMediaByMission(missionId: string | undefined) {
+  return useQuery({
+    queryKey: [...MEDIA_QUERY_KEY, 'mission', missionId],
+    queryFn: () => mediaService.getMediaByMission(missionId!),
+    enabled: !!missionId,
+    staleTime: 2 * 60 * 1000,
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+}
+
+/**
  * Hook to get a single media item by ID
  */
 export function useMediaById(id: string | undefined) {

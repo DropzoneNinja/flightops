@@ -8,14 +8,16 @@ import { mediaService } from '../../services/media.service';
 import { useToastContext } from '../../contexts/ToastContext';
 
 interface UploadModalProps {
-  defaultDate?: string; // Optional default date (YYYY-MM-DD format)
+  defaultDate?: string;
+  missionId?: string;
+  defaultSiteId?: string;
 }
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 
-export default function UploadModal({ defaultDate }: UploadModalProps) {
+export default function UploadModal({ defaultDate, missionId, defaultSiteId }: UploadModalProps) {
   const { uploadModalOpen, closeUploadModal, setUploadProgress, resetUploadProgress, uploadProgress } = useMediaStore();
   const uploadMutation = useMediaUpload();
   const { sites, isLoading: isLoadingSites } = useSites();
@@ -75,8 +77,8 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
   useEffect(() => {
     if (uploadModalOpen) {
       setFlightDate(defaultDate || new Date().toISOString().split('T')[0]);
-      setSelectedSiteId('');
-      setSiteManuallySet(false);
+      setSelectedSiteId(defaultSiteId || '');
+      setSiteManuallySet(!!defaultSiteId);
       setSelectedPilots([]);
       setOtherPilots(['']);
       setShowOtherInput(false);
@@ -88,7 +90,7 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
       setShowNoSiteConfirm(false);
       resetUploadProgress();
     }
-  }, [uploadModalOpen, defaultDate, resetUploadProgress]);
+  }, [uploadModalOpen, defaultDate, defaultSiteId, resetUploadProgress]);
 
   // Auto-detect default flying site from media on the same date, or the user's last used site
   useEffect(() => {
@@ -265,6 +267,7 @@ export default function UploadModal({ defaultDate }: UploadModalProps) {
           pilots: allPilots.length > 0 ? allPilots : undefined,
           notes: notes.trim() || undefined,
           site_id: selectedSiteId || undefined,
+          mission_id: missionId || undefined,
         },
         onProgress: (progress) => {
           setUploadProgress(progress, selectedFile.name);

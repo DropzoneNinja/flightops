@@ -17,4 +17,8 @@ export class UpdateMediaDto {
   @IsUUID()
   @IsOptional()
   site_id?: string;
+
+  @IsUUID()
+  @IsOptional()
+  mission_id?: string;
 }

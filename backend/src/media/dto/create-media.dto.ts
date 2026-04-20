@@ -21,6 +21,10 @@ export class CreateMediaDto {
   @IsOptional()
   site_id?: string;
 
+  @IsUUID()
+  @IsOptional()
+  mission_id?: string;
+
   @Transform(({ value }) => {
     // If it's already an array, return it
     if (Array.isArray(value)) {

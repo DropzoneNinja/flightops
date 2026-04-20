@@ -123,6 +123,19 @@ export class MediaController {
   }
 
   /**
+   * GET /media/mission/:missionId
+   * Returns all media associated with a specific mission
+   */
+  @Get('mission/:missionId')
+  @UseGuards(JwtAuthGuard)
+  async getMediaByMission(
+    @Param('missionId') missionId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.mediaService.getMediaByMission(missionId);
+  }
+
+  /**
    * GET /media?date=YYYY-MM-DD&site=SITE_ID
    * Returns metadata for all media on a given day or for a specific site
    */

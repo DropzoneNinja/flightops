@@ -556,7 +556,7 @@ export default function Settings() {
         </div>
 
         {/* Settings by Category */}
-        {Object.entries(settingsByCategory).map(([category, categorySettings]) => (
+        {Object.entries(settingsByCategory).filter(([category]) => category !== 'Database Backup').map(([category, categorySettings]) => (
           <div key={category} className="mb-8 bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">{category}</h2>

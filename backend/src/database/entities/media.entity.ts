@@ -9,10 +9,12 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { FlightSite } from './flight-site.entity';
+import { Mission } from './mission.entity';
 
 @Entity('media')
 @Index(['flight_date'])
 @Index(['site_id'])
+@Index(['mission_id'])
 export class Media {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -22,6 +24,9 @@ export class Media {
 
   @Column({ type: 'uuid', nullable: true })
   site_id: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  mission_id: string | null;
 
   @Column({
     type: 'enum',
@@ -69,4 +74,8 @@ export class Media {
   @ManyToOne(() => FlightSite, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'site_id' })
   site: FlightSite;
+
+  @ManyToOne(() => Mission, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'mission_id' })
+  mission: Mission;
 }
