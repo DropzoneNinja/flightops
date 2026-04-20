@@ -6,6 +6,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useAuth } from '../hooks/useAuth';
 import MissionMap from '../components/Mission/MissionMap';
 import WaypointSidebar from '../components/Mission/WaypointSidebar';
+import WindCompass from '../components/Mission/WindCompass';
 import { Mission, MissionWaypoint, missionsService } from '../services/missions.service';
 
 export default function MissionEditorPage() {
@@ -417,6 +418,11 @@ export default function MissionEditorPage() {
 
         {/* Center — map */}
         <div className="flex-1 relative">
+          {windDirection !== null && windSpeed !== null && windSpeed > 0 && (
+            <div className="absolute top-4 right-4 z-[1000]">
+              <WindCompass direction={windDirection} speed={windSpeed} />
+            </div>
+          )}
           <MissionMap
             waypoints={waypoints}
             selectedWaypointId={selectedWaypointId}
