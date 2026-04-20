@@ -2,3 +2,6 @@ COMPLETED: when uploading a gpx/flight dialog get the pilot from a pulldown (sim
 
 
 Gaggle: Green comparison line when equal
+
+* Make public.weather_api_logs a summary table instead of detailed logs
+* edit function for sites
