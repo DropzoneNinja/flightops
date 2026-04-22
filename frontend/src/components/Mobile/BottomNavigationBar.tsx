@@ -9,9 +9,11 @@
  */
 
 interface BottomNavigationBarProps {
-  activeTab: 'map' | 'sites' | 'media' | 'leaderboards' | 'logout' | 'tools';
-  onTabChange: (tab: 'map' | 'sites' | 'media' | 'leaderboards' | 'logout' | 'tools') => void;
+  activeTab: 'map' | 'sites' | 'media' | 'logout' | 'tools';
+  onTabChange: (tab: 'map' | 'sites' | 'media' | 'logout' | 'tools') => void;
   onLogout: () => void;
+  isMissionMode?: boolean;
+  onToggleMissionMode?: () => void;
   /** Visual variant: 'ios' = frosted glass, 'android' = flat + ripple, 'default' = existing style */
   variant?: 'ios' | 'android' | 'default';
 }
@@ -20,9 +22,11 @@ export default function BottomNavigationBar({
   activeTab,
   onTabChange,
   onLogout,
+  isMissionMode = false,
+  onToggleMissionMode = () => {},
   variant = 'default',
 }: BottomNavigationBarProps) {
-  type TabId = 'map' | 'sites' | 'media' | 'leaderboards' | 'logout' | 'tools';
+  type TabId = 'map' | 'sites' | 'media' | 'missions' | 'logout' | 'tools';
   const navBgClass =
     variant === 'ios'
       ? 'bg-white/80 backdrop-blur-md border-t border-gray-200'
@@ -60,11 +64,15 @@ export default function BottomNavigationBar({
       disabled: false,
     },
     {
-      id: 'leaderboards' as const,
-      label: 'Scores',
-      icon: (
+      id: 'missions' as const,
+      label: isMissionMode ? 'Weather' : 'Missions',
+      icon: isMissionMode ? (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+        </svg>
+      ) : (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
         </svg>
       ),
       disabled: false,
@@ -106,8 +114,10 @@ export default function BottomNavigationBar({
               if (!tab.disabled) {
                 if (tab.id === 'logout') {
                   onLogout();
+                } else if (tab.id === 'missions') {
+                  onToggleMissionMode();
                 } else {
-                  onTabChange(tab.id);
+                  onTabChange(tab.id as 'map' | 'sites' | 'media' | 'logout' | 'tools');
                 }
               }
             }}
@@ -115,7 +125,7 @@ export default function BottomNavigationBar({
             aria-label={tab.label}
             aria-current={activeTab === tab.id ? 'page' : undefined}
             className={`flex-1 flex flex-col items-center justify-center gap-1 touch-target transition-colors ${tabRippleClass} ${
-              activeTab === tab.id
+              activeTab === tab.id || (tab.id === 'missions' && isMissionMode)
                 ? 'text-blue-600 bg-blue-50'
                 : tab.disabled
                 ? 'text-gray-400 cursor-not-allowed'

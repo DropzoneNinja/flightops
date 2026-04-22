@@ -218,7 +218,7 @@ export default function MissionEditorPage() {
 
     return (
       <div className="flex flex-col h-screen bg-sky-cloud overflow-hidden">
-        <header className="bg-white border-b border-gray-200 shadow-sm shrink-0 z-10">
+        <header className="bg-white border-b border-gray-200 shadow-sm shrink-0 z-10" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
           <div className="px-3 py-2 flex items-center gap-2">
             <button
               onClick={() => navigate('/?view=missions')}
@@ -292,7 +292,7 @@ export default function MissionEditorPage() {
   return (
     <div className="flex flex-col h-screen bg-sky-cloud overflow-hidden">
       {/* Header */}
-      <header className="bg-white border-b border-sky-midday/20 shadow-sm shrink-0 z-10">
+      <header className="bg-white border-b border-sky-midday/20 shadow-sm shrink-0 z-10" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="px-4 py-2 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <button

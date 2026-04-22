@@ -31,7 +31,7 @@ export default function MissionMediaPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200 shrink-0">
+      <header className="bg-white border-b border-gray-200 shrink-0" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button

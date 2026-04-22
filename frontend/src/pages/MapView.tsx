@@ -127,7 +127,7 @@ export default function MapView() {
 
   // Mobile state
   const isMobile = useIsMobile(900);
-  const [mobileActiveTab, setMobileActiveTab] = useState<'map' | 'sites' | 'media' | 'leaderboards' | 'logout' | 'tools'>('map');
+  const [mobileActiveTab, setMobileActiveTab] = useState<'map' | 'sites' | 'media' | 'logout' | 'tools'>('map');
   const [selectedMobileSite, setSelectedMobileSite] = useState<FlightSite | null>(null);
   const [showMobileMultiHeight, setShowMobileMultiHeight] = useState(false);
   const [selectedMobileHeightForecast, setSelectedMobileHeightForecast] = useState<any>(null);
@@ -167,8 +167,6 @@ export default function MapView() {
   useEffect(() => {
     if (mobileActiveTab === 'media') {
       navigate('/media');
-    } else if (mobileActiveTab === 'leaderboards') {
-      navigate('/leaderboards');
     }
   }, [mobileActiveTab, navigate]);
 
@@ -548,6 +546,8 @@ export default function MapView() {
           activeTab={mobileActiveTab}
           onTabChange={setMobileActiveTab}
           onLogout={logout}
+          isMissionMode={isMissionMode}
+          onToggleMissionMode={handleToggleMissionMode}
         />
       )}
 

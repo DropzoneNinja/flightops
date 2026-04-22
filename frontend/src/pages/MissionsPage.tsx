@@ -45,7 +45,7 @@ export default function MissionsPage() {
   return (
     <div className="min-h-screen bg-sky-cloud">
       {/* Header */}
-      <header className="bg-white border-b border-sky-midday/20 shadow-sm sticky top-0 z-10">
+      <header className="bg-white border-b border-sky-midday/20 shadow-sm sticky top-0 z-10" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <button
