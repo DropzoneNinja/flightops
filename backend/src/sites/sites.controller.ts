@@ -101,10 +101,9 @@ export class SitesController {
 
   /**
    * PUT /sites/:id
-   * Update a flight site (admin only)
+   * Update a flight site (owner or admin)
    */
   @Put(':id')
-  @UseGuards(AdminGuard)
   update(
     @CurrentUser() user: User,
     @Param('id') id: string,

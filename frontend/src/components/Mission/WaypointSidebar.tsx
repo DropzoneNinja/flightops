@@ -32,7 +32,7 @@ interface WaypointSidebarProps {
   missionName?: string;
 }
 
-function exportGpx(waypoints: MissionWaypoint[], missionName: string) {
+export function exportGpx(waypoints: MissionWaypoint[], missionName: string) {
   const escaped = missionName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const trkpts = waypoints.map((wp, i) =>
     `      <trkpt lat="${Number(wp.latitude).toFixed(7)}" lon="${Number(wp.longitude).toFixed(7)}"><name>WP ${i + 1}</name></trkpt>`

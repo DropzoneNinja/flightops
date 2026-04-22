@@ -4,10 +4,15 @@ import { useMissionsStore } from '../stores/missionsStore';
 import { useSites } from '../hooks/useSites';
 import { useSettings } from '../hooks/useSettings';
 import { useAuth } from '../hooks/useAuth';
+import { useIsMobile } from '../hooks/useIsMobile';
 import MissionMap from '../components/Mission/MissionMap';
-import WaypointSidebar from '../components/Mission/WaypointSidebar';
-import WindCompass from '../components/Mission/WindCompass';
+import WaypointSidebar, { exportGpx } from '../components/Mission/WaypointSidebar';
 import { Mission, MissionWaypoint, missionsService } from '../services/missions.service';
+import {
+  calculateDistance, formatDistance,
+  calculateTime, formatTime,
+  calculateBearing, windAdjustedSpeed,
+} from '../utils/distanceUtils';
 
 export default function MissionEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -52,6 +57,8 @@ export default function MissionEditorPage() {
   const settingsSpeed = ((settingsMap as Record<string, unknown>)['plot.average_speed'] as number) ?? 30;
   const fuelReservePercent = ((settingsMap as Record<string, unknown>)['fuel.reserve_percentage'] as number) ?? 10;
   const averageSpeed = avgSpeed ?? settingsSpeed;
+
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!id) return;
@@ -186,6 +193,98 @@ export default function MissionEditorPage() {
             Back to missions
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (isMobile) {
+    const fuelConfigured = (avgFuelConsumption ?? 0) > 0;
+    let mobileTotalDistKm = 0;
+    let mobileTotalTimeH = 0;
+    let mobileTotalFuelL = 0;
+    for (let i = 1; i < waypoints.length; i++) {
+      const prev = waypoints[i - 1];
+      const cur = waypoints[i];
+      const dist = calculateDistance(Number(prev.latitude), Number(prev.longitude), Number(cur.latitude), Number(cur.longitude));
+      const bearing = calculateBearing(Number(prev.latitude), Number(prev.longitude), Number(cur.latitude), Number(cur.longitude));
+      const gndSpeed = (windSpeed ?? 0) > 0 && windDirection !== null
+        ? windAdjustedSpeed(averageSpeed, windSpeed ?? 0, windDirection, bearing)
+        : averageSpeed;
+      const time = calculateTime(dist, gndSpeed);
+      mobileTotalDistKm += dist;
+      mobileTotalTimeH += time;
+      mobileTotalFuelL += fuelConfigured ? time * (avgFuelConsumption ?? 0) : 0;
+    }
+
+    return (
+      <div className="flex flex-col h-screen bg-sky-cloud overflow-hidden">
+        <header className="bg-white border-b border-gray-200 shadow-sm shrink-0 z-10">
+          <div className="px-3 py-2 flex items-center gap-2">
+            <button
+              onClick={() => navigate('/?view=missions')}
+              className="px-3 py-1.5 bg-gray-600 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors shrink-0"
+            >
+              ← Back
+            </button>
+            <span className="font-bold text-sky-night text-sm flex-1 truncate">{name}</span>
+            {waypoints.length > 0 && (
+              <button
+                onClick={() => exportGpx(waypoints, name)}
+                className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-md text-xs text-gray-600 hover:bg-gray-50 transition-colors shrink-0"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export GPX
+              </button>
+            )}
+          </div>
+        </header>
+
+        <div className="flex-1 relative">
+          <MissionMap
+            waypoints={waypoints}
+            selectedWaypointId={selectedWaypointId}
+            launchSite={launchSite}
+            onMapClick={() => {}}
+            onWaypointDrag={() => {}}
+            onWaypointClick={setSelectedWaypointId}
+            flyToCenter={flyToCenter}
+            showSegTime={true}
+            showSegDist={true}
+            showFuel={true}
+            averageSpeed={averageSpeed}
+            distanceUnit={distanceUnit}
+            avgFuelConsumption={avgFuelConsumption ?? 0}
+            fuelTankSize={fuelTankSize}
+            windDirection={windDirection}
+            windSpeed={windSpeed ?? 0}
+          />
+        </div>
+
+        {waypoints.length > 0 && (
+          <div className="bg-white border-t border-gray-200 px-4 py-3 shrink-0 flex justify-around items-center">
+            <div className="text-center">
+              <p className="text-xs text-gray-400 mb-0.5">Distance</p>
+              <p className="text-sm font-semibold text-gray-800">{formatDistance(mobileTotalDistKm, distanceUnit)}</p>
+            </div>
+            <div className="w-px h-8 bg-gray-200" />
+            <div className="text-center">
+              <p className="text-xs text-gray-400 mb-0.5">Time</p>
+              <p className="text-sm font-semibold text-gray-800">{formatTime(mobileTotalTimeH)}</p>
+            </div>
+            {fuelConfigured && (
+              <>
+                <div className="w-px h-8 bg-gray-200" />
+                <div className="text-center">
+                  <p className="text-xs text-gray-400 mb-0.5">Fuel</p>
+                  <p className="text-sm font-semibold text-gray-800">{mobileTotalFuelL.toFixed(1)} L</p>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -418,11 +517,6 @@ export default function MissionEditorPage() {
 
         {/* Center — map */}
         <div className="flex-1 relative">
-          {windDirection !== null && windSpeed !== null && windSpeed > 0 && (
-            <div className="absolute top-4 right-4 z-[1000]">
-              <WindCompass direction={windDirection} speed={windSpeed} />
-            </div>
-          )}
           <MissionMap
             waypoints={waypoints}
             selectedWaypointId={selectedWaypointId}

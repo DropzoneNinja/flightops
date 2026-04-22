@@ -5,6 +5,7 @@ import { useSites } from '../../hooks/useSites';
 import { useAuth } from '../../hooks/useAuth';
 import { usersService } from '../../services/users.service';
 import { mediaService } from '../../services/media.service';
+import { missionsService, type Mission } from '../../services/missions.service';
 import { useToastContext } from '../../contexts/ToastContext';
 
 interface UploadModalProps {
@@ -44,6 +45,9 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
   const [isLoadingUsernames, setIsLoadingUsernames] = useState(false);
   const [showNoSiteConfirm, setShowNoSiteConfirm] = useState(false);
   const [siteManuallySet, setSiteManuallySet] = useState(false);
+  const [missions, setMissions] = useState<Mission[]>([]);
+  const [selectedMissionId, setSelectedMissionId] = useState<string>('');
+  const [isLoadingMissions, setIsLoadingMissions] = useState(false);
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,12 +77,30 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
     fetchUsernames();
   }, []);
 
+  // Fetch missions on mount
+  useEffect(() => {
+    const fetchMissions = async () => {
+      setIsLoadingMissions(true);
+      try {
+        const data = await missionsService.getAll({ sort: 'name', order: 'ASC' });
+        setMissions(data);
+      } catch (error) {
+        console.error('Failed to fetch missions:', error);
+      } finally {
+        setIsLoadingMissions(false);
+      }
+    };
+
+    fetchMissions();
+  }, []);
+
   // Reset form when modal opens/closes
   useEffect(() => {
     if (uploadModalOpen) {
       setFlightDate(defaultDate || new Date().toISOString().split('T')[0]);
       setSelectedSiteId(defaultSiteId || '');
       setSiteManuallySet(!!defaultSiteId);
+      setSelectedMissionId(missionId || '');
       setSelectedPilots([]);
       setOtherPilots(['']);
       setShowOtherInput(false);
@@ -90,7 +112,7 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
       setShowNoSiteConfirm(false);
       resetUploadProgress();
     }
-  }, [uploadModalOpen, defaultDate, defaultSiteId, resetUploadProgress]);
+  }, [uploadModalOpen, defaultDate, defaultSiteId, missionId, resetUploadProgress]);
 
   // Auto-detect default flying site from media on the same date, or the user's last used site
   useEffect(() => {
@@ -267,7 +289,7 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
           pilots: allPilots.length > 0 ? allPilots : undefined,
           notes: notes.trim() || undefined,
           site_id: selectedSiteId || undefined,
-          mission_id: missionId || undefined,
+          mission_id: selectedMissionId || undefined,
         },
         onProgress: (progress) => {
           setUploadProgress(progress, selectedFile.name);
@@ -501,6 +523,31 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
             <p className="text-xs text-gray-500 mt-1">
               Selecting a site will save its GPS coordinates for future features
             </p>
+          </div>
+
+          {/* Mission Selection */}
+          <div>
+            <label htmlFor="mission" className="block text-sm font-medium text-sky-dusk mb-2">
+              Mission (Optional)
+            </label>
+            {isLoadingMissions ? (
+              <div className="text-sm text-gray-500">Loading missions...</div>
+            ) : (
+              <select
+                id="mission"
+                value={selectedMissionId}
+                onChange={(e) => setSelectedMissionId(e.target.value)}
+                disabled={isUploading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-morning focus:border-sky-morning"
+              >
+                <option value="">Select a mission</option>
+                {missions.map((mission) => (
+                  <option key={mission.id} value={mission.id}>
+                    {mission.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Pilots Multi-Select */}

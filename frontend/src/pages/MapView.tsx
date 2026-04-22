@@ -8,6 +8,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useIsMobile } from '../hooks/useIsMobile';
 import SiteMarker from '../components/Site/SiteMarker';
 import AddSitePanel from '../components/Site/AddSitePanel';
+import EditSitePanel from '../components/Site/EditSitePanel';
 import AirspaceOverlay from '../components/Airspace/AirspaceOverlay';
 import AirspaceClassFilter from '../components/Airspace/AirspaceClassFilter';
 import AirspaceLayerVisualization from '../components/Airspace/AirspaceLayerVisualization';
@@ -97,6 +98,7 @@ export default function MapView() {
   const [searchParams] = useSearchParams();
   const mapRef = useRef<L.Map | null>(null);
   const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
+  const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
   const [activeLocationSelection, setActiveLocationSelection] = useState<'takeoff' | 'parking' | null>(null);
   const [pendingLocation, setPendingLocation] = useState<LatLng | null>(null);
   const [pendingLocationType, setPendingLocationType] = useState<'takeoff' | 'parking' | null>(null);
@@ -180,7 +182,7 @@ export default function MapView() {
   };
 
   const handleAddSiteClick = () => {
-    setIsAddPanelOpen(true); // Open panel immediately
+    setIsAddPanelOpen(true);
   };
 
   const handlePanelClose = () => {
@@ -189,6 +191,21 @@ export default function MapView() {
     setPendingLocation(null);
     setPendingLocationType(null);
   };
+
+  const handleEditSiteClick = () => {
+    setIsEditPanelOpen(true);
+  };
+
+  const handleEditPanelClose = () => {
+    setIsEditPanelOpen(false);
+    setActiveLocationSelection(null);
+    setPendingLocation(null);
+    setPendingLocationType(null);
+  };
+
+  const canEditSelectedSite =
+    selectedSiteForAirspace !== null &&
+    (user?.is_admin || selectedSiteForAirspace.user_id === user?.id);
 
   const handleSelectLocation = (type: 'takeoff' | 'parking') => {
     setActiveLocationSelection(type);
@@ -299,12 +316,22 @@ export default function MapView() {
                 {showAirspace ? 'Hide Airspace' : 'Show Airspace'}
               </button>
               <button
-                onClick={isMissionMode ? () => navigate('/missions') : handleAddSiteClick}
+                onClick={
+                  isMissionMode
+                    ? () => navigate('/missions')
+                    : canEditSelectedSite
+                    ? handleEditSiteClick
+                    : handleAddSiteClick
+                }
                 className={`px-4 py-2 text-white rounded-md text-sm font-medium transition-colors ${
-                  isMissionMode ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-blue-600 hover:bg-blue-700'
+                  isMissionMode
+                    ? 'bg-indigo-600 hover:bg-indigo-700'
+                    : canEditSelectedSite
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
-                {isMissionMode ? 'Mission List' : 'Add Site'}
+                {isMissionMode ? 'Mission List' : canEditSelectedSite ? 'Edit Site' : 'Add Site'}
               </button>
               <button
                 onClick={handleToggleMissionMode}
@@ -483,18 +510,36 @@ export default function MapView() {
       {/* Desktop Add Site Panel - Hidden on mobile */}
       {!isMobile && (
         <AddSitePanel
-        isOpen={isAddPanelOpen}
-        onClose={handlePanelClose}
-        onSelectLocation={handleSelectLocation}
-        activeLocationSelection={activeLocationSelection}
-        pendingLocation={pendingLocation}
-        pendingLocationType={pendingLocationType}
-        onLocationUsed={() => {
-          setPendingLocation(null);
-          setPendingLocationType(null);
-        }}
-        onZoomToLocation={handleZoomToLocation}
-      />
+          isOpen={isAddPanelOpen}
+          onClose={handlePanelClose}
+          onSelectLocation={handleSelectLocation}
+          activeLocationSelection={activeLocationSelection}
+          pendingLocation={pendingLocation}
+          pendingLocationType={pendingLocationType}
+          onLocationUsed={() => {
+            setPendingLocation(null);
+            setPendingLocationType(null);
+          }}
+          onZoomToLocation={handleZoomToLocation}
+        />
+      )}
+
+      {/* Desktop Edit Site Panel - Hidden on mobile */}
+      {!isMobile && (
+        <EditSitePanel
+          isOpen={isEditPanelOpen}
+          site={selectedSiteForAirspace}
+          onClose={handleEditPanelClose}
+          onSelectLocation={handleSelectLocation}
+          activeLocationSelection={activeLocationSelection}
+          pendingLocation={pendingLocation}
+          pendingLocationType={pendingLocationType}
+          onLocationUsed={() => {
+            setPendingLocation(null);
+            setPendingLocationType(null);
+          }}
+          onZoomToLocation={handleZoomToLocation}
+        />
       )}
 
       {/* Mobile Bottom Navigation - Show only on mobile */}

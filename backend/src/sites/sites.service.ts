@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -70,7 +71,11 @@ export class SitesService {
     updateSiteDto: UpdateSiteDto,
     isAdmin = false,
   ): Promise<FlightSite> {
-    const site = await this.findOne(id, userId, isAdmin); // This checks ownership
+    const site = await this.findOne(id, userId, isAdmin);
+
+    if (!isAdmin && site.user_id !== userId) {
+      throw new ForbiddenException('You can only update your own sites');
+    }
 
     Object.assign(site, updateSiteDto);
     return this.siteRepository.save(site);
