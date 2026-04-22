@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { FlightSite } from '../../services/sites.service';
 import { AirspaceGeoJSON, AirspaceClass } from '../../services/airspace.service';
+import { computeAirspaceLayers } from '../../utils/airspaceUtils';
 import AirspaceClassModal from './AirspaceClassModal';
 
 interface AirspaceLayerVisualizationProps {
@@ -14,87 +15,8 @@ interface AirspaceLayerVisualizationProps {
   } | null;
 }
 
-interface AirspaceLayer {
-  class: AirspaceClass;
-  name: string;
-  lower: string;
-  upper: string;
-  lowerFeet: number;
-  upperFeet: number;
-  color: string;
-}
-
-// Class colors (matching AirspaceClassFilter)
-const CLASS_COLORS: Record<AirspaceClass, string> = {
-  A: '#0080FF',
-  C: '#C9A961',
-  CTR: '#FF0000',
-  D: '#0080FF',
-  E: '#00FF00',
-  Q: '#CC00CC',
-  R: '#7B7FE6',
-  G: '#4B8B3B',
-  RMZ: '#1E90FF',
-};
-
 // FL150 cap (15,000 feet)
 const FL150_FEET = 15000;
-
-// Airspace class priority (lower number = higher priority)
-const CLASS_PRIORITY: Record<AirspaceClass, number> = {
-  R: 1,    // Restricted airspace - Highest priority
-  CTR: 2,  // Control zones
-  Q: 3,    // Danger areas
-  A: 4,    // Class A
-  C: 5,    // Class C - Major/busy airports
-  D: 6,    // Class D - Controlled airports with towers
-  E: 7,    // Class E - Controlled airspace
-  G: 8,    // Class G - Uncontrolled
-  RMZ: 9,  // Radio Mandatory Zone - Lowest priority
-};
-
-/**
- * Parse altitude string to feet
- */
-function parseAltitude(alt: string): number {
-  if (alt === 'SFC' || alt === 'GND') return 0;
-  if (alt.startsWith('FL')) {
-    const flightLevel = parseInt(alt.substring(2));
-    return flightLevel * 100;
-  }
-  if (alt.includes('FT')) {
-    return parseInt(alt.replace('FT', ''));
-  }
-  return 0;
-}
-
-/**
- * Check if a point is inside a polygon using ray-casting algorithm
- */
-function pointInPolygon(point: [number, number], polygon: number[][][]): boolean {
-  const [lng, lat] = point;
-  const ring = polygon[0]; // Use outer ring
-
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const xi = ring[i][0], yi = ring[i][1];
-    const xj = ring[j][0], yj = ring[j][1];
-
-    const intersect = ((yi > lat) !== (yj > lat))
-      && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
-
-    if (intersect) inside = !inside;
-  }
-
-  return inside;
-}
-
-/**
- * Check if point is in MultiPolygon
- */
-function pointInMultiPolygon(point: [number, number], multiPolygon: number[][][][]): boolean {
-  return multiPolygon.some(polygon => pointInPolygon(point, polygon));
-}
 
 export default function AirspaceLayerVisualization({
   site,
@@ -113,113 +35,13 @@ export default function AirspaceLayerVisualization({
 
   // Calculate layers for this site
   const layers = useMemo(() => {
-    // Use plot node coordinates if available, otherwise use takeoff coordinates
-    const point: [number, number] = selectedPlotNode
-      ? [selectedPlotNode.lon, selectedPlotNode.lat]
-      : [
-          parseFloat(site.takeoff_lon.toString()),
-          parseFloat(site.takeoff_lat.toString()),
-        ];
-
-    // Find all airspace features containing this point
-    const containingFeatures = airspace.features.filter(feature => {
-      if (feature.geometry.type === 'Polygon') {
-        return pointInPolygon(point, feature.geometry.coordinates as number[][][]);
-      } else if (feature.geometry.type === 'MultiPolygon') {
-        return pointInMultiPolygon(point, feature.geometry.coordinates as number[][][][]);
-      }
-      return false;
-    });
-
-    // Convert to layer objects with parsed altitudes and truncate at FL150
-    const layerObjects: AirspaceLayer[] = containingFeatures.map(feature => {
-      const lowerFeet = parseAltitude(feature.properties.lower);
-      const upperFeet = parseAltitude(feature.properties.upper);
-
-      // Truncate upper altitude at FL150
-      const truncatedUpperFeet = Math.min(upperFeet, FL150_FEET);
-      const truncatedUpper = truncatedUpperFeet === FL150_FEET && upperFeet > FL150_FEET
-        ? 'FL150'
-        : feature.properties.upper;
-
-      return {
-        class: feature.properties.class,
-        name: feature.properties.name,
-        lower: feature.properties.lower,
-        upper: truncatedUpper,
-        lowerFeet: lowerFeet,
-        upperFeet: truncatedUpperFeet,
-        color: CLASS_COLORS[feature.properties.class],
-      };
-    }).filter(layer => layer.lowerFeet < FL150_FEET); // Exclude layers entirely above FL150
-
-    // Remove duplicates (same class and altitude range)
-    const uniqueLayers = layerObjects.filter((layer, index, self) =>
-      index === self.findIndex(l =>
-        l.class === layer.class &&
-        l.lowerFeet === layer.lowerFeet &&
-        l.upperFeet === layer.upperFeet
-      )
-    );
-
-    // Sort by lower altitude (ground up)
-    uniqueLayers.sort((a, b) => a.lowerFeet - b.lowerFeet);
-
-    // Resolve overlapping airspace by priority
-    // Collect all unique altitude boundaries
-    const altitudeBoundaries = new Set<number>();
-    uniqueLayers.forEach(layer => {
-      altitudeBoundaries.add(layer.lowerFeet);
-      altitudeBoundaries.add(layer.upperFeet);
-    });
-    const sortedBoundaries = Array.from(altitudeBoundaries).sort((a, b) => a - b);
-
-    // For each altitude segment, find the highest priority class
-    const resolvedLayers: AirspaceLayer[] = [];
-    for (let i = 0; i < sortedBoundaries.length - 1; i++) {
-      const segmentLower = sortedBoundaries[i];
-      const segmentUpper = sortedBoundaries[i + 1];
-
-      // Find all classes that cover this segment
-      const coveringLayers = uniqueLayers.filter(layer =>
-        layer.lowerFeet <= segmentLower && layer.upperFeet >= segmentUpper
-      );
-
-      if (coveringLayers.length === 0) continue;
-
-      // Sort by priority and take the highest priority (lowest number)
-      coveringLayers.sort((a, b) => CLASS_PRIORITY[a.class] - CLASS_PRIORITY[b.class]);
-      const highestPriorityLayer = coveringLayers[0];
-
-      // Create a segment for this altitude range
-      resolvedLayers.push({
-        class: highestPriorityLayer.class,
-        name: highestPriorityLayer.name,
-        lower: segmentLower === 0 ? 'SFC' : `FL${Math.round(segmentLower / 100)}`,
-        upper: `FL${Math.round(segmentUpper / 100)}`,
-        lowerFeet: segmentLower,
-        upperFeet: segmentUpper,
-        color: highestPriorityLayer.color,
-      });
-    }
-
-    // Merge adjacent layers of the same class
-    const mergedLayers: AirspaceLayer[] = [];
-    for (const layer of resolvedLayers) {
-      const lastLayer = mergedLayers[mergedLayers.length - 1];
-
-      // If the last layer has the same class and is adjacent (upper altitude matches current lower altitude)
-      if (lastLayer && lastLayer.class === layer.class && lastLayer.upperFeet === layer.lowerFeet) {
-        // Extend the last layer's upper altitude
-        lastLayer.upper = layer.upper;
-        lastLayer.upperFeet = layer.upperFeet;
-      } else {
-        // Add as a new layer
-        mergedLayers.push({ ...layer });
-      }
-    }
-
-    return mergedLayers;
+    const lat = selectedPlotNode
+      ? selectedPlotNode.lat
+      : parseFloat(site.takeoff_lat.toString());
+    const lon = selectedPlotNode
+      ? selectedPlotNode.lon
+      : parseFloat(site.takeoff_lon.toString());
+    return computeAirspaceLayers(lat, lon, airspace, FL150_FEET);
   }, [site, airspace, selectedPlotNode]);
 
   // SVG dimensions configuration

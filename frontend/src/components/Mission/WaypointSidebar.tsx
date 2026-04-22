@@ -1,4 +1,5 @@
 import { MissionWaypoint } from '../../services/missions.service';
+import WaypointAirspaceBar from './WaypointAirspaceBar';
 import {
   calculateDistance,
   formatDistance,
@@ -243,7 +244,7 @@ export default function WaypointSidebar({
                 : 'hover:bg-gray-50'
             }`}
           >
-            <div className="flex items-start justify-between gap-1">
+            <div className="flex items-start gap-1">
               <div className="flex items-start gap-2 min-w-0 flex-1">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">
                   {i + 1}
@@ -253,31 +254,28 @@ export default function WaypointSidebar({
                     {Number(wp.latitude).toFixed(5)}, {Number(wp.longitude).toFixed(5)}
                   </p>
                   {i > 0 && (
-                    <div className="mt-1.5 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400">Dist</span>
-                        <div className="text-right">
-                          <span className="text-xs font-medium text-gray-600">
-                            +{formatDistance(segDistKm, distanceUnit)}
-                          </span>
-                          <span className="text-xs text-gray-300 ml-1.5">
-                            {formatDistance(cumulativeDistKm, distanceUnit)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400">Time</span>
-                        <div className="text-right">
-                          <span className="text-xs font-medium text-gray-600">
-                            +{formatTime(segTimeH)}
-                          </span>
-                          <span className="text-xs text-gray-300 ml-1.5">
-                            {formatTime(cumulativeTimeH)}
-                          </span>
-                        </div>
-                      </div>
+                    <div className="mt-1.5 grid grid-cols-3 gap-y-1 items-center">
+                      {/* Dist row */}
+                      <span className="text-xs text-gray-400">Dist</span>
+                      <span className="text-xs font-medium text-gray-600 text-center">
+                        +{formatDistance(segDistKm, distanceUnit)}
+                      </span>
+                      <span className="text-xs text-gray-600 text-center">
+                        {formatDistance(cumulativeDistKm, distanceUnit)}
+                      </span>
+
+                      {/* Time row */}
+                      <span className="text-xs text-gray-400">Time</span>
+                      <span className="text-xs font-medium text-gray-600 text-center">
+                        +{formatTime(segTimeH)}
+                      </span>
+                      <span className="text-xs text-gray-600 text-center">
+                        {formatTime(cumulativeTimeH)}
+                      </span>
+
+                      {/* Fuel row */}
                       {fuelConfigured && (
-                        <div className="flex items-center justify-between">
+                        <>
                           <span className={`text-xs flex items-center gap-1 ${segExceeds ? 'text-red-500' : 'text-gray-400'}`}>
                             {segExceeds && (
                               <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -287,56 +285,57 @@ export default function WaypointSidebar({
                             )}
                             Fuel
                           </span>
-                          <div className="text-right">
-                            <span className={`text-xs font-medium ${segExceeds ? 'text-red-600' : 'text-orange-600'}`}>
-                              +{segFuelL.toFixed(1)} L
-                            </span>
-                            <span className={`text-xs ml-1.5 ${segExceeds ? 'text-red-400 font-semibold' : 'text-gray-300'}`}>
-                              {cumulativeFuelL.toFixed(1)} L
-                            </span>
-                          </div>
-                        </div>
+                          <span className={`text-xs font-medium text-center ${segExceeds ? 'text-red-600' : 'text-orange-600'}`}>
+                            +{segFuelL.toFixed(1)} L
+                          </span>
+                          <span className={`text-xs text-center ${segExceeds ? 'text-red-600' : 'text-orange-600'}`}>
+                            {cumulativeFuelL.toFixed(1)} L
+                          </span>
+                        </>
                       )}
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Actions */}
-              {canEdit && (
-                <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onMoveUp(wp.id); }}
-                    disabled={i === 0}
-                    className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    title="Move up"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onMoveDown(wp.id); }}
-                    disabled={i === waypoints.length - 1}
-                    className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    title="Move down"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onDelete(wp.id); }}
-                    className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                    title="Delete waypoint"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-              )}
+              {/* Right column: actions (hover) + airspace bar */}
+              <div className="flex items-start gap-0.5 shrink-0">
+                {canEdit && (
+                  <div className="hidden group-hover:flex items-center gap-0.5 mt-0.5">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onMoveUp(wp.id); }}
+                      disabled={i === 0}
+                      className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      title="Move up"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onMoveDown(wp.id); }}
+                      disabled={i === waypoints.length - 1}
+                      className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      title="Move down"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDelete(wp.id); }}
+                      className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      title="Delete waypoint"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                <WaypointAirspaceBar lat={wp.latitude} lon={wp.longitude} />
+              </div>
             </div>
           </div>
         ))}
