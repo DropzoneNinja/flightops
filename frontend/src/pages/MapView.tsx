@@ -89,13 +89,29 @@ function MapController({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null
   return null;
 }
 
+function FlyToSite({ sites, siteId }: { sites: FlightSite[]; siteId: string | null }) {
+  const map = useMap();
+  const flown = useRef(false);
+
+  useEffect(() => {
+    if (!siteId || flown.current) return;
+    const site = sites.find(s => s.id === siteId);
+    if (site) {
+      map.setView([site.takeoff_lat, site.takeoff_lon], 16);
+      flown.current = true;
+    }
+  }, [map, sites, siteId]);
+
+  return null;
+}
+
 export default function MapView() {
   const { sites, isLoading } = useSites();
   const { logout, user } = useAuth();
   const { settingsMap, isLoadingMap } = useSettings();
   const { airspace } = useAirspace();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const mapRef = useRef<L.Map | null>(null);
   const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
@@ -245,6 +261,11 @@ export default function MapView() {
   };
 
   const handleTakeoffClick = (site: FlightSite) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('site', site.id);
+      return next;
+    });
     if (isMobile) {
       setSelectedMobileSite(site);
     } else {
@@ -257,7 +278,27 @@ export default function MapView() {
 
   const handleCloseAirspaceVisualization = () => {
     setSelectedSiteForAirspace(null);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('site');
+      return next;
+    });
   };
+
+  // On initial load, if a site param is present, open its panel once sites are loaded
+  useEffect(() => {
+    if (isLoading) return;
+    const siteId = searchParams.get('site');
+    if (!siteId) return;
+    const site = sites.find(s => s.id === siteId);
+    if (!site) return;
+    if (isMobile) {
+      setSelectedMobileSite(site);
+    } else {
+      setShowAirspace(true);
+      setSelectedSiteForAirspace(site);
+    }
+  }, [isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="h-screen flex flex-col">
@@ -396,6 +437,7 @@ export default function MapView() {
             <MapClickHandler onMapClick={handleMapClick} />
             <ZoomTracker onZoomChange={setCurrentZoom} />
             <MapController mapRef={mapRef} />
+            <FlyToSite sites={sites} siteId={searchParams.get('site')} />
 
             {/* Airspace overlay */}
             {showAirspace && airspace && (

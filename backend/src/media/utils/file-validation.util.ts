@@ -24,7 +24,7 @@ export class FileValidationUtil {
   };
 
   private static readonly MAX_FILE_SIZE =
-    parseInt(process.env.MAX_UPLOAD_SIZE, 10) || 524288000; // 500MB default
+    parseInt(process.env.MAX_UPLOAD_SIZE, 10) || 2147483648; // 2GB default
 
   /**
    * Validate file using magic numbers (file-type library)

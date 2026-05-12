@@ -41,7 +41,7 @@ services:
       BACKUP_DIR: /backups
       POSTGRES_CONTAINER_NAME: flightops-postgres
       MEDIA_STORAGE_PATH: /app/media
-      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-524288000}
+      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-2147483648}
     # DNS servers for external API access (Open-Meteo)
     dns:
       - 8.8.8.8      # Google DNS primary
@@ -62,6 +62,7 @@ services:
     container_name: flightops-frontend
     environment:
       TZ: ${TIMEZONE}
+      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-2147483648}
     ports:
       - "5173:80"
     depends_on:

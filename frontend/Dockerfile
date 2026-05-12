@@ -28,11 +28,14 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy main nginx configuration (controls worker processes)
 COPY nginx-main.conf /etc/nginx/nginx.conf
 
-# Copy server configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy server configuration as a template (envsubst fills ${NGINX_CLIENT_MAX_BODY_SIZE} at startup)
+COPY nginx.conf /etc/nginx/conf.d/default.conf.template
+
+# Entrypoint: converts MAX_UPLOAD_SIZE (bytes) → nginx body size, then starts nginx
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Expose port
 EXPOSE 80
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/entrypoint.sh"]

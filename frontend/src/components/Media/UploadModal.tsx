@@ -16,7 +16,10 @@ interface UploadModalProps {
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
-const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
+const MAX_FILE_SIZE_LABEL = MAX_FILE_SIZE >= 1024 * 1024 * 1024
+  ? `${MAX_FILE_SIZE / (1024 * 1024 * 1024)}GB`
+  : `${Math.round(MAX_FILE_SIZE / (1024 * 1024))}MB`;
 
 export default function UploadModal({ defaultDate, missionId, defaultSiteId }: UploadModalProps) {
   const { uploadModalOpen, closeUploadModal, setUploadProgress, resetUploadProgress, uploadProgress } = useMediaStore();
@@ -154,7 +157,7 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return `File too large. Maximum size is 500MB`;
+      return `File too large. Maximum size is ${MAX_FILE_SIZE_LABEL}`;
     }
 
     return null;

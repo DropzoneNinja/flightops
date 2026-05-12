@@ -137,13 +137,6 @@ export class AuthService {
       );
     }
 
-    // If user needs password reset, skip password validation
-    if (user.needs_password_reset) {
-      // Don't check password, just let them through to reset page
-      delete user.password_hash;
-      return user;
-    }
-
     // Validate password
     const isPasswordValid = await user.validatePassword(password);
 
