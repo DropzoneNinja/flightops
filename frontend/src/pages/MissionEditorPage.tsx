@@ -93,6 +93,9 @@ export default function MissionEditorPage() {
     .sort((a, b) => a.sort_order - b.sort_order);
 
   const launchSite = selectedMission?.launch_site;
+  const allTakeoffZones = sites
+    .filter((s) => s.takeoff_lat != null && s.takeoff_lon != null)
+    .map((s) => ({ id: s.id, name: s.name, takeoff_lat: s.takeoff_lat, takeoff_lon: s.takeoff_lon }));
 
   const handleSave = useCallback(async () => {
     if (!id || !name.trim()) {
@@ -247,6 +250,7 @@ export default function MissionEditorPage() {
             waypoints={waypoints}
             selectedWaypointId={selectedWaypointId}
             launchSite={launchSite}
+            allTakeoffZones={allTakeoffZones}
             onMapClick={() => {}}
             onWaypointDrag={() => {}}
             onWaypointClick={setSelectedWaypointId}
@@ -521,6 +525,7 @@ export default function MissionEditorPage() {
             waypoints={waypoints}
             selectedWaypointId={selectedWaypointId}
             launchSite={launchSite}
+            allTakeoffZones={allTakeoffZones}
             onMapClick={handleMapClick}
             onWaypointDrag={handleWaypointDrag}
             onWaypointClick={setSelectedWaypointId}

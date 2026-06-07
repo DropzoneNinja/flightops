@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { MissionWaypoint } from '../../services/missions.service';
@@ -12,6 +12,7 @@ interface MissionMapProps {
   waypoints: MissionWaypoint[];
   selectedWaypointId: string | null;
   launchSite?: { takeoff_lat: number; takeoff_lon: number; name: string } | null;
+  allTakeoffZones?: { id: string; takeoff_lat: number; takeoff_lon: number; name: string }[];
   onMapClick: (lat: number, lon: number) => void;
   onWaypointDrag: (id: string, lat: number, lon: number) => void;
   onWaypointClick: (id: string) => void;
@@ -201,6 +202,32 @@ function createLaunchSiteIcon(name: string) {
   });
 }
 
+function createOtherTakeoffZoneIcon(name: string) {
+  return L.divIcon({
+    className: 'other-takeoff-zone-pin',
+    html: `<div style="display:flex;align-items:center;gap:5px;white-space:nowrap;">
+      <div style="
+        width:12px;height:12px;flex-shrink:0;
+        background:#2563EB;
+        border:2px solid white;
+        border-radius:2px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.3);
+      "></div>
+      <div style="
+        background:#2563EB;
+        color:white;
+        font-size:10px;
+        font-weight:600;
+        padding:2px 6px;
+        border-radius:4px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.3);
+      ">${name}</div>
+    </div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
+  });
+}
+
 function createArrowIcon(bearingDeg: number) {
   return L.divIcon({
     className: 'mission-segment-arrow',
@@ -242,6 +269,7 @@ export default function MissionMap({
   waypoints,
   selectedWaypointId,
   launchSite,
+  allTakeoffZones = [],
   onMapClick,
   onWaypointDrag,
   onWaypointClick,
@@ -257,20 +285,30 @@ export default function MissionMap({
   windDirection = null,
   windSpeed = 0,
 }: MissionMapProps) {
+  const [satellite, setSatellite] = useState(false);
+
   const polylinePositions: [number, number][] = waypoints.map((w) => [
     Number(w.latitude),
     Number(w.longitude),
   ]);
 
   return (
+    <div style={{ position: 'relative', height: '100%', width: '100%' }}>
     <MapContainer
       center={center}
       zoom={12}
       style={{ height: '100%', width: '100%', cursor: 'crosshair' }}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        key={satellite ? 'satellite' : 'osm'}
+        attribution={satellite
+          ? '&copy; Esri, Maxar, Earthstar Geographics'
+          : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }
+        url={satellite
+          ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+        }
       />
 
       <MapClickHandler onMapClick={onMapClick} />
@@ -418,6 +456,19 @@ export default function MissionMap({
         />
       )}
 
+      {/* Other takeoff zones (blue squares) */}
+      {allTakeoffZones
+        .filter((z) => z.takeoff_lat !== launchSite?.takeoff_lat || z.takeoff_lon !== launchSite?.takeoff_lon)
+        .map((zone) => (
+          <Marker
+            key={zone.id}
+            position={[zone.takeoff_lat, zone.takeoff_lon]}
+            icon={createOtherTakeoffZoneIcon(zone.name)}
+            interactive={false}
+            zIndexOffset={400}
+          />
+        ))}
+
       {/* Launch site marker */}
       {launchSite && (
         <Marker
@@ -427,5 +478,29 @@ export default function MissionMap({
         />
       )}
     </MapContainer>
+
+    <button
+      onClick={() => setSatellite((s) => !s)}
+      style={{
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        zIndex: 1000,
+        background: satellite ? 'rgba(255,255,255,0.95)' : 'rgba(30,30,30,0.82)',
+        color: satellite ? '#111827' : '#f9fafb',
+        border: '1px solid rgba(255,255,255,0.3)',
+        borderRadius: '6px',
+        padding: '4px 10px',
+        fontSize: '12px',
+        fontWeight: 600,
+        cursor: 'pointer',
+        backdropFilter: 'blur(4px)',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+        letterSpacing: '0.02em',
+      }}
+    >
+      {satellite ? 'Map' : 'Satellite'}
+    </button>
+    </div>
   );
 }
