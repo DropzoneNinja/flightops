@@ -35,26 +35,29 @@ async function bootstrap() {
   // Cookie parser (required for CSRF)
   app.use(cookieParser());
 
-  // CSRF protection with custom token value function
-  // Accepts token from header (X-CSRF-Token or XSRF-Token) or body/query (_csrf)
-  app.use(
-    csurf({
-      cookie: {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-      },
-      value: (req) => {
-        // Check for token in headers first (common for SPAs)
-        const headerToken = req.headers['x-csrf-token'] || req.headers['xsrf-token'];
-        if (headerToken) {
-          return headerToken as string;
-        }
-        // Fallback to body or query parameter
-        return req.body?._csrf || req.query?._csrf;
-      },
-    }),
-  );
+  // CSRF protection — browser clients only.
+  // Skipped for: Bearer token requests (mobile/native apps) and public auth
+  // endpoints that mobile clients hit before they have a token.
+  const csrfMiddleware = csurf({
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    },
+    value: (req) => {
+      const headerToken = req.headers['x-csrf-token'] || req.headers['xsrf-token'];
+      if (headerToken) return headerToken as string;
+      return req.body?._csrf || req.query?._csrf;
+    },
+  });
+
+  const CSRF_EXEMPT_PATHS = ['/auth/login', '/auth/register', '/auth/check-username'];
+
+  app.use((req, res, next) => {
+    if (req.headers.authorization?.startsWith('Bearer ')) return next();
+    if (CSRF_EXEMPT_PATHS.some((p) => req.path === p || req.path.endsWith(p))) return next();
+    return csrfMiddleware(req, res, next);
+  });
 
   // Enable CORS
   app.enableCors({
