@@ -26,6 +26,18 @@ export class Pilot {
   @Column({ type: 'uuid', nullable: true })
   user_id: string;
 
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  lat: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  lon: number | null;
+
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  flight_state: 'Flying' | 'Landed' | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  position_updated_at: Date | null;
+
   @CreateDateColumn()
   created_at: Date;
 

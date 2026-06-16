@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { version } from '../../package.json';
 import { useSettings } from '../hooks/useSettings';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -1461,6 +1462,10 @@ export default function Settings() {
             </div>
           </div>
         )}
+        {/* Version */}
+        <div className="pb-6 text-center">
+          <p className="text-xs text-gray-400">v{version}</p>
+        </div>
       </div>
     </div>
   );

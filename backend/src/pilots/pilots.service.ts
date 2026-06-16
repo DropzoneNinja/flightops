@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not, IsNull } from 'typeorm';
 import { Pilot } from '../database/entities/pilot.entity';
 import { Flight } from '../database/entities/flight.entity';
 import { FlightScore } from '../database/entities/flight-score.entity';
 import { CreatePilotDto } from './dto/create-pilot.dto';
 import { UpdatePilotDto } from './dto/update-pilot.dto';
+import { UpdatePositionDto } from './dto/update-position.dto';
 
 export interface PersonalBest {
   category: string;
@@ -199,6 +200,35 @@ export class PilotsService {
       personal_bests,
       rolling_30d_avg,
     };
+  }
+
+  async updatePosition(userId: string, dto: UpdatePositionDto): Promise<{ message: string; updated_at: Date }> {
+    const pilot = await this.pilotsRepository.findOne({ where: { user_id: userId } });
+    if (!pilot) throw new NotFoundException('No pilot profile found for this user');
+
+    pilot.lat = dto.lat;
+    pilot.lon = dto.lon;
+    pilot.flight_state = dto.state;
+    pilot.position_updated_at = new Date();
+    await this.pilotsRepository.save(pilot);
+
+    return { message: 'Position updated', updated_at: pilot.position_updated_at };
+  }
+
+  async getAllPositions(): Promise<Array<{ pilot_id: string; display_name: string; lat: number; lon: number; state: string; updated_at: Date }>> {
+    const pilots = await this.pilotsRepository.find({
+      where: { lat: Not(IsNull()) },
+      order: { position_updated_at: 'DESC' },
+    });
+
+    return pilots.map((p) => ({
+      pilot_id: p.id,
+      display_name: p.display_name,
+      lat: Number(p.lat),
+      lon: Number(p.lon),
+      state: p.flight_state,
+      updated_at: p.position_updated_at,
+    }));
   }
 
   /** Generate a URL-safe slug from a display name */

@@ -2,9 +2,24 @@
 
 All endpoints require a `Bearer` token in the `Authorization` header unless otherwise noted. Tokens are obtained via the login endpoint.
 
+> **Mobile App Note:** For native mobile clients, include `Authorization: Bearer <token>` on every request. Tokens expire per the server's `JWT_EXPIRATION` setting (default `7d`). The CSRF token endpoint is only needed for browser-based clients.
+
 ---
 
 ## Authentication
+
+### Get CSRF Token
+```http
+GET /auth/csrf-token
+```
+> Browser clients only — not required for native mobile apps.
+
+Response:
+```json
+{ "csrfToken": "abc123..." }
+```
+
+---
 
 ### Register
 ```http
@@ -17,7 +32,25 @@ Content-Type: application/json
 }
 ```
 
-> Registration requires the email to be pre-authorized by an admin. See [adding a pre-authorized email](#pre-authorized-emails).
+> Registration requires the email to be pre-authorized by an admin. See [Adding a Pre-authorized Email](#adding-a-pre-authorized-email).
+
+Response:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "uuid",
+    "email": "pilot@example.com",
+    "username": null,
+    "is_admin": false,
+    "created_at": "2026-01-15T10:00:00.000Z",
+    "needs_username_setup": true,
+    "needs_password_reset": false
+  }
+}
+```
+
+---
 
 ### Login
 ```http
@@ -37,12 +70,81 @@ Response:
   "user": {
     "id": "uuid",
     "email": "pilot@example.com",
-    "role": "user"
+    "username": "alice",
+    "is_admin": false,
+    "created_at": "2026-01-15T10:00:00.000Z",
+    "needs_username_setup": false,
+    "needs_password_reset": false
   }
 }
 ```
 
-### Pre-authorized Emails
+---
+
+### Get Current User
+```http
+GET /auth/me
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+{
+  "id": "uuid",
+  "email": "pilot@example.com",
+  "username": "alice",
+  "is_admin": false,
+  "created_at": "2026-01-15T10:00:00.000Z",
+  "needs_username_setup": false,
+  "needs_password_reset": false
+}
+```
+
+---
+
+### Setup Username
+```http
+POST /auth/setup-username
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "username": "alice"
+}
+```
+
+> Required on first login if `needs_username_setup` is `true`.
+
+---
+
+### Check Username Availability
+```http
+GET /auth/check-username?username=alice
+```
+
+> No auth required.
+
+Response:
+```json
+{ "available": true }
+```
+
+---
+
+### Reset Password
+```http
+PATCH /auth/reset-password
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "new_password": "NewSecurePassword456"
+}
+```
+
+---
+
+### Adding a Pre-authorized Email
 
 Add an email to the whitelist via psql:
 ```bash
@@ -57,11 +159,17 @@ docker compose exec postgres psql -U flightops -d flightops -c \
 ### List Sites
 ```http
 GET /sites
+Authorization: Bearer <token>
 ```
+
+Returns all flight sites for the current user.
+
+---
 
 ### Create Site
 ```http
 POST /sites
+Authorization: Bearer <token>
 Content-Type: application/json
 
 {
@@ -69,32 +177,568 @@ Content-Type: application/json
   "takeoffLat": 52.3555,
   "takeoffLon": -1.1743,
   "parkingLat": 52.3550,
-  "parkingLon": -1.1750
+  "parkingLon": -1.1750,
+  "takeoffNotes": "Launch from the grassy shelf, avoid the trees on the left",
+  "parkingNotes": "Park in the layby, not the farmer's field"
 }
 ```
+
+---
+
+### Get Site
+```http
+GET /sites/:id
+Authorization: Bearer <token>
+```
+
+---
+
+### Update Site
+```http
+PUT /sites/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Mountain Ridge (West)",
+  "takeoffLat": 52.3555,
+  "takeoffLon": -1.1743
+}
+```
+
+---
+
+### Delete Site
+```http
+DELETE /sites/:id
+Authorization: Bearer <token>
+```
+
+> Admin only.
+
+---
 
 ### Toggle Site Active Status
 ```http
 PATCH /sites/:id/toggle
+Authorization: Bearer <token>
 ```
+
+> Admin only.
+
+---
+
+### Find Nearby Sites
+```http
+GET /sites/near?lat=52.3555&lon=-1.1743&radius=1000
+Authorization: Bearer <token>
+```
+
+Returns sites whose takeoff point is within `radius` metres of the given coordinates. Default radius is 1000 m.
+
+---
+
+### Reverse Geocode
+```http
+GET /sites/geocode/reverse?lat=52.3555&lon=-1.1743
+Authorization: Bearer <token>
+```
+
+Returns the nearest address for the given coordinates.
 
 ---
 
 ## Weather
 
-### Get Site Forecast
+### Get Site Forecast (3-Day)
 ```http
-GET /weather/sites/:siteId/forecast
+GET /sites/:siteId/forecast
+Authorization: Bearer <token>
 ```
 
-Response includes 3-day hourly forecasts with wind speed, gust speed, rain, temperature, and safety scores per hour.
+Returns 3-day hourly forecasts including wind speed, gust speed, rain, temperature, and safety scores per hour.
+
+---
+
+### Get Forecast for a Specific Date
+```http
+GET /sites/:siteId/forecast/:date
+Authorization: Bearer <token>
+```
+
+`date` format: `YYYY-MM-DD`
+
+---
+
+### Get Multi-Height Wind Data
+```http
+GET /sites/:siteId/forecast/:date/multi-height
+Authorization: Bearer <token>
+```
+
+Returns wind data at multiple altitude levels for a specific date. Useful for flight planning.
+
+---
 
 ### Trigger Manual Weather Update
 ```http
 POST /weather/fetch
+Authorization: Bearer <token>
+```
+
+> Admin only. Fetches fresh weather for all enabled sites.
+
+---
+
+### Get Weather API Stats
+```http
+GET /weather/stats
+Authorization: Bearer <token>
+```
+
+> Admin only. Returns API call usage statistics.
+
+---
+
+### Reset Weather API Stats
+```http
+DELETE /weather/stats
+Authorization: Bearer <token>
 ```
 
 > Admin only.
+
+---
+
+### Weather SSE Stream
+```http
+GET /weather/events
+Authorization: Bearer <token>
+```
+
+Server-Sent Events stream that pushes real-time weather update notifications.
+
+> **Mobile Note:** SSE requires an HTTP client that supports streaming. Alternatively, poll `GET /sites/:siteId/forecast` as needed.
+
+---
+
+## Missions
+
+### List Missions
+```http
+GET /missions
+Authorization: Bearer <token>
+```
+
+Optional query params:
+| Param | Description |
+|-------|-------------|
+| `search` | Filter by name (partial match) |
+| `launchSiteId` | Filter by launch site UUID |
+| `sort` | `updated_at` \| `name` \| `created_at` |
+| `order` | `ASC` \| `DESC` |
+
+---
+
+### Create Mission
+```http
+POST /missions
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Ridge Run",
+  "notes": "Standard ridge route, turn at the quarry",
+  "launch_site_id": "uuid",
+  "avg_fuel_consumption": 12.5,
+  "fuel_tank_size": 20,
+  "avg_speed": 45,
+  "wind_direction": 270,
+  "wind_speed": 15
+}
+```
+
+---
+
+### Get Mission
+```http
+GET /missions/:id
+Authorization: Bearer <token>
+```
+
+---
+
+### Update Mission
+```http
+PUT /missions/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Ridge Run Extended",
+  "wind_speed": 18
+}
+```
+
+---
+
+### Delete Mission
+```http
+DELETE /missions/:id
+Authorization: Bearer <token>
+```
+
+> Returns `204 No Content`.
+
+---
+
+### Duplicate Mission
+```http
+POST /missions/:id/duplicate
+Authorization: Bearer <token>
+```
+
+Creates a copy of the mission including all waypoints.
+
+---
+
+### Get Waypoints
+```http
+GET /missions/:id/waypoints
+Authorization: Bearer <token>
+```
+
+Returns waypoints ordered by `sort_order`.
+
+---
+
+### Add Waypoint
+```http
+POST /missions/:id/waypoints
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "latitude": 52.3600,
+  "longitude": -1.1800,
+  "altitude": 450,
+  "planned_speed": 45,
+  "leg_minutes": 8
+}
+```
+
+---
+
+### Update Waypoint
+```http
+PUT /missions/:id/waypoints/:waypointId
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "altitude": 480,
+  "planned_speed": 50
+}
+```
+
+---
+
+### Delete Waypoint
+```http
+DELETE /missions/:id/waypoints/:waypointId
+Authorization: Bearer <token>
+```
+
+> Returns `204 No Content`.
+
+---
+
+### Reorder Waypoints
+```http
+POST /missions/:id/waypoints/reorder
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "waypoint_ids": ["uuid-1", "uuid-2", "uuid-3"]
+}
+```
+
+Pass all waypoint IDs in the desired order.
+
+---
+
+## Pilots
+
+### List Pilots
+```http
+GET /pilots
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+[
+  {
+    "id": "uuid",
+    "display_name": "Alice",
+    "slug": "alice",
+    "avatar_url": "https://...",
+    "user_id": "uuid",
+    "created_at": "2026-01-15T10:00:00.000Z",
+    "updated_at": "2026-01-15T10:00:00.000Z"
+  }
+]
+```
+
+---
+
+### Get Pilot
+```http
+GET /pilots/:id
+Authorization: Bearer <token>
+```
+
+---
+
+### Get Pilot Performance
+```http
+GET /pilots/:id/performance
+Authorization: Bearer <token>
+```
+
+Returns recent flights, score trend over time, personal bests per category, and 30-day rolling average score.
+
+---
+
+### Create Pilot
+```http
+POST /pilots
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "display_name": "Alice",
+  "slug": "alice",
+  "avatar_url": "https://...",
+  "user_id": "uuid"
+}
+```
+
+`slug` is auto-generated from `display_name` if omitted.
+
+---
+
+### Update Pilot
+```http
+PATCH /pilots/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "display_name": "Alice B.",
+  "avatar_url": "https://..."
+}
+```
+
+---
+
+### Delete Pilot
+```http
+DELETE /pilots/:id
+Authorization: Bearer <token>
+```
+
+---
+
+### Update My Position *(Live Tracking)*
+```http
+PUT /pilots/me/position
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "lat": 51.5074,
+  "lon": -0.1278,
+  "state": "Flying"
+}
+```
+
+`state` must be `"Flying"` or `"Landed"`.
+
+Called by a flying pilot's app to push their current position. Call repeatedly while airborne (e.g. every 10–30 seconds). Set `state` to `"Landed"` on touchdown.
+
+Response:
+```json
+{
+  "message": "Position updated",
+  "updated_at": "2026-06-16T14:30:00.000Z"
+}
+```
+
+---
+
+### Get All Pilot Positions *(Live Tracking)*
+```http
+GET /pilots/positions
+Authorization: Bearer <token>
+```
+
+Returns all pilots that have reported a position. Poll this endpoint to show live pilot positions on a map.
+
+Response:
+```json
+[
+  {
+    "pilot_id": "uuid",
+    "display_name": "Alice",
+    "lat": 51.5074,
+    "lon": -0.1278,
+    "state": "Flying",
+    "updated_at": "2026-06-16T14:30:00.000Z"
+  },
+  {
+    "pilot_id": "uuid",
+    "display_name": "Bob",
+    "lat": 51.5100,
+    "lon": -0.1300,
+    "state": "Landed",
+    "updated_at": "2026-06-16T14:25:00.000Z"
+  }
+]
+```
+
+---
+
+## Flights
+
+### List Flights by Date
+```http
+GET /flights?date=2026-01-15
+Authorization: Bearer <token>
+```
+
+---
+
+### Upload Flight (GPX)
+```http
+POST /flights
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+file:         <GPX file>
+flight_date:  2026-01-15
+pilot_id:     uuid
+site_id:      uuid (optional)
+title:        "Morning flight"  (optional)
+notes:        "Great conditions" (optional)
+glider:       "Ozone Alpina 4"  (optional)
+harness:      "Advance Lightness 3" (optional)
+```
+
+The GPX is parsed and analyzed asynchronously. Poll `GET /flights/:id` until `parse_status` is `analyzed`.
+
+---
+
+### Compare Flights
+```http
+POST /flights/compare
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "flight_ids": ["uuid-1", "uuid-2"]
+}
+```
+
+Returns normalized trackpoints and stats for side-by-side comparison.
+
+---
+
+### Get Flight
+```http
+GET /flights/:id
+Authorization: Bearer <token>
+```
+
+Response includes parsed stats: duration, distance, max altitude, speeds, climb rate, bounding box, parse and analysis status.
+
+---
+
+### Stream GPX File
+```http
+GET /flights/:id/file
+Authorization: Bearer <token>
+```
+
+Returns the raw `.gpx` file as `application/gpx+xml`.
+
+---
+
+### Get Flight Analysis
+```http
+GET /flights/:id/analysis
+Authorization: Bearer <token>
+```
+
+Returns per-phase scores, events (takeoff, landing, thermals), and coaching notes.
+
+---
+
+### Re-run Analysis
+```http
+POST /flights/:id/reanalyze
+Authorization: Bearer <token>
+```
+
+Re-runs the flight analysis pipeline. Fire-and-forget — poll `GET /flights/:id/analysis` for results.
+
+Response:
+```json
+{ "message": "Analysis started", "flightId": "uuid" }
+```
+
+---
+
+### Update Flight Metadata
+```http
+PATCH /flights/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "title": "Evening flight",
+  "notes": "Bumpy near the ridge",
+  "glider": "Ozone Alpina 4"
+}
+```
+
+---
+
+### Delete Flight
+```http
+DELETE /flights/:id
+Authorization: Bearer <token>
+```
+
+Deletes the flight record and the GPX file from disk.
+
+---
+
+## Leaderboards
+
+### Get Leaderboard
+```http
+GET /leaderboards
+Authorization: Bearer <token>
+```
+
+Query params:
+| Param | Values | Default |
+|-------|--------|---------|
+| `category` | `overall` \| `takeoff` \| `climb` \| `level` \| `turn` \| `descent` \| `landing` \| `smoothness` \| `safety` \| `most_improved` | `overall` |
+| `period` | `alltime` \| `30d` \| `season` | `alltime` |
+| `site_id` | UUID of a flight site | *(all sites)* |
 
 ---
 
@@ -103,65 +747,269 @@ POST /weather/fetch
 ### Upload Media
 ```http
 POST /media
+Authorization: Bearer <token>
 Content-Type: multipart/form-data
 
 file:         <File>
 flight_date:  2026-01-15
-uploaded_by:  username
-pilots:       ["Pilot 1", "Pilot 2"]
+pilots:       ["Alice", "Bob"]
 notes:        Optional notes
 site_id:      uuid (optional)
+mission_id:   uuid (optional)
 ```
 
-### List Media by Date
+---
+
+### Search Media
+```http
+GET /media/search
+Authorization: Bearer <token>
+```
+
+Query params: `uploaded_by`, `pilots` (comma-separated), `year`, `month`
+
+---
+
+### List Media by Date or Site
 ```http
 GET /media?date=2026-01-15
+GET /media?site=uuid
+Authorization: Bearer <token>
 ```
 
-### List Media by Site
+---
+
+### Get Media Item
 ```http
-GET /media?site=uuid
+GET /media/:id
+Authorization: Bearer <token>
 ```
+
+---
+
+### Get Media by Mission
+```http
+GET /media/mission/:missionId
+Authorization: Bearer <token>
+```
+
+---
+
+### Get Dates with Media
+```http
+GET /media/dates
+Authorization: Bearer <token>
+```
+
+Returns a list of all dates that have at least one media item.
+
+---
 
 ### Get Dates with Media Counts
 ```http
 GET /media/dates/counts
+Authorization: Bearer <token>
 ```
+
+Query params (optional): `uploaded_by`, `pilots`, `year`, `month`
+
+---
 
 ### Get Sites with Media Counts
 ```http
 GET /media/sites/counts
+Authorization: Bearer <token>
 ```
+
+Query params (optional): `uploaded_by`, `pilots`, `year`, `month`
+
+---
+
+### Get Distinct Pilot Names from Media
+```http
+GET /media/pilots
+Authorization: Bearer <token>
+```
+
+Returns all distinct pilot name strings that appear in media records.
+
+---
+
+### Get Media Access Token
+```http
+GET /media/:id/token
+Authorization: Bearer <token>
+```
+
+Returns a short-lived (5-minute) token for accessing the media file and thumbnail. Pass this token as a query param on the file/thumbnail endpoints.
+
+Response:
+```json
+{
+  "token": "eyJ...",
+  "expiresIn": "5m",
+  "mediaId": "uuid"
+}
+```
+
+---
+
+### Stream Media File
+```http
+GET /media/:id/file?token=<media-token>
+```
+
+Streams the raw media file. Supports `Range` requests for video scrubbing. Requires a token from `GET /media/:id/token`.
+
+---
+
+### Get Media Thumbnail
+```http
+GET /media/:id/thumbnail?token=<media-token>
+```
+
+Returns the JPEG thumbnail. Requires a token from `GET /media/:id/token`.
+
+---
+
+### Increment View Count
+```http
+POST /media/:id/view
+Authorization: Bearer <token>
+```
+
+Call when a user opens the media viewer.
+
+Response:
+```json
+{ "message": "View count incremented", "view_count": 42 }
+```
+
+---
+
+### Increment Download Count
+```http
+POST /media/:id/download
+Authorization: Bearer <token>
+```
+
+Call when a user initiates a download.
+
+Response:
+```json
+{ "message": "Download count incremented", "download_count": 7 }
+```
+
+---
+
+### Update Media Metadata
+```http
+PATCH /media/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "notes": "Updated notes",
+  "pilots": ["Alice", "Charlie"],
+  "site_id": "uuid"
+}
+```
+
+> Uploader or admin only.
+
+---
 
 ### Delete Media
 ```http
 DELETE /media/:id
+Authorization: Bearer <token>
 ```
 
-> Users can only delete their own media. Admins can delete any media.
+> Uploader or admin only.
+
+---
+
+### Regenerate Thumbnails
+```http
+POST /media/admin/regenerate-thumbnails
+Authorization: Bearer <token>
+```
+
+> Admin only. Rebuilds thumbnails for all image media (fixes EXIF orientation issues).
 
 ---
 
 ## Settings
 
-### Get Settings
+### Get All Settings
 ```http
 GET /settings
+Authorization: Bearer <token>
 ```
 
-### Update Settings
+---
+
+### Get Settings as Key-Value Map
 ```http
-PATCH /settings
+GET /settings/map
+Authorization: Bearer <token>
+```
+
+---
+
+### Get Default Settings
+```http
+GET /settings/defaults
+Authorization: Bearer <token>
+```
+
+---
+
+### Get Setting by Key
+```http
+GET /settings/:key
+Authorization: Bearer <token>
+```
+
+---
+
+### Update Setting
+```http
+PUT /settings/:key
+Authorization: Bearer <token>
 Content-Type: application/json
 
 {
-  "windThresholds": {
-    "calm": 3,
-    "optimal": 15,
-    "marginal": 20,
-    "highRisk": 25
-  }
+  "value": 25
 }
+```
+
+> Admin only.
+
+---
+
+### Update Multiple Settings
+```http
+PUT /settings
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "settings": [
+    { "setting_key": "wind.thresholds.calm", "value": 3 },
+    { "setting_key": "wind.thresholds.optimal", "value": 15 }
+  ]
+}
+```
+
+> Admin only.
+
+---
+
+### Reset Settings to Defaults
+```http
+POST /settings/reset
+Authorization: Bearer <token>
 ```
 
 > Admin only.
@@ -188,6 +1036,7 @@ Content-Type: application/json
 | `LOCKOUT_DURATION` | Account lockout duration (minutes) | `30` | No |
 | `MEDIA_STORAGE_PATH` | Path for media file storage | `/app/media` | No |
 | `MAX_UPLOAD_SIZE` | Maximum file upload size (bytes) | `524288000` | No |
+| `MAX_GPX_UPLOAD_SIZE` | Maximum GPX file upload size (bytes) | `52428800` | No |
 
 ### Frontend
 
