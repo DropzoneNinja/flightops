@@ -1,6 +1,6 @@
 {
   "name": "flightops-frontend",
-  "version": "1.12.1",
+  "version": "2.0.0",
   "description": "Paramotor flight site weather visualization frontend",
   "private": true,
   "type": "module",
