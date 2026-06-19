@@ -4,9 +4,10 @@ import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { User } from '../database/entities/user.entity';
 import { Media } from '../database/entities/media.entity';
+import { Pilot } from '../database/entities/pilot.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Media])],
+  imports: [TypeOrmModule.forFeature([User, Media, Pilot])],
   controllers: [UsersController],
   providers: [UsersService],
   exports: [UsersService], // Export for use in AuthModule

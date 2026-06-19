@@ -62,6 +62,9 @@ export enum SettingKey {
   BACKUP_TIME = 'backup.time',
   BACKUP_DAY_OF_WEEK = 'backup.day_of_week',
   BACKUP_DAY_OF_MONTH = 'backup.day_of_month',
+
+  // OpenSky Integration
+  OPENSKY_AIRSPACE_RADIUS_KM = 'opensky.airspace_radius_km',
 }
 
 export enum SettingType {
@@ -318,6 +321,15 @@ export const DEFAULT_SETTINGS: DefaultSetting[] = [
     type: SettingType.STRING,
     description: 'Day of month for monthly backups (1-28)',
     category: 'Database Backup',
+  },
+
+  // OpenSky Integration
+  {
+    key: SettingKey.OPENSKY_AIRSPACE_RADIUS_KM,
+    value: 5,
+    type: SettingType.NUMBER,
+    description: 'Radius (km) around each flying pilot to query for nearby aircraft via OpenSky Network',
+    category: 'OpenSky Integration',
   },
 ];
 

@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../database/entities/user.entity';
 import { Media } from '../database/entities/media.entity';
+import { Pilot } from '../database/entities/pilot.entity';
 
 export interface AlbumStatRow {
   username: string;
@@ -22,6 +23,8 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Media)
     private readonly mediaRepository: Repository<Media>,
+    @InjectRepository(Pilot)
+    private readonly pilotsRepository: Repository<Pilot>,
   ) {}
 
   /**
@@ -78,7 +81,26 @@ export class UsersService {
       password_hash,
     });
 
-    return this.userRepository.save(user);
+    await this.userRepository.save(user);
+
+    // Create a linked pilot record using the username as display name.
+    // If a pilot with the same slug already exists and is unclaimed, claim it.
+    const slug = this.generatePilotSlug(username);
+    const existingPilot = await this.pilotsRepository.findOne({ where: { slug } });
+    if (existingPilot && !existingPilot.user_id) {
+      existingPilot.user_id = user.id;
+      await this.pilotsRepository.save(existingPilot);
+    } else if (!existingPilot) {
+      await this.pilotsRepository.save(
+        this.pilotsRepository.create({ display_name: username, slug, user_id: user.id }),
+      );
+    }
+
+    return user;
+  }
+
+  private generatePilotSlug(name: string): string {
+    return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   }
 
   /**

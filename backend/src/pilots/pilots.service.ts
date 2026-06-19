@@ -7,6 +7,25 @@ import { FlightScore } from '../database/entities/flight-score.entity';
 import { CreatePilotDto } from './dto/create-pilot.dto';
 import { UpdatePilotDto } from './dto/update-pilot.dto';
 import { UpdatePositionDto } from './dto/update-position.dto';
+import { OpenSkyService } from '../opensky/opensky.service';
+import { AircraftPosition } from '../opensky/interfaces/aircraft-position.interface';
+
+export interface PilotPosition {
+  pilot_id: string;
+  display_name: string;
+  lat: number;
+  lon: number;
+  state: string | null;
+  updated_at: Date | null;
+}
+
+export interface PositionsResponse {
+  pilots: PilotPosition[];
+  aircraft: {
+    updated_at: string | null;
+    positions: AircraftPosition[];
+  };
+}
 
 export interface PersonalBest {
   category: string;
@@ -47,6 +66,7 @@ export class PilotsService {
     private readonly flightsRepository: Repository<Flight>,
     @InjectRepository(FlightScore)
     private readonly scoresRepository: Repository<FlightScore>,
+    private readonly openSkyService: OpenSkyService,
   ) {}
 
   async findAll(): Promise<Pilot[]> {
@@ -212,23 +232,28 @@ export class PilotsService {
     pilot.position_updated_at = new Date();
     await this.pilotsRepository.save(pilot);
 
+    this.openSkyService.triggerUpdate();
+
     return { message: 'Position updated', updated_at: pilot.position_updated_at };
   }
 
-  async getAllPositions(): Promise<Array<{ pilot_id: string; display_name: string; lat: number; lon: number; state: string; updated_at: Date }>> {
+  async getAllPositions(): Promise<PositionsResponse> {
     const pilots = await this.pilotsRepository.find({
       where: { lat: Not(IsNull()) },
       order: { position_updated_at: 'DESC' },
     });
 
-    return pilots.map((p) => ({
-      pilot_id: p.id,
-      display_name: p.display_name,
-      lat: Number(p.lat),
-      lon: Number(p.lon),
-      state: p.flight_state,
-      updated_at: p.position_updated_at,
-    }));
+    return {
+      pilots: pilots.map((p) => ({
+        pilot_id: p.id,
+        display_name: p.display_name,
+        lat: Number(p.lat),
+        lon: Number(p.lon),
+        state: p.flight_state,
+        updated_at: p.position_updated_at,
+      })),
+      aircraft: this.openSkyService.getAircraftSnapshot(),
+    };
   }
 
   /** Generate a URL-safe slug from a display name */

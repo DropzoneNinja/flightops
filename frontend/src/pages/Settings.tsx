@@ -7,6 +7,7 @@ import { SettingType, UpdateSettingData } from '../services/settings.service';
 import { preAuthorizedEmailsService, PreAuthorizedEmail } from '../services/pre-authorized-emails.service';
 import { usersService, UserData, AlbumStatRow } from '../services/users.service';
 import { weatherService, WeatherApiStats } from '../services/weather.service';
+import { openSkyService, OpenSkyStats } from '../services/opensky.service';
 import { useSites } from '../hooks/useSites';
 import { backupService, BackupStatus, BackupFileInfo } from '../services/backup.service';
 import { RestoreModal } from '../components/RestoreModal';
@@ -39,6 +40,10 @@ export default function Settings() {
   // Weather API stats state (admin only)
   const [weatherStats, setWeatherStats] = useState<WeatherApiStats | null>(null);
   const [loadingWeatherStats, setLoadingWeatherStats] = useState(false);
+
+  // OpenSky API stats state (admin only)
+  const [openSkyStats, setOpenSkyStats] = useState<OpenSkyStats | null>(null);
+  const [loadingOpenSkyStats, setLoadingOpenSkyStats] = useState(false);
 
   // Backup state (admin only)
   const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
@@ -325,6 +330,38 @@ export default function Settings() {
     }
   };
 
+  // Load OpenSky stats (admin only)
+  useEffect(() => {
+    if (user?.is_admin) {
+      loadOpenSkyStats();
+    }
+  }, [user?.is_admin]);
+
+  const loadOpenSkyStats = async () => {
+    try {
+      setLoadingOpenSkyStats(true);
+      const stats = await openSkyService.getStats();
+      setOpenSkyStats(stats);
+    } catch (error) {
+      console.error('Failed to load OpenSky stats:', error);
+    } finally {
+      setLoadingOpenSkyStats(false);
+    }
+  };
+
+  const handleResetOpenSkyStats = async () => {
+    if (window.confirm('Are you sure you want to reset all OpenSky API statistics? This cannot be undone.')) {
+      try {
+        await openSkyService.resetStats();
+        await loadOpenSkyStats();
+        alert('OpenSky API statistics reset successfully!');
+      } catch (error) {
+        console.error('Failed to reset OpenSky stats:', error);
+        alert('Failed to reset statistics. Please try again.');
+      }
+    }
+  };
+
   // Load backup status (admin only)
   useEffect(() => {
     if (user?.is_admin) {
@@ -557,7 +594,7 @@ export default function Settings() {
         </div>
 
         {/* Settings by Category */}
-        {Object.entries(settingsByCategory).filter(([category]) => category !== 'Database Backup').map(([category, categorySettings]) => (
+        {Object.entries(settingsByCategory).filter(([category]) => category !== 'Database Backup' && category !== 'OpenSky Integration').map(([category, categorySettings]) => (
           <div key={category} className="mb-8 bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">{category}</h2>
@@ -1032,6 +1069,132 @@ export default function Settings() {
                       </table>
                     </div>
                   </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* OpenSky Integration (Admin Only) */}
+        {user?.is_admin && (
+          <div className="mb-8 bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">OpenSky Integration</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Real-time aircraft positions near flying pilots
+                  </p>
+                </div>
+                <button
+                  onClick={handleResetOpenSkyStats}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
+                >
+                  Reset Stats
+                </button>
+              </div>
+            </div>
+
+            {/* Configuration */}
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Configuration</h3>
+              <div className="space-y-4">
+                {(settingsByCategory['OpenSky Integration'] || []).map((setting) => {
+                  const defaultSetting = defaults.find((d) => d.key === setting.setting_key);
+                  const currentValue = editedValues[setting.setting_key] ?? setting.setting_value;
+                  return (
+                    <div key={setting.id} className="flex items-center justify-between py-2">
+                      <div className="flex-1">
+                        <label htmlFor={setting.setting_key} className="block text-sm font-medium text-gray-700">
+                          {defaultSetting?.description || setting.setting_key}
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1">{setting.setting_key}</p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          id={setting.setting_key}
+                          type="number"
+                          value={currentValue}
+                          onChange={(e) => handleValueChange(setting.setting_key, e.target.value)}
+                          className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          step="any"
+                          min="1"
+                        />
+                        <span className="text-sm text-gray-500">km</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* API Statistics */}
+            <div className="px-6 py-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">API Statistics</h3>
+              {loadingOpenSkyStats ? (
+                <div className="text-center py-6">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="mt-2 text-gray-600">Loading statistics...</p>
+                </div>
+              ) : !openSkyStats ? (
+                <p className="text-gray-500 text-center py-6">No statistics available.</p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="text-sm font-medium text-blue-900">Total Calls</div>
+                      <div className="mt-2 text-2xl font-bold text-blue-700">
+                        {openSkyStats.totalCalls.toLocaleString()}
+                      </div>
+                    </div>
+
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="text-sm font-medium text-red-900">Rate Limited (429)</div>
+                      <div className="mt-2 text-2xl font-bold text-red-700">
+                        {openSkyStats.totalRejected.toLocaleString()}
+                      </div>
+                    </div>
+
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="text-sm font-medium text-green-900">Max Calls / Day</div>
+                      <div className="mt-2 text-2xl font-bold text-green-700">
+                        {openSkyStats.maxPerDay.count}
+                      </div>
+                      <div className="mt-1 text-xs text-green-600">
+                        {openSkyStats.maxPerDay.date
+                          ? new Date(openSkyStats.maxPerDay.date).toLocaleDateString()
+                          : 'N/A'}
+                        {openSkyStats.maxPerDay.rejected > 0 && (
+                          <span className="ml-1 text-red-500">
+                            ({openSkyStats.maxPerDay.rejected} rejected)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <div className="text-sm font-medium text-purple-900">Max Calls / Hour</div>
+                      <div className="mt-2 text-2xl font-bold text-purple-700">
+                        {openSkyStats.maxPerHour.count}
+                      </div>
+                      <div className="mt-1 text-xs text-purple-600">
+                        {openSkyStats.maxPerHour.hour
+                          ? new Date(openSkyStats.maxPerHour.hour).toLocaleString()
+                          : 'N/A'}
+                        {openSkyStats.maxPerHour.rejected > 0 && (
+                          <span className="ml-1 text-red-500">
+                            ({openSkyStats.maxPerHour.rejected} rejected)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {openSkyStats.totalCalls === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-2">
+                      No API calls recorded yet — OpenSky is queried only when pilots are actively flying.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

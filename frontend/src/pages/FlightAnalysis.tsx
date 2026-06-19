@@ -476,11 +476,13 @@ export default function FlightAnalysis() {
                   </div>
                 ))}
               </div>
-              {(flight.glider || flight.launch_site_name) && (
+              {(flight.glider || flight.harness || flight.launch_site_name) && (
                 <div className="mt-2 space-y-0.5">
-                  {flight.glider && (
+                  {(flight.glider || flight.harness) && (
                     <p className="text-xs text-sky-dusk">
-                      Glider: <span className="font-medium text-sky-night">{flight.glider}</span>
+                      {flight.glider && <>Glider: <span className="font-medium text-sky-night">{flight.glider}</span></>}
+                      {flight.glider && flight.harness && <> &nbsp;/&nbsp; </>}
+                      {flight.harness && <>Harness/Trike: <span className="font-medium text-sky-night">{flight.harness}</span></>}
                     </p>
                   )}
                   {flight.launch_site_name && (

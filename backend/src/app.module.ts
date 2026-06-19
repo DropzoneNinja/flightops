@@ -18,6 +18,7 @@ import { FlightsModule } from './flights/flights.module';
 import { PilotsModule } from './pilots/pilots.module';
 import { LeaderboardsModule } from './leaderboards/leaderboards.module';
 import { MissionsModule } from './missions/missions.module';
+import { OpenSkyModule } from './opensky/opensky.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { MissionsModule } from './missions/missions.module';
     PilotsModule,
     LeaderboardsModule,
     MissionsModule,
+    OpenSkyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

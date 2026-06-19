@@ -584,29 +584,72 @@ GET /pilots/positions
 Authorization: Bearer <token>
 ```
 
-Returns all pilots that have reported a position. Poll this endpoint to show live pilot positions on a map.
+Returns all pilots that have reported a position, plus any nearby aircraft detected via OpenSky Network. Poll this endpoint to show live positions on a map.
+
+Aircraft are sourced from the [OpenSky Network](https://opensky-network.org/) and queried on each pilot position update, subject to a 10-second minimum interval between API calls. `aircraft.updated_at` is the ISO timestamp of the last successful OpenSky response (`null` if no query has succeeded yet). When position updates arrive faster than the 10-second window, the cached positions from the previous query are returned — use `updated_at` to decide whether the data is still relevant. `aircraft.positions` is empty when no pilots are actively flying. The airspace query radius is controlled by the `opensky.airspace_radius_km` setting (default 5 km).
 
 Response:
 ```json
-[
-  {
-    "pilot_id": "uuid",
-    "display_name": "Alice",
-    "lat": 51.5074,
-    "lon": -0.1278,
-    "state": "Flying",
-    "updated_at": "2026-06-16T14:30:00.000Z"
-  },
-  {
-    "pilot_id": "uuid",
-    "display_name": "Bob",
-    "lat": 51.5100,
-    "lon": -0.1300,
-    "state": "Landed",
-    "updated_at": "2026-06-16T14:25:00.000Z"
+{
+  "pilots": [
+    {
+      "pilot_id": "uuid",
+      "display_name": "Alice",
+      "lat": 51.5074,
+      "lon": -0.1278,
+      "state": "Flying",
+      "updated_at": "2026-06-16T14:30:00.000Z"
+    },
+    {
+      "pilot_id": "uuid",
+      "display_name": "Bob",
+      "lat": 51.5100,
+      "lon": -0.1300,
+      "state": "Landed",
+      "updated_at": "2026-06-16T14:25:00.000Z"
+    }
+  ],
+  "aircraft": {
+    "updated_at": "2026-06-18T12:45:39.000Z",
+    "positions": [
+      {
+        "icao24": "3c6444",
+        "callsign": "DLH123",
+        "lat": 51.5090,
+        "lon": -0.1290,
+        "altitude_m": 1200.5,
+        "on_ground": false,
+        "velocity_mps": 85.3,
+        "heading_deg": 270.0,
+        "vertical_rate_mps": -2.5,
+        "last_contact": 1750000000
+      }
+    ]
   }
-]
+}
 ```
+
+**`aircraft` object:**
+
+| Field | Type | Description |
+|---|---|---|
+| `updated_at` | string \| null | ISO 8601 timestamp of the last successful OpenSky response. `null` if no query has succeeded yet (e.g. fresh boot or active 429 backoff). |
+| `positions` | array | Aircraft state vectors from the last successful query. Empty when no pilots are actively flying or no aircraft were found in range. |
+
+**`aircraft.positions` item fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `icao24` | string | ICAO 24-bit transponder address |
+| `callsign` | string \| null | Aircraft callsign (trimmed), or `null` if not broadcasting |
+| `lat` | number | Latitude (WGS84) |
+| `lon` | number | Longitude (WGS84) |
+| `altitude_m` | number \| null | Barometric altitude in metres |
+| `on_ground` | boolean | Whether the aircraft is on the ground |
+| `velocity_mps` | number \| null | Ground speed in m/s |
+| `heading_deg` | number \| null | True track in degrees clockwise from north |
+| `vertical_rate_mps` | number \| null | Vertical rate in m/s (positive = climbing) |
+| `last_contact` | number | Unix timestamp of last transponder message |
 
 ---
 
@@ -1013,6 +1056,70 @@ Authorization: Bearer <token>
 ```
 
 > Admin only.
+
+---
+
+### OpenSky Integration Settings
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `opensky.airspace_radius_km` | number | `5` | Radius in km around each flying pilot to query for nearby aircraft via OpenSky Network |
+
+---
+
+## OpenSky
+
+### Get OpenSky API Stats
+```http
+GET /opensky/stats
+Authorization: Bearer <token>
+```
+
+> Admin only.
+
+Returns call statistics for the OpenSky Network integration. Use this to monitor usage against OpenSky's anonymous limit (400 calls/day) and track rate-limit rejections.
+
+Response:
+```json
+{
+  "totalCalls": 142,
+  "totalRejected": 3,
+  "maxPerDay": {
+    "date": "2026-06-18",
+    "count": 48,
+    "rejected": 2
+  },
+  "maxPerHour": {
+    "hour": "2026-06-18T12:00:00.000Z",
+    "count": 12,
+    "rejected": 1
+  }
+}
+```
+
+| Field | Description |
+|---|---|
+| `totalCalls` | Total successful OpenSky API calls (all time) |
+| `totalRejected` | Total calls rejected with HTTP 429 (all time) |
+| `maxPerDay.count` | Highest single-day call count |
+| `maxPerDay.rejected` | 429 rejections on that day |
+| `maxPerHour.count` | Highest single-hour call count |
+| `maxPerHour.rejected` | 429 rejections in that hour |
+
+---
+
+### Reset OpenSky API Stats
+```http
+DELETE /opensky/stats
+Authorization: Bearer <token>
+```
+
+> Admin only. Clears all OpenSky call statistics.
+
+Response:
+```json
+{ "message": "OpenSky API statistics reset" }
+```
 
 ---
 

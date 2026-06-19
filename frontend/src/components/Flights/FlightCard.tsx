@@ -128,9 +128,9 @@ export default function FlightCard({ flight, date }: FlightCardProps) {
 
       {/* Metadata pills */}
       <div className="flex flex-wrap gap-1.5">
-        {flight.glider && (
+        {(flight.glider || flight.harness) && (
           <span className="inline-flex items-center px-2 py-0.5 rounded bg-sky-midday/30 text-sky-night text-xs">
-            {flight.glider}
+            {flight.glider}{flight.glider && flight.harness ? ' / ' : ''}{flight.harness}
           </span>
         )}
         {flight.launch_site_name && (

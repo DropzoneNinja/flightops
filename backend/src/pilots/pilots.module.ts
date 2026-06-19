@@ -6,9 +6,10 @@ import { FlightScore } from '../database/entities/flight-score.entity';
 import { PilotsController } from './pilots.controller';
 import { PilotsService } from './pilots.service';
 import { AuthModule } from '../auth/auth.module';
+import { OpenSkyModule } from '../opensky/opensky.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Pilot, Flight, FlightScore]), AuthModule],
+  imports: [TypeOrmModule.forFeature([Pilot, Flight, FlightScore]), AuthModule, OpenSkyModule],
   controllers: [PilotsController],
   providers: [PilotsService],
   exports: [PilotsService],
