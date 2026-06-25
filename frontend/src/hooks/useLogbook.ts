@@ -3,9 +3,10 @@ import {
   logbookService,
   CreateLogbookEntryData,
   UpdateLogbookEntryData,
+  UpsertLogbookBaselineData,
 } from '../services/logbook.service';
 
-export type { LogbookEntry, WeatherSnapshot, MediaRef, GpxRef, OrphanedFlight } from '../services/logbook.service';
+export type { LogbookEntry, WeatherSnapshot, MediaRef, GpxRef, OrphanedFlight, LogbookBaseline } from '../services/logbook.service';
 
 export const LOGBOOK_IMPORT_PROMPT_KEY = 'logbook_import_prompt_shown';
 
@@ -81,6 +82,25 @@ export function useImportFlightToLogbook() {
     mutationFn: (flightId: string) => logbookService.importFlightToLogbook(flightId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...LOGBOOK_KEY, 'list'] });
+    },
+  });
+}
+
+export function useLogbookBaseline() {
+  return useQuery({
+    queryKey: [...LOGBOOK_KEY, 'baseline'],
+    queryFn: () => logbookService.getBaseline(),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useUpsertLogbookBaseline() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: UpsertLogbookBaselineData) => logbookService.upsertBaseline(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...LOGBOOK_KEY, 'baseline'] });
     },
   });
 }

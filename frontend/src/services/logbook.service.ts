@@ -121,6 +121,21 @@ export type UpdateLogbookEntryData = Partial<CreateLogbookEntryData> & {
   flight_number_override?: number | null;
 };
 
+export interface LogbookBaseline {
+  prior_flights: number;
+  prior_duration_seconds: number | null;
+  prior_distance_m: number | null;
+  notes: string | null;
+  updated_at: string;
+}
+
+export interface UpsertLogbookBaselineData {
+  prior_flights?: number;
+  prior_duration_seconds?: number | null;
+  prior_distance_m?: number | null;
+  notes?: string | null;
+}
+
 export interface OrphanedFlight {
   id: string;
   flight_date: string;
@@ -175,6 +190,16 @@ export const logbookService = {
 
   async importFlightToLogbook(flightId: string): Promise<LogbookEntry> {
     const res = await api.post<LogbookEntry>(`${BASE}/orphaned-flights/${flightId}/import`);
+    return res.data;
+  },
+
+  async getBaseline(): Promise<LogbookBaseline | null> {
+    const res = await api.get<LogbookBaseline | null>(`${BASE}/baseline`);
+    return res.data;
+  },
+
+  async upsertBaseline(data: UpsertLogbookBaselineData): Promise<LogbookBaseline> {
+    const res = await api.put<LogbookBaseline>(`${BASE}/baseline`, data);
     return res.data;
   },
 };

@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Delete,
   Body,
@@ -21,6 +22,7 @@ import { LogbookPdfService } from './logbook-pdf.service';
 import { CreateLogbookEntryDto } from './dto/create-logbook-entry.dto';
 import { UpdateLogbookEntryDto } from './dto/update-logbook-entry.dto';
 import { PushLogbookDto } from './dto/push-logbook.dto';
+import { UpsertLogbookBaselineDto } from './dto/upsert-logbook-baseline.dto';
 
 @Controller('logbook')
 @UseGuards(JwtAuthGuard)
@@ -66,6 +68,18 @@ export class LogbookController {
       'Content-Disposition': `attachment; filename="logbook-${slug}.pdf"`,
     });
     return new StreamableFile(stream);
+  }
+
+  /** GET /logbook/baseline — the pilot's pre-existing accumulated totals (Record 0) */
+  @Get('baseline')
+  getBaseline(@CurrentUser() user: User) {
+    return this.logbookService.getBaseline(user.id);
+  }
+
+  /** PUT /logbook/baseline — create or update the baseline (upsert) */
+  @Put('baseline')
+  upsertBaseline(@CurrentUser() user: User, @Body() dto: UpsertLogbookBaselineDto) {
+    return this.logbookService.upsertBaseline(user.id, dto);
   }
 
   /** GET /logbook/orphaned-flights — flights uploaded by the user with no linked logbook entry */

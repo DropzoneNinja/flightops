@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { LogbookEntry, WeatherSnapshot } from '../database/entities/logbook-entry.entity';
+import { LogbookBaseline } from '../database/entities/logbook-baseline.entity';
 import { Flight } from '../database/entities/flight.entity';
 import { Pilot } from '../database/entities/pilot.entity';
 import { PilotsService } from '../pilots/pilots.service';
@@ -16,6 +17,7 @@ import { LogbookMediaService, MediaRef } from './logbook-media.service';
 import { CreateLogbookEntryDto } from './dto/create-logbook-entry.dto';
 import { UpdateLogbookEntryDto } from './dto/update-logbook-entry.dto';
 import { PushEntryDto, DeleteRefDto } from './dto/push-logbook.dto';
+import { UpsertLogbookBaselineDto } from './dto/upsert-logbook-baseline.dto';
 
 export interface GpxRef {
   flight_id: string;
@@ -81,6 +83,14 @@ export interface LogbookEntryResponse {
   analyzed_max_speed_mps: number | null;
 }
 
+export interface LogbookBaselineResponse {
+  prior_flights: number;
+  prior_duration_seconds: number | null;
+  prior_distance_m: number | null;
+  notes: string | null;
+  updated_at: string;
+}
+
 export interface SyncPushResult {
   client_id: string;
   id: string;
@@ -96,6 +106,8 @@ export class LogbookService {
   constructor(
     @InjectRepository(LogbookEntry)
     private readonly logbookRepository: Repository<LogbookEntry>,
+    @InjectRepository(LogbookBaseline)
+    private readonly baselineRepository: Repository<LogbookBaseline>,
     @InjectRepository(Flight)
     private readonly flightsRepository: Repository<Flight>,
     private readonly pilotsService: PilotsService,
@@ -120,13 +132,23 @@ export class LogbookService {
   // Flight number computation
   // ---------------------------------------------------------------------------
 
+  /** Returns the pilot's baseline prior_flights (0 if no baseline set). */
+  private async baselineOffset(pilotId: string): Promise<number> {
+    const row = await this.baselineRepository.findOne({
+      where: { pilot_id: pilotId },
+      select: ['prior_flights'],
+    });
+    return row?.prior_flights ?? 0;
+  }
+
   /**
    * Given a set of non-deleted entries, compute each entry's flight number.
    * Entries are sorted oldest-first (date, then start_at, then created_at).
-   * A manual override resets the running counter; subsequent auto-assigned
-   * entries increment from there.
+   * The counter starts at `offset` (= baseline.prior_flights) so the first
+   * logged entry is offset + 1.  A manual override resets the running counter;
+   * subsequent auto-assigned entries increment from there.
    */
-  private computeFlightNumbers(entries: LogbookEntry[]): Map<string, number> {
+  private computeFlightNumbers(entries: LogbookEntry[], offset = 0): Map<string, number> {
     const sorted = entries
       .filter((e) => !e.deleted_at)
       .sort((a, b) => {
@@ -144,7 +166,7 @@ export class LogbookService {
       });
 
     const result = new Map<string, number>();
-    let counter = 0;
+    let counter = offset;
     for (const entry of sorted) {
       if (entry.flight_number_override != null) {
         counter = entry.flight_number_override;
@@ -156,19 +178,22 @@ export class LogbookService {
     return result;
   }
 
-  /** Lightweight DB load to compute flight numbers for a single entry. */
+  /** Lightweight DB load to compute the flight number for a single entry. */
   private async flightNumberForEntry(pilotId: string, entryId: string): Promise<number | null> {
-    const rows = await this.logbookRepository
-      .createQueryBuilder('le')
-      .select(['le.id', 'le.flight_date', 'le.start_at', 'le.created_at', 'le.flight_number_override'])
-      .where('le.pilot_id = :pid', { pid: pilotId })
-      .andWhere('le.deleted_at IS NULL')
-      .orderBy('le.flight_date', 'ASC')
-      .addOrderBy('le.start_at', 'ASC', 'NULLS LAST')
-      .addOrderBy('le.created_at', 'ASC')
-      .getMany();
+    const [rows, offset] = await Promise.all([
+      this.logbookRepository
+        .createQueryBuilder('le')
+        .select(['le.id', 'le.flight_date', 'le.start_at', 'le.created_at', 'le.flight_number_override'])
+        .where('le.pilot_id = :pid', { pid: pilotId })
+        .andWhere('le.deleted_at IS NULL')
+        .orderBy('le.flight_date', 'ASC')
+        .addOrderBy('le.start_at', 'ASC', 'NULLS LAST')
+        .addOrderBy('le.created_at', 'ASC')
+        .getMany(),
+      this.baselineOffset(pilotId),
+    ]);
 
-    let counter = 0;
+    let counter = offset;
     for (const row of rows) {
       if (row.flight_number_override != null) {
         counter = row.flight_number_override;
@@ -206,9 +231,12 @@ export class LogbookService {
     // Batch media by date
     const dates = entries.map((e) => e.flight_date as Date);
     const names = this.pilotNames(pilot);
-    const mediaByDate = await this.mediaService.getMediaForPilotOnDates(names, dates);
+    const [mediaByDate, offset] = await Promise.all([
+      this.mediaService.getMediaForPilotOnDates(names, dates),
+      this.baselineOffset(pilot.id),
+    ]);
 
-    const flightNumbers = this.computeFlightNumbers(entries);
+    const flightNumbers = this.computeFlightNumbers(entries, offset);
 
     return entries.map((e) => {
       const dateKey = e.flight_date instanceof Date
@@ -399,9 +427,12 @@ export class LogbookService {
 
     const dates = entries.map((e) => e.flight_date as Date);
     const names = this.pilotNames(pilot);
-    const mediaByDate = await this.mediaService.getMediaForPilotOnDates(names, dates);
+    const [mediaByDate, offset] = await Promise.all([
+      this.mediaService.getMediaForPilotOnDates(names, dates),
+      this.baselineOffset(pilot.id),
+    ]);
 
-    const flightNumbers = this.computeFlightNumbers(entries);
+    const flightNumbers = this.computeFlightNumbers(entries, offset);
 
     const mapped = entries.map((e) => {
       const dateKey = e.flight_date instanceof Date
@@ -736,6 +767,44 @@ export class LogbookService {
         });
       })
       .catch((err) => this.logger.warn(`Weather async capture failed for ${entry.id}: ${err}`));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Baseline (Record 0)
+  // ---------------------------------------------------------------------------
+
+  async getBaseline(userId: string): Promise<LogbookBaselineResponse | null> {
+    const pilot = await this.resolvePilot(userId);
+    const row = await this.baselineRepository.findOne({ where: { pilot_id: pilot.id } });
+    if (!row) return null;
+    return this.baselineToResponse(row);
+  }
+
+  async upsertBaseline(userId: string, dto: UpsertLogbookBaselineDto): Promise<LogbookBaselineResponse> {
+    const pilot = await this.resolvePilot(userId);
+    let row = await this.baselineRepository.findOne({ where: { pilot_id: pilot.id } });
+
+    if (!row) {
+      row = this.baselineRepository.create({ pilot_id: pilot.id });
+    }
+
+    if (dto.prior_flights !== undefined) row.prior_flights = dto.prior_flights;
+    if (dto.prior_duration_seconds !== undefined) row.prior_duration_seconds = dto.prior_duration_seconds ?? null;
+    if (dto.prior_distance_m !== undefined) row.prior_distance_m = dto.prior_distance_m ?? null;
+    if (dto.notes !== undefined) row.notes = dto.notes ?? null;
+
+    const saved = await this.baselineRepository.save(row);
+    return this.baselineToResponse(saved);
+  }
+
+  private baselineToResponse(row: LogbookBaseline): LogbookBaselineResponse {
+    return {
+      prior_flights: row.prior_flights,
+      prior_duration_seconds: row.prior_duration_seconds,
+      prior_distance_m: row.prior_distance_m,
+      notes: row.notes,
+      updated_at: row.updated_at.toISOString(),
+    };
   }
 
   // ---------------------------------------------------------------------------

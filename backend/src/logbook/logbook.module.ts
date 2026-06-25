@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LogbookEntry } from '../database/entities/logbook-entry.entity';
+import { LogbookBaseline } from '../database/entities/logbook-baseline.entity';
 import { Flight } from '../database/entities/flight.entity';
 import { Media } from '../database/entities/media.entity';
 import { LogbookController } from './logbook.controller';
@@ -15,7 +16,7 @@ import { SitesModule } from '../sites/sites.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([LogbookEntry, Flight, Media]),
+    TypeOrmModule.forFeature([LogbookEntry, LogbookBaseline, Flight, Media]),
     AuthModule,
     PilotsModule,
     WeatherModule,
