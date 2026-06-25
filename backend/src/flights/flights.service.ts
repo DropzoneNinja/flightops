@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -16,6 +17,8 @@ import { FlightAnalysisService } from './flight-analysis.service';
 import { CreateFlightDto } from './dto/create-flight.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
 import { UsersService } from '../users/users.service';
+import { PilotsService } from '../pilots/pilots.service';
+import { LogbookService } from '../logbook/logbook.service';
 
 export interface NormalizedComparisonPoint {
   t: number | null;       // seconds since takeoff
@@ -67,6 +70,8 @@ export class FlightsService {
     private readonly gpxNormalizer: GpxNormalizerService,
     private readonly flightAnalysis: FlightAnalysisService,
     private readonly usersService: UsersService,
+    private readonly pilotsService: PilotsService,
+    @Optional() private readonly logbookService: LogbookService,
   ) {
     this.mediaStoragePath = process.env.MEDIA_STORAGE_PATH || '/app/media';
     this.maxGpxUploadSize = parseInt(
@@ -149,6 +154,22 @@ export class FlightsService {
       }
     } catch (err) {
       this.logger.warn(`Failed to update storage_used for user ${uploadedByUserId}: ${err}`);
+    }
+
+    // Auto-create a linked logbook entry for the uploading pilot (best-effort)
+    if (this.logbookService) {
+      this.pilotsService.findByUserId(uploadedByUserId).then((pilot) => {
+        if (!pilot) return;
+        return this.logbookService.linkFlight({
+          pilotId: pilot.id,
+          clientId: dto.client_id ?? null,
+          flight: saved,
+          source: dto.client_id ? 'flightnow' : 'web',
+          createdByUserId: uploadedByUserId,
+        });
+      }).catch((err) =>
+        this.logger.warn(`Failed to auto-link logbook entry for flight ${saved.id}: ${err}`),
+      );
     }
 
     // Kick off async parse + analysis pipeline (fire-and-forget)

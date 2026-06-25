@@ -1,0 +1,280 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useLogbook, useCreateLogbookEntry, useDeleteLogbookEntry, useOrphanedFlights, useImportFlightToLogbook, LOGBOOK_IMPORT_PROMPT_KEY } from '../hooks/useLogbook';
+import { logbookService, CreateLogbookEntryData } from '../services/logbook.service';
+import LogbookEntryForm from '../components/Logbook/LogbookEntryForm';
+import LogbookImportPrompt from '../components/Logbook/LogbookImportPrompt';
+
+function fmtDuration(s: number | null): string {
+  if (!s) return '—';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function fmtDist(m: number | null): string {
+  if (!m) return '—';
+  return `${(m / 1000).toFixed(1)} km`;
+}
+
+function fmtAlt(m: number | null): string {
+  if (!m) return '—';
+  return `${Math.round(m * 3.28084)} ft`;
+}
+
+export default function LogbookPage() {
+  const navigate = useNavigate();
+  const [showForm, setShowForm] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [showImportPrompt, setShowImportPrompt] = useState(
+    () => localStorage.getItem(LOGBOOK_IMPORT_PROMPT_KEY) !== 'true',
+  );
+
+  const { data: entries, isLoading, error } = useLogbook();
+  const createMutation = useCreateLogbookEntry();
+  const deleteMutation = useDeleteLogbookEntry();
+  const orphanedQuery = useOrphanedFlights();
+  const importMutation = useImportFlightToLogbook();
+
+  const handleCreate = async (data: CreateLogbookEntryData) => {
+    await createMutation.mutateAsync(data);
+    setShowForm(false);
+  };
+
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      const blob = await logbookService.downloadPdf();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'logbook.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF download failed', err);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const noPilot = (error as { response?: { status?: number } })?.response?.status === 404;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Loading logbook…</div>
+      </div>
+    );
+  }
+
+  if (noPilot) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 max-w-md text-center">
+          <div className="text-4xl mb-4">✈️</div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">No pilot profile linked</h2>
+          <p className="text-gray-500 text-sm">
+            Your account isn't linked to a pilot profile yet. Ask an admin to link your account, then come back.
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            className="mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+          >
+            Back to map
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const active = (entries ?? []).filter((e) => !e.deleted_at);
+  const totalHours = active.reduce((s, e) => s + (e.duration_seconds ?? e.analyzed_duration_seconds ?? 0), 0) / 3600;
+  const totalDist = active.reduce((s, e) => s + (e.distance_m ?? e.analyzed_distance_m ?? 0), 0);
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {showImportPrompt && (orphanedQuery.data?.length ?? 0) > 0 && (
+        <LogbookImportPrompt
+          flights={orphanedQuery.data!}
+          importMutation={importMutation}
+          onDismiss={() => setShowImportPrompt(false)}
+        />
+      )}
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              aria-label="Back"
+            >
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
+            <h1 className="text-lg font-bold text-gray-900">My Logbook</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadPdf}
+              disabled={pdfLoading || !active.length}
+              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              {pdfLoading ? 'Generating…' : 'PDF'}
+            </button>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add flight
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 py-6">
+        {/* Summary */}
+        {active.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {[
+              { label: 'Total flights', value: active.length },
+              { label: 'Total hours', value: `${totalHours.toFixed(1)} h` },
+              { label: 'Total distance', value: fmtDist(totalDist) },
+              { label: 'Latest', value: active[0]?.flight_date ?? '—' },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                <div className="text-2xl font-bold text-gray-900">{value}</div>
+                <div className="text-xs text-gray-500 mt-1">{label}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add entry modal */}
+        {showForm && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Add manual flight</h2>
+              <LogbookEntryForm
+                onSubmit={handleCreate}
+                onCancel={() => setShowForm(false)}
+                isLoading={createMutation.isPending}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {active.length === 0 && !showForm && (
+          <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
+            <div className="text-5xl mb-4">📋</div>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">No flights yet</h3>
+            <p className="text-gray-500 text-sm mb-6">
+              Flights from flightnow appear here automatically. You can also add manual entries.
+            </p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            >
+              Add your first flight
+            </button>
+          </div>
+        )}
+
+        {/* Table */}
+        {active.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-sky-50 border-b border-gray-200">
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 w-12">#</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Date</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Launch</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Duration</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Distance</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden lg:table-cell">Max alt</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Wing</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Category</th>
+                  <th className="w-8"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {active.map((entry) => (
+                  <tr
+                    key={entry.id}
+                    className="hover:bg-sky-50/50 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/logbook/${entry.id}`)}
+                  >
+                    <td className="px-4 py-3 text-gray-500 text-sm tabular-nums whitespace-nowrap">
+                      {entry.flight_number != null ? (
+                        <span className={entry.flight_number_override != null ? 'font-semibold text-gray-700' : ''}>
+                          {entry.flight_number}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
+                      {entry.flight_date}
+                      {entry.gpx && (
+                        <span className="ml-2 text-xs bg-green-100 text-green-700 rounded px-1">GPX</span>
+                      )}
+                      {entry.media.length > 0 && (
+                        <span className="ml-1 text-xs bg-purple-100 text-purple-700 rounded px-1">
+                          📷{entry.media.length}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 hidden sm:table-cell">
+                      {entry.launch_site_name ?? entry.title ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell">
+                      {fmtDuration(entry.analyzed_duration_seconds ?? entry.duration_seconds)}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell">
+                      {fmtDist(entry.analyzed_distance_m ?? entry.distance_m)}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 hidden lg:table-cell">
+                      {fmtAlt(entry.analyzed_max_altitude_m ?? entry.max_altitude_m)}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 hidden sm:table-cell">
+                      {entry.wing ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      {entry.category && (
+                        <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">
+                          {entry.category}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => {
+                          if (window.confirm('Delete this logbook entry?')) {
+                            deleteMutation.mutate(entry.id);
+                          }
+                        }}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                        aria-label="Delete"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

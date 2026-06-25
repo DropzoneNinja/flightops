@@ -143,7 +143,7 @@ export default function MapView() {
 
   // Mobile state
   const isMobile = useIsMobile(900);
-  const [mobileActiveTab, setMobileActiveTab] = useState<'map' | 'sites' | 'media' | 'logout' | 'tools'>('map');
+  const [mobileActiveTab, setMobileActiveTab] = useState<'map' | 'sites' | 'media' | 'logout' | 'tools' | 'logbook'>('map');
   const [selectedMobileSite, setSelectedMobileSite] = useState<FlightSite | null>(null);
   const [showMobileMultiHeight, setShowMobileMultiHeight] = useState(false);
   const [selectedMobileHeightForecast, setSelectedMobileHeightForecast] = useState<any>(null);
@@ -183,6 +183,8 @@ export default function MapView() {
   useEffect(() => {
     if (mobileActiveTab === 'media') {
       navigate('/media');
+    } else if (mobileActiveTab === 'logbook') {
+      navigate('/logbook');
     }
   }, [mobileActiveTab, navigate]);
 
@@ -385,6 +387,12 @@ export default function MapView() {
                 className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors"
               >
                 Album
+              </button>
+              <button
+                onClick={() => navigate('/logbook')}
+                className="px-4 py-2 bg-sky-600 text-white rounded-md text-sm font-medium hover:bg-sky-700 transition-colors"
+              >
+                Logbook
               </button>
               {user?.is_admin && (
                 <button

@@ -79,6 +79,21 @@ export class PilotsService {
     return pilot;
   }
 
+  async findByUserId(userId: string): Promise<Pilot | null> {
+    return this.pilotsRepository.findOne({ where: { user_id: userId } });
+  }
+
+  /** Resolve the Pilot linked to the authenticated user, or throw 404. */
+  async resolveCurrentPilotOrThrow(userId: string): Promise<Pilot> {
+    const pilot = await this.findByUserId(userId);
+    if (!pilot) {
+      throw new NotFoundException(
+        'No pilot profile is linked to your account. Ask an admin to link your account to a pilot.',
+      );
+    }
+    return pilot;
+  }
+
   async findBySlug(slug: string): Promise<Pilot | null> {
     return this.pilotsRepository.findOne({ where: { slug } });
   }

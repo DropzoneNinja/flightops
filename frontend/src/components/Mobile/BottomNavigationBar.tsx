@@ -9,8 +9,8 @@
  */
 
 interface BottomNavigationBarProps {
-  activeTab: 'map' | 'sites' | 'media' | 'logout' | 'tools';
-  onTabChange: (tab: 'map' | 'sites' | 'media' | 'logout' | 'tools') => void;
+  activeTab: 'map' | 'sites' | 'media' | 'logout' | 'tools' | 'logbook';
+  onTabChange: (tab: 'map' | 'sites' | 'media' | 'logout' | 'tools' | 'logbook') => void;
   onLogout: () => void;
   isMissionMode?: boolean;
   onToggleMissionMode?: () => void;
@@ -26,7 +26,7 @@ export default function BottomNavigationBar({
   onToggleMissionMode = () => {},
   variant = 'default',
 }: BottomNavigationBarProps) {
-  type TabId = 'map' | 'sites' | 'media' | 'missions' | 'logout' | 'tools';
+  type TabId = 'map' | 'sites' | 'media' | 'missions' | 'logout' | 'tools' | 'logbook';
   const navBgClass =
     variant === 'ios'
       ? 'bg-white/80 backdrop-blur-md border-t border-gray-200'
@@ -89,6 +89,16 @@ export default function BottomNavigationBar({
       disabled: false,
     },
     {
+      id: 'logbook' as const,
+      label: 'Logbook',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      ),
+      disabled: false,
+    },
+    {
       id: 'logout' as const,
       label: 'Logout',
       icon: (
@@ -117,7 +127,7 @@ export default function BottomNavigationBar({
                 } else if (tab.id === 'missions') {
                   onToggleMissionMode();
                 } else {
-                  onTabChange(tab.id as 'map' | 'sites' | 'media' | 'logout' | 'tools');
+                  onTabChange(tab.id as 'map' | 'sites' | 'media' | 'logout' | 'tools' | 'logbook');
                 }
               }
             }}

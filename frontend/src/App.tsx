@@ -17,6 +17,8 @@ import FlightComparison from './pages/FlightComparison';
 import MissionsPage from './pages/MissionsPage';
 import MissionEditorPage from './pages/MissionEditorPage';
 import MissionMediaPage from './pages/MissionMediaPage';
+import LogbookPage from './pages/LogbookPage';
+import LogbookEntryPage from './pages/LogbookEntryPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './contexts/ToastContext';
@@ -172,6 +174,26 @@ function App() {
             <ErrorBoundary>
               <ProtectedRoute>
                 <MissionMediaPage />
+              </ProtectedRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/logbook"
+          element={
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <LogbookPage />
+              </ProtectedRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/logbook/:id"
+          element={
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <LogbookEntryPage />
               </ProtectedRoute>
             </ErrorBoundary>
           }

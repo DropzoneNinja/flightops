@@ -180,6 +180,7 @@ export interface PilotPerformanceData {
 
 export interface CreateFlightData {
   flight_date: string;
+  client_id?: string;
   site_id?: string;
   pilot_id?: string;
   title?: string;
@@ -210,6 +211,7 @@ export const flightsService = {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('flight_date', data.flight_date);
+    if (data.client_id) formData.append('client_id', data.client_id);
     if (data.site_id) formData.append('site_id', data.site_id);
     if (data.pilot_id) formData.append('pilot_id', data.pilot_id);
     if (data.title) formData.append('title', data.title);

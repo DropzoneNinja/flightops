@@ -11,3 +11,4 @@ export { FlightEvent } from './flight-event.entity';
 export { FlightScore } from './flight-score.entity';
 export { Mission } from './mission.entity';
 export { MissionWaypoint } from './mission-waypoint.entity';
+export { LogbookEntry } from './logbook-entry.entity';

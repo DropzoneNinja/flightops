@@ -178,6 +178,57 @@ export class OpenMeteoService {
   }
 
   /**
+   * Fetch historical actuals from the Open-Meteo archive API for a past date.
+   * The archive lags ~5 days; for very recent flights it may return empty data.
+   * @param latitude  Site latitude
+   * @param longitude Site longitude
+   * @param dateString Date in YYYY-MM-DD format
+   */
+  async fetchArchive(
+    latitude: number,
+    longitude: number,
+    dateString: string,
+  ): Promise<OpenMeteoResponse> {
+    const ARCHIVE_URL = 'https://archive-api.open-meteo.com/v1/archive';
+    try {
+      this.logger.log(
+        `Fetching archive data for (${latitude}, ${longitude}) on ${dateString}`,
+      );
+
+      const response = await this.axiosInstance.get<OpenMeteoResponse>(ARCHIVE_URL, {
+        baseURL: undefined, // override the instance baseURL for this call
+        url: ARCHIVE_URL,
+        params: {
+          latitude,
+          longitude,
+          hourly: [
+            'temperature_2m',
+            'wind_speed_10m',
+            'wind_direction_10m',
+            'wind_gusts_10m',
+            'precipitation',
+            'cloud_cover',
+            'cloud_cover_low',
+          ].join(','),
+          timezone: 'auto',
+          start_date: dateString,
+          end_date: dateString,
+        },
+      });
+
+      await this.weatherStatsService.updateStats('Open-Meteo: GET /archive');
+      return response.data;
+    } catch (error) {
+      this.logger.warn(
+        `Archive fetch failed for (${latitude}, ${longitude}) on ${dateString}: ${error.message}`,
+      );
+      throw new Error(
+        `Open-Meteo archive error: ${error.response?.data?.reason || error.message || 'Unknown error'}`,
+      );
+    }
+  }
+
+  /**
    * Fetch multi-height wind forecast for a specific date and location
    * Used for debug visualization of wind data at different altitudes
    * @param latitude Site latitude

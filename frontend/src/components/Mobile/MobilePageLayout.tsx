@@ -5,7 +5,7 @@ import { usePlatform } from '../../hooks/usePlatform';
 import { useAuth } from '../../hooks/useAuth';
 import BottomNavigationBar from './BottomNavigationBar';
 
-type ActiveTab = 'map' | 'sites' | 'media' | 'tools' | 'logout';
+type ActiveTab = 'map' | 'sites' | 'media' | 'tools' | 'logout' | 'logbook';
 
 interface MobilePageLayoutProps {
   children: React.ReactNode;
@@ -64,8 +64,10 @@ export default function MobilePageLayout({
         navigate('/settings');
         break;
       case 'sites':
-        // Sites sheet lives in MapView — navigate there and let it handle it
         navigate('/');
+        break;
+      case 'logbook':
+        navigate('/logbook');
         break;
       default:
         break;
