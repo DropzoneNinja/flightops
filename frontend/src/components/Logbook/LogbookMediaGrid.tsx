@@ -6,7 +6,7 @@ interface LogbookMediaGridProps {
   media: MediaRef[];
 }
 
-function MediaThumb({ m, onOpen }: { m: MediaRef; onOpen: (url: string) => void }) {
+function MediaThumb({ m, onOpen }: { m: MediaRef; onOpen: (url: string, isVideo: boolean) => void }) {
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
 
@@ -23,7 +23,7 @@ function MediaThumb({ m, onOpen }: { m: MediaRef; onOpen: (url: string) => void 
 
   return (
     <button
-      onClick={() => fileUrl && onOpen(fileUrl)}
+      onClick={() => fileUrl && onOpen(fileUrl, m.media_type === 'video')}
       disabled={!fileUrl}
       className="relative aspect-square overflow-hidden rounded-lg bg-gray-100 hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-wait"
       aria-label={m.original_filename}
@@ -52,7 +52,7 @@ function MediaThumb({ m, onOpen }: { m: MediaRef; onOpen: (url: string) => void 
 }
 
 export default function LogbookMediaGrid({ media }: LogbookMediaGridProps) {
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; isVideo: boolean } | null>(null);
 
   if (!media.length) return null;
 
@@ -60,25 +60,29 @@ export default function LogbookMediaGrid({ media }: LogbookMediaGridProps) {
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
         {media.map((m) => (
-          <MediaThumb key={m.id} m={m} onOpen={setLightboxSrc} />
+          <MediaThumb
+            key={m.id}
+            m={m}
+            onOpen={(src, isVideo) => setLightbox({ src, isVideo })}
+          />
         ))}
       </div>
 
-      {lightboxSrc && (
+      {lightbox && (
         <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
-          onClick={() => setLightboxSrc(null)}
+          className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center"
+          onClick={() => setLightbox(null)}
         >
           <button
             className="absolute top-4 right-4 text-white text-2xl font-bold w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40"
-            onClick={() => setLightboxSrc(null)}
+            onClick={() => setLightbox(null)}
             aria-label="Close"
           >
             ×
           </button>
-          {lightboxSrc.match(/\.(mp4|webm|mov)(\?|$)/i) ? (
+          {lightbox.isVideo ? (
             <video
-              src={lightboxSrc}
+              src={lightbox.src}
               controls
               autoPlay
               className="max-w-full max-h-full"
@@ -86,7 +90,7 @@ export default function LogbookMediaGrid({ media }: LogbookMediaGridProps) {
             />
           ) : (
             <img
-              src={lightboxSrc}
+              src={lightbox.src}
               alt="Full size"
               className="max-w-full max-h-full object-contain"
               onClick={(e) => e.stopPropagation()}
