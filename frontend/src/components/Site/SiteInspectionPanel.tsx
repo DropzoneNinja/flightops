@@ -21,6 +21,7 @@ interface SiteInspectionPanelProps {
   onClose: () => void;
   onForecastSelect?: (windDirection: number, windSpeed: number) => void;
   prevMapState?: MapState | null;
+  windOverride?: { dir: number; speed: number } | null;
 }
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -203,7 +204,7 @@ const ChevronRightIcon = () => (
   </svg>
 );
 
-export default function SiteInspectionPanel({ site, onClose, onForecastSelect, prevMapState }: SiteInspectionPanelProps) {
+export default function SiteInspectionPanel({ site, onClose, onForecastSelect, prevMapState, windOverride }: SiteInspectionPanelProps) {
   const navigate = useNavigate();
   const { forecasts, isLoading } = useWeather(site.id);
   const { settingsMap } = useSettings();
@@ -417,7 +418,7 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
                 {siteMissions.map(mission => (
                   <button
                     key={mission.id}
-                    onClick={() => navigate(`/missions/${mission.id}`, { state: { fromMap: true, siteId: site.id, prevMapState } })}
+                    onClick={() => navigate(`/missions/${mission.id}`, { state: { fromMap: true, siteId: site.id, prevMapState, windOverride: windOverride ?? null } })}
                     className="w-full text-left flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#1a2234] border border-[#1e2a3a] hover:bg-[#1e2a3a] hover:border-[#2a3a54] transition-colors group"
                   >
                     <div className="min-w-0">

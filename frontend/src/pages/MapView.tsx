@@ -356,7 +356,7 @@ export default function MapView() {
                     <MissionMarker
                       mission={mission}
                       position={pos}
-                      onClick={() => navigate(`/missions/${mission.id}`)}
+                      onClick={() => navigate(`/missions/${mission.id}`, { state: { windOverride: windsockWind ?? null } })}
                     />
                   )}
                   {currentZoom >= parkingIconZoomLevel && (
@@ -364,7 +364,7 @@ export default function MapView() {
                       mission={mission}
                       position={pos}
                       waypoints={waypointsByMission.get(mission.id) ?? []}
-                      onClick={() => navigate(`/missions/${mission.id}`)}
+                      onClick={() => navigate(`/missions/${mission.id}`, { state: { windOverride: windsockWind ?? null } })}
                     />
                   )}
                 </React.Fragment>
@@ -442,6 +442,7 @@ export default function MapView() {
           onClose={handleCloseInspectionPanel}
           onForecastSelect={handleForecastSelect}
           prevMapState={prevMapStateRef.current}
+          windOverride={windsockWind}
         />
       )}
 

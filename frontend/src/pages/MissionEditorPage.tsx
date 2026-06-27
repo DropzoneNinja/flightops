@@ -19,7 +19,7 @@ export default function MissionEditorPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  type NavState = { fromMap?: boolean; siteId?: string; prevMapState?: { lat: number; lng: number; zoom: number } } | null;
+  type NavState = { fromMap?: boolean; siteId?: string; prevMapState?: { lat: number; lng: number; zoom: number }; windOverride?: { dir: number; speed: number } | null } | null;
   const navState = location.state as NavState;
   const fromMapSiteId: string | undefined = navState?.fromMap ? navState.siteId : undefined;
   const handleBack = () =>
@@ -79,9 +79,15 @@ export default function MissionEditorPage() {
         setAvgSpeed(m.avg_speed);
         setAvgFuelConsumption(m.avg_fuel_consumption);
         setFuelTankSize(m.fuel_tank_size);
-        setWindDirection(m.wind_direction);
-        setWindSpeed(m.wind_speed);
-        setDirty(false);
+        if (navState?.windOverride) {
+          setWindDirection(navState.windOverride.dir);
+          setWindSpeed(navState.windOverride.speed);
+          setDirty(true);
+        } else {
+          setWindDirection(m.wind_direction);
+          setWindSpeed(m.wind_speed);
+          setDirty(false);
+        }
       })
       .finally(() => setLoading(false));
   }, [id]);
