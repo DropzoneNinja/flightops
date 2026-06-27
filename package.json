@@ -1,6 +1,6 @@
 {
   "name": "flightops",
-  "version": "3.1.1",
+  "version": "4.0.0",
   "private": true,
   "scripts": {
     "version": "npm --no-git-tag-version version $npm_package_version --prefix frontend && npm --no-git-tag-version version $npm_package_version --prefix backend && git add frontend/package.json backend/package.json"
