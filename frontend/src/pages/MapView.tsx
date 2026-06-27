@@ -9,6 +9,7 @@ import { SettingKey } from '../services/settings.service';
 import { useIsMobile } from '../hooks/useIsMobile';
 import SiteMarker from '../components/Site/SiteMarker';
 import SiteInspectionPanel from '../components/Site/SiteInspectionPanel';
+import EditSitePanel from '../components/Site/EditSitePanel';
 import { createWindSockIcon } from '../utils/windsockIcon';
 import { convertWindSpeed, windSpeedUnitLabel } from '../utils/windSpeed';
 import LeftSidebar from '../components/Layout/LeftSidebar';
@@ -131,7 +132,15 @@ export default function MapView() {
 
   // Selected site drives both the inspection panel and the airspace visualization
   const [selectedSite, setSelectedSite] = useState<FlightSite | null>(null);
+  const [isEditingSite, setIsEditingSite] = useState(false);
   const [windsockWind, setWindsockWind] = useState<{ dir: number; speed: number } | null>(null);
+
+  // Keep selectedSite in sync with the React Query cache (picks up updates after a save)
+  useEffect(() => {
+    if (!selectedSite) return;
+    const updated = sites.find(s => s.id === selectedSite.id);
+    if (updated && updated !== selectedSite) setSelectedSite(updated);
+  }, [sites]); // eslint-disable-line react-hooks/exhaustive-deps
   const windUnit = (settingsMap[SettingKey.UNITS_WIND_SPEED] as string) || 'kmh';
 
   // Mobile state
@@ -241,6 +250,7 @@ export default function MapView() {
 
   const handleCloseInspectionPanel = () => {
     setSelectedSite(null);
+    setIsEditingSite(false);
     setWindsockWind(null);
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
@@ -252,6 +262,17 @@ export default function MapView() {
       mapRef.current.setView([lat, lng], zoom);
       prevMapStateRef.current = null;
     }
+  };
+
+  const handleOpenEditSite = () => {
+    setIsEditingSite(true);
+  };
+
+  const handleCloseEditSite = () => {
+    setIsEditingSite(false);
+    setPendingLocation(null);
+    setPendingLocationType(null);
+    setActiveLocationSelection(null);
   };
 
   const handleSelectLocation = (type: 'takeoff' | 'parking') => {
@@ -436,13 +457,33 @@ export default function MapView() {
       </div>
 
       {/* Desktop site inspection panel */}
-      {!isMobile && selectedSite && (
+      {!isMobile && selectedSite && !isEditingSite && (
         <SiteInspectionPanel
           site={selectedSite}
           onClose={handleCloseInspectionPanel}
           onForecastSelect={handleForecastSelect}
           prevMapState={prevMapStateRef.current}
           windOverride={windsockWind}
+          canEdit={!!(user && (user.id === selectedSite.user_id || user.is_admin))}
+          onEdit={handleOpenEditSite}
+        />
+      )}
+
+      {/* Desktop site edit panel */}
+      {!isMobile && (
+        <EditSitePanel
+          isOpen={isEditingSite && !!selectedSite}
+          site={selectedSite}
+          onClose={handleCloseEditSite}
+          onSelectLocation={handleSelectLocation}
+          activeLocationSelection={activeLocationSelection}
+          pendingLocation={pendingLocation}
+          pendingLocationType={pendingLocationType}
+          onLocationUsed={() => {
+            setPendingLocation(null);
+            setPendingLocationType(null);
+          }}
+          onZoomToLocation={handleZoomToLocation}
         />
       )}
 
