@@ -44,6 +44,9 @@ export function createWindSockIcon(direction: number, speed: number, unit = 'kt'
     className: 'wind-sock-marker',
     html,
     iconSize: [120, 130],
-    iconAnchor: [60, 128],
+    // Pole sits 48px right of the takeoff position and its base aligns with
+    // the bottom of the 64×64 PPG icon (32px below center).
+    // Pole is at SVG (60, 110): anchor[0] = 60-48 = 12, anchor[1] = 110-32 = 78.
+    iconAnchor: [12, 78],
   });
 }
