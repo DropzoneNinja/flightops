@@ -298,7 +298,11 @@ export default function CombinedWeatherDialog({
                       onClick={() => {
                         if (!onHourSelect) return;
                         setSelectedTimestamp(data.timestamp);
-                        onHourSelect(Number(data.windDirection), Number(data.windSpeed));
+                        // Prefer 33 ft (10 m AGL) wind when loaded — it's the aloft value
+                        // the user is reading in the coloured columns. Fall back to surface wind.
+                        const speedKmh = mh ? mh.wind_10m.speed : Number(data.windSpeed);
+                        const dirDeg   = mh ? mh.wind_10m.direction : Number(data.windDirection);
+                        onHourSelect(dirDeg, speedKmh);
                       }}
                       onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
                       onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = ''; }}
