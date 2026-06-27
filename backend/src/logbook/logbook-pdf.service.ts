@@ -254,9 +254,13 @@ export class LogbookPdfService {
     }
 
     // ── Footer on every page ────────────────────────────────────────
+    // Temporarily zero the bottom margin so PDFKit doesn't see the footer Y
+    // (page.height - 28) as exceeding maxY and trigger a spurious addPage().
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(pages.start + i);
+      const savedBottom = doc.page.margins.bottom;
+      doc.page.margins.bottom = 0;
       doc.font('Helvetica').fontSize(7).fillColor('#888888')
         .text(
           `Private logbook  —  ${pilot.display_name}   |   Page ${i + 1} of ${pages.count}`,
@@ -264,6 +268,7 @@ export class LogbookPdfService {
           { align: 'center', width: MR - ML },
         )
         .fillColor('#000000');
+      doc.page.margins.bottom = savedBottom;
     }
 
     doc.end();
