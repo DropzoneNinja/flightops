@@ -10,8 +10,10 @@ const MONTH_NAMES = [
 
 interface FiltersCardProps {
   onSearch: (filters: MediaFilters) => void;
-  allDateCounts: MediaDateCount[]; // unfiltered, for year/month dropdown population
+  allDateCounts: MediaDateCount[];
 }
+
+const selectCls = 'w-full px-3 py-2 bg-[#0d1421] border border-[#2a3a54] rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-40 disabled:cursor-not-allowed';
 
 export default function FiltersCard({ onSearch, allDateCounts }: FiltersCardProps) {
   const { data: availablePilots = [], isLoading: isLoadingPilots } = useMediaPilots();
@@ -22,22 +24,19 @@ export default function FiltersCard({ onSearch, allDateCounts }: FiltersCardProp
   const [selectedYear, setSelectedYear] = useState<number | ''>('');
   const [selectedMonth, setSelectedMonth] = useState<number | ''>('');
 
-  // Fetch usernames once on mount
   useEffect(() => {
     usersService.getUsernames().then(setUsernames).catch(() => {});
   }, []);
 
-  // Derive available years from unfiltered date counts
   const availableYears = useMemo(() => {
     const years = new Set<number>();
     allDateCounts.forEach((d) => {
       const year = parseInt(d.date.slice(0, 4), 10);
       if (!isNaN(year)) years.add(year);
     });
-    return Array.from(years).sort((a, b) => b - a); // descending
+    return Array.from(years).sort((a, b) => b - a);
   }, [allDateCounts]);
 
-  // Derive available months for selected year
   const availableMonths = useMemo(() => {
     if (!selectedYear) return [];
     const months = new Set<number>();
@@ -51,10 +50,7 @@ export default function FiltersCard({ onSearch, allDateCounts }: FiltersCardProp
     return Array.from(months).sort((a, b) => a - b);
   }, [allDateCounts, selectedYear]);
 
-  const hasActiveFilters =
-    !!uploadedBy ||
-    selectedPilots.length > 0 ||
-    !!selectedYear;
+  const hasActiveFilters = !!uploadedBy || selectedPilots.length > 0 || !!selectedYear;
 
   const handlePilotToggle = (pilot: string) => {
     setSelectedPilots((prev) =>
@@ -87,14 +83,13 @@ export default function FiltersCard({ onSearch, allDateCounts }: FiltersCardProp
   };
 
   return (
-    <div className="w-full bg-white rounded-xl shadow-elevation-lg p-6 sm:p-8 animate-fade-in">
-      {/* Card header */}
+    <div className="w-full bg-[#141d2e] rounded-xl border border-[#1e2a3a] p-6">
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xl font-display font-semibold text-sky-night">Filters</h2>
+        <h2 className="text-base font-semibold text-white">Filters</h2>
         {hasActiveFilters && (
           <button
             onClick={handleClearAll}
-            className="text-sm text-sky-morning hover:text-sky-dusk font-medium transition-colors"
+            className="text-sm text-[#6b9fd4] hover:text-white transition-colors"
           >
             Clear all
           </button>
@@ -104,11 +99,12 @@ export default function FiltersCard({ onSearch, allDateCounts }: FiltersCardProp
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {/* Uploaded By */}
         <div>
-          <label className="block text-sm font-medium text-sky-dusk mb-2">Uploaded by</label>
+          <label className="block text-xs font-medium text-[#a0b3cc] mb-2">Uploaded by</label>
           <select
             value={uploadedBy}
             onChange={(e) => setUploadedBy(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-morning focus:border-sky-morning bg-white"
+            className={selectCls}
+            style={{ colorScheme: 'dark' }}
           >
             <option value="">Any</option>
             {usernames.sort((a, b) => a.localeCompare(b)).map((name) => (
@@ -119,12 +115,13 @@ export default function FiltersCard({ onSearch, allDateCounts }: FiltersCardProp
 
         {/* Year / Month */}
         <div>
-          <label className="block text-sm font-medium text-sky-dusk mb-2">Year / Month</label>
+          <label className="block text-xs font-medium text-[#a0b3cc] mb-2">Year / Month</label>
           <div className="flex gap-2">
             <select
               value={selectedYear}
               onChange={(e) => handleYearChange(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-morning focus:border-sky-morning bg-white"
+              className={selectCls}
+              style={{ colorScheme: 'dark' }}
             >
               <option value="">Any year</option>
               {availableYears.map((year) => (
@@ -135,7 +132,8 @@ export default function FiltersCard({ onSearch, allDateCounts }: FiltersCardProp
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value ? parseInt(e.target.value, 10) : '')}
               disabled={!selectedYear}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-morning focus:border-sky-morning bg-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+              className={selectCls}
+              style={{ colorScheme: 'dark' }}
             >
               <option value="">Any month</option>
               {availableMonths.map((month) => (
@@ -148,49 +146,48 @@ export default function FiltersCard({ onSearch, allDateCounts }: FiltersCardProp
         {/* Pilots */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-sky-dusk">Pilots</label>
+            <label className="block text-xs font-medium text-[#a0b3cc]">Pilots</label>
             {availablePilots.length > 0 && (
               <div className="flex gap-2 text-xs">
-                <button onClick={handleSelectAllPilots} className="text-sky-morning hover:text-sky-dusk transition-colors">All</button>
-                <span className="text-gray-300">|</span>
-                <button onClick={handleClearPilots} className="text-sky-morning hover:text-sky-dusk transition-colors">None</button>
+                <button onClick={handleSelectAllPilots} className="text-[#6b9fd4] hover:text-white transition-colors">All</button>
+                <span className="text-[#2a3a54]">|</span>
+                <button onClick={handleClearPilots} className="text-[#6b9fd4] hover:text-white transition-colors">None</button>
               </div>
             )}
           </div>
 
           {isLoadingPilots ? (
-            <div className="text-sm text-gray-400">Loading pilots...</div>
+            <div className="text-sm text-[#4a5a74]">Loading pilots...</div>
           ) : availablePilots.length === 0 ? (
-            <div className="text-sm text-gray-400 italic">No pilots found</div>
+            <div className="text-sm text-[#4a5a74] italic">No pilots found</div>
           ) : (
-            <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-2 space-y-1">
+            <div className="max-h-40 overflow-y-auto border border-[#2a3a54] rounded-lg p-2 space-y-1 bg-[#0d1421]">
               {availablePilots.map((pilot) => (
-                <label key={pilot} className="flex items-center gap-2 px-1 py-0.5 rounded cursor-pointer hover:bg-gray-50">
+                <label key={pilot} className="flex items-center gap-2 px-1 py-0.5 rounded cursor-pointer hover:bg-[#1e2a3a]">
                   <input
                     type="checkbox"
                     checked={selectedPilots.includes(pilot)}
                     onChange={() => handlePilotToggle(pilot)}
-                    className="rounded text-sky-morning focus:ring-sky-morning"
+                    className="rounded accent-blue-500"
                   />
-                  <span className="text-sm text-gray-700">{pilot}</span>
+                  <span className="text-sm text-[#a0b3cc]">{pilot}</span>
                 </label>
               ))}
             </div>
           )}
           {selectedPilots.length > 0 && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-[#4a5a74] mt-1">
               {selectedPilots.length} pilot{selectedPilots.length !== 1 ? 's' : ''} selected
             </p>
           )}
         </div>
       </div>
 
-      {/* Search button */}
       <div className="mt-6 flex justify-end">
         <button
           onClick={handleSearch}
           disabled={!hasActiveFilters}
-          className="px-6 py-2.5 bg-sky-morning text-white text-sm font-medium rounded-lg hover:bg-sky-dusk transition-colors shadow-elevation disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Search
         </button>

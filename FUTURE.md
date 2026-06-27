@@ -10,4 +10,5 @@ Gaggle: Green comparison line when equal
 
 
 Logbook
-- On manual Selecting a launch site should automatically set landing site
+- on the flight gpx trail, when pressing full analysis, blank page
+- On the view all missions page, need to change name gaggle to back to media page

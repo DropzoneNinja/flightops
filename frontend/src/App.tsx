@@ -19,6 +19,7 @@ import MissionEditorPage from './pages/MissionEditorPage';
 import MissionMediaPage from './pages/MissionMediaPage';
 import LogbookPage from './pages/LogbookPage';
 import LogbookEntryPage from './pages/LogbookEntryPage';
+import EquipmentPage from './pages/EquipmentPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './contexts/ToastContext';
@@ -194,6 +195,16 @@ function App() {
             <ErrorBoundary>
               <ProtectedRoute>
                 <LogbookEntryPage />
+              </ProtectedRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/equipment"
+          element={
+            <ErrorBoundary>
+              <ProtectedRoute>
+                <EquipmentPage />
               </ProtectedRoute>
             </ErrorBoundary>
           }

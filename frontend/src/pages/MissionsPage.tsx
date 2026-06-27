@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { useIsMobile } from '../hooks/useIsMobile';
+import LeftSidebar from '../components/Layout/LeftSidebar';
 import { useSites } from '../hooks/useSites';
 import { useMissionsStore } from '../stores/missionsStore';
 import { Mission } from '../services/missions.service';
 
 export default function MissionsPage() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const isMobile = useIsMobile();
   const [searchParams] = useSearchParams();
   const { sites } = useSites();
   const { missions, loading, error, fetchMissions } = useMissionsStore();
@@ -43,143 +48,151 @@ export default function MissionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-sky-cloud">
-      {/* Header */}
-      <header className="bg-white border-b border-sky-midday/20 shadow-sm sticky top-0 z-10" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label="Back"
-            >
-              <svg className="w-5 h-5 text-sky-night" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="text-lg font-bold text-sky-night">Mission Planner</h1>
+    <div className="h-screen flex flex-row overflow-hidden" style={{ background: '#0d1421' }}>
+      {!isMobile && (
+        <LeftSidebar
+          user={user}
+          showAirspace={false}
+          onToggleAirspace={() => {}}
+          onLogout={logout}
+        />
+      )}
+
+      <div className="flex-1 overflow-y-auto">
+        {/* Header — no back button */}
+        <div className="border-b border-[#1e2a3a] px-6 py-4 flex items-center justify-between sticky top-0 z-10" style={{ background: '#0d1421' }}>
+          <div>
+            <h1 className="text-xl font-bold text-white">Mission Planner</h1>
+            <p className="text-xs text-[#6b7fa3]">Plan routes and waypoints</p>
           </div>
           <button
             onClick={() => setCreating(true)}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
           >
-            + New Mission
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Mission
           </button>
         </div>
-      </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-4 space-y-4">
-        {/* Search + filters */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="search"
-            placeholder="Search missions..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <select
-            value={filterSiteId}
-            onChange={(e) => setFilterSiteId(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All sites</option>
-            {sites.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as 'updated_at' | 'name')}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="updated_at">Recently Updated</option>
-            <option value="name">Name A–Z</option>
-          </select>
-        </div>
+        <div className="max-w-4xl mx-auto px-6 py-6 space-y-4">
+          {/* Search + filters */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="search"
+              placeholder="Search missions..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 px-3 py-2 bg-[#141d2e] border border-[#2a3a54] rounded-lg text-sm text-white placeholder-[#4a5568] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <select
+              value={filterSiteId}
+              onChange={(e) => setFilterSiteId(e.target.value)}
+              className="px-3 py-2 bg-[#141d2e] border border-[#2a3a54] rounded-lg text-sm text-[#a0b3cc] focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All sites</option>
+              {sites.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as 'updated_at' | 'name')}
+              className="px-3 py-2 bg-[#141d2e] border border-[#2a3a54] rounded-lg text-sm text-[#a0b3cc] focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="updated_at">Recently Updated</option>
+              <option value="name">Name A–Z</option>
+            </select>
+          </div>
 
-        {/* Create mission inline form */}
-        {creating && (
-          <div className="bg-white border border-blue-200 rounded-xl p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-700 mb-2">New Mission</h2>
-            <div className="flex gap-2">
-              <input
-                autoFocus
-                type="text"
-                placeholder="Mission name"
-                value={newMissionName}
-                onChange={(e) => setNewMissionName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleCreate();
-                  if (e.key === 'Escape') setCreating(false);
-                }}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+          {/* Create mission inline form */}
+          {creating && (
+            <div className="bg-[#141d2e] border border-[#2a3a54] rounded-xl p-4">
+              <h2 className="text-sm font-semibold text-white mb-2">New Mission</h2>
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Mission name"
+                  value={newMissionName}
+                  onChange={(e) => setNewMissionName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreate();
+                    if (e.key === 'Escape') setCreating(false);
+                  }}
+                  className="flex-1 px-3 py-2 bg-[#0d1421] border border-[#2a3a54] rounded-lg text-sm text-white placeholder-[#4a5568] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  onClick={handleCreate}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Create
+                </button>
+                <button
+                  onClick={() => { setCreating(false); setNewMissionName(''); setCreateError(''); }}
+                  className="px-3 py-2 border border-[#2a3a54] text-[#a0b3cc] rounded-lg text-sm hover:bg-[#1e2a3a] transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+              {createError && <p className="text-red-400 text-xs mt-1">{createError}</p>}
+            </div>
+          )}
+
+          {/* Loading */}
+          {loading && (
+            <div className="text-center py-12 text-[#6b7fa3] text-sm">Loading missions...</div>
+          )}
+
+          {/* Error */}
+          {!loading && error && (
+            <div className="text-center py-12 text-red-400 text-sm">{error}</div>
+          )}
+
+          {/* Empty state */}
+          {!loading && !error && missions.length === 0 && (
+            <div className="text-center py-16">
+              <div className="text-4xl mb-3">🗺️</div>
+              <p className="text-white font-medium">No missions yet</p>
+              <p className="text-[#6b7fa3] text-sm mt-1">Create your first mission to start planning routes</p>
               <button
-                onClick={handleCreate}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                onClick={() => setCreating(true)}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
               >
-                Create
-              </button>
-              <button
-                onClick={() => { setCreating(false); setNewMissionName(''); setCreateError(''); }}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-              >
-                Cancel
+                New Mission
               </button>
             </div>
-            {createError && <p className="text-red-600 text-xs mt-1">{createError}</p>}
-          </div>
-        )}
+          )}
 
-        {/* Mission list */}
-        {loading && (
-          <div className="text-center py-12 text-gray-500 text-sm">Loading missions...</div>
-        )}
-
-        {!loading && error && (
-          <div className="text-center py-12 text-red-500 text-sm">{error}</div>
-        )}
-
-        {!loading && !error && missions.length === 0 && (
-          <div className="text-center py-16">
-            <div className="text-4xl mb-3">🗺️</div>
-            <p className="text-gray-600 font-medium">No missions yet</p>
-            <p className="text-gray-400 text-sm mt-1">Create your first mission to start planning routes</p>
-            <button
-              onClick={() => setCreating(true)}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-            >
-              + New Mission
-            </button>
-          </div>
-        )}
-
-        {!loading && missions.length > 0 && (
-          <div className="space-y-2">
-            {missions.map((mission) => (
-              <MissionCard
-                key={mission.id}
-                mission={mission}
-                onClick={() => navigate(`/missions/${mission.id}`)}
-                onDelete={(id) => setConfirmDeleteId(id)}
-              />
-            ))}
-          </div>
-        )}
+          {/* Mission list */}
+          {!loading && missions.length > 0 && (
+            <div className="space-y-2">
+              {missions.map((mission) => (
+                <MissionCard
+                  key={mission.id}
+                  mission={mission}
+                  onClick={() => navigate(`/missions/${mission.id}`)}
+                  onDelete={(id) => setConfirmDeleteId(id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Delete confirmation modal */}
       {confirmDeleteId && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
-            <h3 className="font-bold text-gray-900 mb-2">Delete Mission?</h3>
-            <p className="text-sm text-gray-600 mb-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-[#141d2e] rounded-xl border border-[#1e2a3a] shadow-2xl p-6 max-w-sm w-full mx-4">
+            <h3 className="font-bold text-white mb-2">Delete Mission?</h3>
+            <p className="text-sm text-[#6b7fa3] mb-4">
               This will permanently delete this mission and all its waypoints. This cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setConfirmDeleteId(null)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 border border-[#2a3a54] text-[#a0b3cc] rounded-lg text-sm hover:bg-[#1e2a3a] transition-colors"
               >
                 Cancel
               </button>
@@ -206,22 +219,22 @@ function MissionCard({ mission, onClick, onDelete }: { mission: Mission; onClick
   });
 
   return (
-    <div className="relative bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all group">
+    <div className="relative bg-[#141d2e] rounded-xl border border-[#1e2a3a] hover:border-[#2a3a54] hover:bg-[#1a2234] transition-all group">
       <button
         onClick={onClick}
         className="w-full text-left p-4"
       >
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors truncate">
+            <h3 className="font-semibold text-white group-hover:text-blue-400 transition-colors truncate">
               {mission.name}
             </h3>
             {mission.notes && (
-              <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{mission.notes}</p>
+              <p className="text-sm text-[#6b7fa3] mt-0.5 line-clamp-2">{mission.notes}</p>
             )}
-            <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
+            <div className="flex items-center gap-3 mt-1.5 text-xs text-[#4a5568]">
               {mission.launch_site && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 text-[#6b7fa3]">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                       d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -231,11 +244,11 @@ function MissionCard({ mission, onClick, onDelete }: { mission: Mission; onClick
                   {mission.launch_site.name}
                 </span>
               )}
-              <span>{waypointCount} waypoint{waypointCount !== 1 ? 's' : ''}</span>
-              <span>Updated {updatedAt}</span>
+              <span className="text-[#6b7fa3]">{waypointCount} waypoint{waypointCount !== 1 ? 's' : ''}</span>
+              <span className="text-[#4a5568]">Updated {updatedAt}</span>
             </div>
           </div>
-          <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-500 shrink-0 mt-1 transition-colors"
+          <svg className="w-4 h-4 text-[#4a5568] group-hover:text-blue-400 shrink-0 mt-1 transition-colors"
             fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
@@ -243,7 +256,7 @@ function MissionCard({ mission, onClick, onDelete }: { mission: Mission; onClick
       </button>
       <button
         onClick={(e) => { e.stopPropagation(); onDelete(mission.id); }}
-        className="absolute top-3 right-8 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+        className="absolute top-3 right-8 p-1.5 text-[#4a5568] hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
         aria-label="Delete mission"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

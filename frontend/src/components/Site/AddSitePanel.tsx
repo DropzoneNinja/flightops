@@ -35,6 +35,7 @@ export default function AddSitePanel({
     takeoff_notes: '',
     parking_notes: '',
     weather_notes: '',
+    elevation_m: '' as number | '',
   });
 
   // Handle pendingLocation updates from map clicks
@@ -76,6 +77,7 @@ export default function AddSitePanel({
         takeoff_notes: formData.takeoff_notes || undefined,
         parking_notes: formData.parking_notes || undefined,
         weather_notes: formData.weather_notes || undefined,
+        elevation_m: formData.elevation_m !== '' ? Number(formData.elevation_m) : undefined,
       };
 
       await createSiteMutation.mutateAsync(siteData);
@@ -90,6 +92,7 @@ export default function AddSitePanel({
         takeoff_notes: '',
         parking_notes: '',
         weather_notes: '',
+        elevation_m: '',
       });
       onClose();
     } catch (error: any) {
@@ -112,6 +115,7 @@ export default function AddSitePanel({
       takeoff_notes: '',
       parking_notes: '',
       weather_notes: '',
+      elevation_m: '',
     });
     onClose();
   };
@@ -385,6 +389,23 @@ export default function AddSitePanel({
             <div className="text-xs text-gray-500 text-right">
               {formData.weather_notes.length}/10000
             </div>
+          </div>
+
+          {/* Elevation */}
+          <div>
+            <label htmlFor="elevation_m" className="block text-sm font-medium text-gray-700 mb-1">
+              Elevation (m above sea level)
+            </label>
+            <input
+              id="elevation_m"
+              type="number"
+              value={formData.elevation_m}
+              onChange={(e) => setFormData({ ...formData, elevation_m: e.target.value === '' ? '' : Number(e.target.value) })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g. 1460"
+              min="-500"
+              max="9000"
+            />
           </div>
 
           {/* Date Created (Read-only) */}

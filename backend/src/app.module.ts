@@ -20,6 +20,7 @@ import { LeaderboardsModule } from './leaderboards/leaderboards.module';
 import { MissionsModule } from './missions/missions.module';
 import { OpenSkyModule } from './opensky/opensky.module';
 import { LogbookModule } from './logbook/logbook.module';
+import { EquipmentModule } from './equipment/equipment.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { LogbookModule } from './logbook/logbook.module';
     MissionsModule,
     OpenSkyModule,
     LogbookModule,
+    EquipmentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

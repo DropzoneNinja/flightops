@@ -40,4 +40,10 @@ export class CreateSiteDto {
   @Length(0, 10000, { message: 'Weather notes must not exceed 10000 characters' })
   weather_notes?: string;
 
+  @IsOptional()
+  @IsNumber()
+  @Min(-500)
+  @Max(9000)
+  elevation_m?: number;
+
 }

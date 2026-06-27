@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useSwipeable } from 'react-swipeable';
 import { WeatherForecast } from '../../services/weather.service';
 import { formatForecastDate } from '../../utils/dateUtils';
+import { useSettings } from '../../hooks/useSettings';
+import { SettingKey } from '../../services/settings.service';
+import { convertWindSpeed, windSpeedUnitLabel } from '../../utils/windSpeed';
 
 /**
  * SwipeableForecastCards - Full-screen swipeable weather forecast view
@@ -25,6 +28,8 @@ export default function SwipeableForecastCards({
   onClose,
 }: SwipeableForecastCardsProps) {
   const [currentIndex, setCurrentIndex] = useState(initialDayIndex);
+  const { settingsMap } = useSettings();
+  const windUnit = (settingsMap[SettingKey.UNITS_WIND_SPEED] as string) || 'kmh';
 
   const handlers = useSwipeable({
     onSwipedLeft: () => setCurrentIndex(Math.min(currentIndex + 1, forecasts.length - 1)),
@@ -149,7 +154,7 @@ export default function SwipeableForecastCards({
                     {Number(data.temperature).toFixed(1)}°C
                   </div>
                   <div className="text-sm text-gray-600">
-                    {Number(data.windSpeed).toFixed(1)} km/h {getWindDirection(Number(data.windDirection))}
+                    {convertWindSpeed(Number(data.windSpeed), windUnit).toFixed(1)} {windSpeedUnitLabel(windUnit)} {getWindDirection(Number(data.windDirection))}
                   </div>
                   <div className={`text-sm ${ceilingClass}`}>
                     {ceilingDisplay}

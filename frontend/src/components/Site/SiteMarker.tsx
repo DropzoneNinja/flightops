@@ -6,121 +6,221 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import L from 'leaflet';
-import WeatherForecastBars from '../Weather/WeatherForecastBars';
-import HourlyWeatherDialog from '../Weather/HourlyWeatherDialog';
-import HeatbarDebugDialog from '../Weather/HeatbarDebugDialog';
+import { scoreToHeatColor } from '../../utils/colorInterpolation';
 import { WeatherForecast } from '../../services/weather.service';
 import ParkingAddressModal from './ParkingAddressModal';
-
-// Custom marker icons for takeoff and parking
-const createTakeoffIcon = (isAnimating: boolean = false) => {
-  return new L.Icon({
-    iconUrl: '/icon-ppg.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    iconSize: [64, 64],
-    iconAnchor: [32, 32],  // Center of the takeoff icon (64x64)
-    popupAnchor: [0, -32],
-    shadowSize: [82, 82],
-    className: isAnimating ? 'takeoff-icon-fade' : '',
-  });
-};
-
-const createQuestionMarkIcon = (isAnimating: boolean = false) => {
-  return new L.DivIcon({
-    className: isAnimating ? 'takeoff-icon-fade' : '',
-    html: `<div style="
-      width: 64px;
-      height: 64px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 48px;
-      font-weight: bold;
-      color: #ff6b00;
-      text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
-    ">?</div>`,
-    iconSize: [64, 64],
-    iconAnchor: [32, 32],
-    popupAnchor: [0, -32],
-  });
-};
 
 const parkingIcon = new L.Icon({
   iconUrl: '/icon-park.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
   iconSize: [64, 64],
-  iconAnchor: [32, 32],  // Center of the parking icon (64x64)
+  iconAnchor: [32, 32],
   popupAnchor: [0, -32],
   shadowSize: [82, 82],
 });
 
-// Z-index offsets to ensure proper stacking order
 const PARKING_Z_INDEX = 0;
 const TAKEOFF_Z_INDEX = 1000;
-const WEATHER_BARS_Z_INDEX = 2000;
+const CARD_Z_INDEX = 1000;
 
 interface SiteMarkerProps {
   site: FlightSite;
   currentZoom: number;
   parkingIconZoomLevel: number;
   onTakeoffClick?: (site: FlightSite) => void;
-  isSelectedForAirspace?: boolean;
-  onMobileDayClick?: (forecast: WeatherForecast, index: number) => void;
+  isSelected?: boolean;
 }
 
-export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, onTakeoffClick, isSelectedForAirspace = false, onMobileDayClick }: SiteMarkerProps) {
+// Wing / paramotor icon SVG string
+const WING_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M2 12C2 12 6 4 12 4s10 8 10 8-4 8-10 8S2 12 2 12z"/><circle cx="12" cy="12" r="2"/></svg>`;
+
+interface SiteCardProps {
+  siteName: string;
+  forecasts: WeatherForecast[];
+  isLoading: boolean;
+  isSelected: boolean;
+  maxDays: number;
+  onClick: () => void;
+}
+
+function SiteCard({ siteName, forecasts, isLoading, isSelected, maxDays, onClick }: SiteCardProps) {
+  const displayForecasts = forecasts.slice(0, maxDays);
+
+  function getPeakScore(forecast: WeatherForecast): number {
+    if (!forecast.hourlyData || forecast.hourlyData.length === 0) return 0;
+    const sunriseHour = parseInt(forecast.sunrise.split(':')[0]);
+    const sunsetHour = parseInt(forecast.sunset.split(':')[0]);
+    const flyable = forecast.hourlyData.filter(h => {
+      const hour = new Date(h.timestamp).getHours();
+      return hour >= sunriseHour && hour <= sunsetHour;
+    });
+    if (flyable.length === 0) return 0;
+    return Math.max(...flyable.map(h => h.overallScore));
+  }
+
+  function shortDay(dateString: string): string {
+    const utcDate = new Date(dateString).toISOString().split('T')[0];
+    const d = new Date(utcDate + 'T12:00:00Z');
+    return d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+  }
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: 'rgba(17, 24, 39, 0.95)',
+        border: isSelected ? '2px solid #3b82f6' : '1.5px solid rgba(30, 42, 58, 0.9)',
+        borderRadius: '10px',
+        padding: '6px 8px',
+        minWidth: '120px',
+        maxWidth: '160px',
+        cursor: 'pointer',
+        boxShadow: isSelected
+          ? '0 0 0 3px rgba(59,130,246,0.3), 0 4px 16px rgba(0,0,0,0.5)'
+          : '0 2px 12px rgba(0,0,0,0.4)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}
+    >
+      {/* Site name row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px' }}>
+        <div style={{ color: '#60a5fa', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+          dangerouslySetInnerHTML={{ __html: WING_SVG }}
+        />
+        <span style={{
+          color: '#f1f5f9',
+          fontSize: '11px',
+          fontWeight: 600,
+          lineHeight: 1.2,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          maxWidth: '120px',
+        }}>
+          {siteName}
+        </span>
+      </div>
+
+      {/* Day score indicators */}
+      {isLoading ? (
+        <div style={{ height: '10px', background: 'rgba(30,42,58,0.6)', borderRadius: '4px' }} />
+      ) : displayForecasts.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          {displayForecasts.map((forecast, i) => {
+            const day = shortDay(forecast.date);
+            const hours = forecast.hourlyData ?? [];
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{
+                  color: '#9ca3af',
+                  fontSize: '9px',
+                  fontWeight: 600,
+                  width: '22px',
+                  flexShrink: 0,
+                  textAlign: 'right',
+                }}>
+                  {day}
+                </span>
+                <div
+                  style={{
+                    flex: 1,
+                    height: '8px',
+                    borderRadius: '3px',
+                    overflow: 'hidden',
+                    display: 'flex',
+                  }}
+                  title={`${day}: ${Math.round(getPeakScore(forecast))}`}
+                >
+                  {hours.length > 0 ? hours.map((h, j) => (
+                    <div
+                      key={j}
+                      style={{ flex: 1, backgroundColor: scoreToHeatColor(h.overallScore) }}
+                    />
+                  )) : (
+                    <div style={{ flex: 1, background: 'rgba(30,42,58,0.6)' }} />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={{ height: '8px', background: 'rgba(30,42,58,0.6)', borderRadius: '3px' }} />
+      )}
+    </div>
+  );
+}
+
+export default function SiteMarker({
+  site,
+  currentZoom,
+  parkingIconZoomLevel,
+  onTakeoffClick,
+  isSelected = false,
+}: SiteMarkerProps) {
   const { forecasts, isLoading: isLoadingWeather } = useWeather(site.enabled ? site.id : null);
   const { settingsMap } = useSettings();
   const isMobile = useIsMobile(900);
-  const [selectedForecast, setSelectedForecast] = useState<WeatherForecast | null>(null);
   const [showParkingModal, setShowParkingModal] = useState(false);
   const markerRef = useRef<L.Marker | null>(null);
   const rootRef = useRef<Root | null>(null);
   const rootContainerRef = useRef<Element | null>(null);
 
-  // Check if heatbar debug mode is enabled
-  const isDebugMode = settingsMap['debug.heatbar_debug_mode'] === true;
-
-  // Get weather forecast days setting (default to 3)
   const forecastDays = typeof settingsMap['weather.forecast_days'] === 'number'
     ? settingsMap['weather.forecast_days']
     : 3;
 
-  // Convert coordinates to numbers (they come as strings from PostgreSQL decimal type)
   const takeoffLat = parseFloat(site.takeoff_lat.toString());
   const takeoffLon = parseFloat(site.takeoff_lon.toString());
   const parkingLat = parseFloat(site.parking_lat.toString());
   const parkingLon = parseFloat(site.parking_lon.toString());
 
-  // Create DivIcon for weather bars marker
-  // Below parkingIconZoomLevel: Centered on takeoff location
-  // At parkingIconZoomLevel+: Positioned to the right of takeoff icon
-  const weatherBarsDivIcon = useMemo(() => {
-    const showIcon = currentZoom >= parkingIconZoomLevel;
-    const iconSize: [number, number] = [120, 60]; // Weather bars size
-    const iconAnchor: [number, number] = showIcon
-      ? [-56, 30]  // Position to the right of takeoff icon (32px icon half + 24px spacing = -56)
-      : [60, 30];  // Center of the weather bars when icon not visible
-    const popupAnchor: [number, number] = [60, -30]; // Above bars
+  const isHighZoom = currentZoom >= parkingIconZoomLevel;
 
+  // Card DivIcon — shown at low zoom
+  const cardDivIcon = useMemo(() => {
     return new L.DivIcon({
-      className: 'custom-marker-with-weather',
-      html: '<div class="weather-bars-container"></div>',
-      iconSize,
-      iconAnchor,
-      popupAnchor,
+      className: 'site-card-marker',
+      html: '<div class="site-card-root"></div>',
+      iconSize: [160, 80],
+      iconAnchor: [80, 80],
+      popupAnchor: [0, -80],
     });
-  }, [currentZoom, parkingIconZoomLevel]);
+  }, []);
 
-  // Render React content into the weather bars DivIcon
+  // PPG / question-mark icon — shown at high zoom
+  const takeoffIcon = useMemo(() => {
+    if (site.name.startsWith('Potential')) {
+      return new L.DivIcon({
+        html: `<div style="width:64px;height:64px;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:bold;color:#ff6b00;text-shadow:0 0 4px rgba(0,0,0,0.5)">?</div>`,
+        iconSize: [64, 64],
+        iconAnchor: [32, 32],
+        popupAnchor: [0, -32],
+      });
+    }
+    return new L.Icon({
+      iconUrl: '/icon-ppg.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+      iconSize: [64, 64],
+      iconAnchor: [32, 32],
+      popupAnchor: [0, -32],
+      shadowSize: [82, 82],
+    });
+  }, [site.name]);
+
+  // Render the React card into the DivIcon (only at low zoom)
   useEffect(() => {
+    if (isHighZoom) return;
+
     const markerElement = markerRef.current?.getElement();
     if (!markerElement) return;
 
-    const container = markerElement.querySelector('.weather-bars-container');
+    const container = markerElement.querySelector('.site-card-root');
     if (!container) return;
 
-    // If the container changed (icon recreated), unmount old root and create a new one
     if (rootRef.current && rootContainerRef.current !== container) {
       rootRef.current.unmount();
       rootRef.current = null;
@@ -132,23 +232,18 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
     }
 
     rootRef.current.render(
-      <WeatherForecastBars
+      <SiteCard
+        siteName={site.name}
         forecasts={forecasts}
         isLoading={isLoadingWeather}
-        onDayClick={(forecast) => {
-          if (isMobile && onMobileDayClick) {
-            // On mobile, trigger the mobile forecast cards
-            const index = forecasts.findIndex(f => f.id === forecast.id);
-            if (index !== -1) {
-              onMobileDayClick(forecast, index);
-            }
-          } else {
-            // On desktop, open the dialog
-            setSelectedForecast(forecast);
+        isSelected={isSelected}
+        maxDays={forecastDays}
+        onClick={() => {
+          if (!isMobile && onTakeoffClick) {
+            onTakeoffClick(site);
           }
         }}
-        maxDays={forecastDays}
-      />
+      />,
     );
 
     return () => {
@@ -158,31 +253,15 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
         rootContainerRef.current = null;
       }
     };
-  }, [forecasts, isLoadingWeather, currentZoom, parkingIconZoomLevel, forecastDays]);
-
-  const handleMarkerClick = (e: L.LeafletMouseEvent) => {
-    // Prevent default popup behavior
-    e.originalEvent.stopPropagation();
-
-    if (onTakeoffClick) {
-      onTakeoffClick(site);
-    }
-  };
+  }, [forecasts, isLoadingWeather, isSelected, forecastDays, site.name, isMobile, isHighZoom]);
 
   const handleParkingClick = async (e: L.LeafletMouseEvent) => {
-    // Prevent default popup behavior
     e.originalEvent.stopPropagation();
-
-    // Format coordinates for clipboard
     const coordsString = `${parkingLat.toFixed(6)}, ${parkingLon.toFixed(6)}`;
-
-    // Immediately copy to clipboard
     try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
+      if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(coordsString);
-        console.log('Coordinates copied to clipboard:', coordsString);
       } else {
-        // Fallback for older browsers
         const textarea = document.createElement('textarea');
         textarea.value = coordsString;
         textarea.style.position = 'fixed';
@@ -191,59 +270,18 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
         textarea.select();
         document.execCommand('copy');
         document.body.removeChild(textarea);
-        console.log('Coordinates copied to clipboard (fallback):', coordsString);
       }
-    } catch (err) {
-      console.error('Failed to copy coordinates:', err);
-    }
-
-    // Open modal
+    } catch {}
     setShowParkingModal(true);
   };
 
-  // Line connecting takeoff and parking
   const positions: [number, number][] = [
     [takeoffLat, takeoffLon],
     [parkingLat, parkingLon],
   ];
 
-  // Determine if parking marker should be visible based on zoom level
-  const shouldShowParkingMarker = currentZoom >= parkingIconZoomLevel;
-
   return (
     <>
-      {/* CSS for fade animation */}
-      <style>{`
-        @keyframes fadeInOut {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.3;
-          }
-        }
-
-        .takeoff-icon-fade {
-          animation: fadeInOut 2s ease-in-out infinite;
-        }
-      `}</style>
-
-      {/* Weather Dialog - Desktop only */}
-      {!isMobile && (
-        isDebugMode ? (
-          <HeatbarDebugDialog
-            forecast={selectedForecast}
-            siteId={site.id}
-            onClose={() => setSelectedForecast(null)}
-          />
-        ) : (
-          <HourlyWeatherDialog
-            forecast={selectedForecast}
-            onClose={() => setSelectedForecast(null)}
-          />
-        )
-      )}
-
       {/* Parking Address Modal */}
       <ParkingAddressModal
         lat={parkingLat}
@@ -252,7 +290,7 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
         onClose={() => setShowParkingModal(false)}
       />
 
-      {/* Line connecting takeoff to parking */}
+      {/* Takeoff-to-parking line */}
       <Polyline
         positions={positions}
         pathOptions={{
@@ -263,38 +301,44 @@ export default function SiteMarker({ site, currentZoom, parkingIconZoomLevel, on
         }}
       />
 
-      {/* Weather bars marker - always visible, position changes based on zoom */}
-      <Marker
-        ref={markerRef}
-        position={[takeoffLat, takeoffLon]}
-        icon={weatherBarsDivIcon}
-        zIndexOffset={WEATHER_BARS_Z_INDEX}
-      />
-
-      {/* Takeoff icon marker - only visible at high zoom */}
-      {currentZoom >= parkingIconZoomLevel && (
+      {/* Low zoom: card marker with site name + day score dots */}
+      {!isHighZoom && (
         <Marker
+          ref={markerRef}
           position={[takeoffLat, takeoffLon]}
-          icon={site.name.startsWith('Potential')
-            ? createQuestionMarkIcon(isSelectedForAirspace)
-            : createTakeoffIcon(isSelectedForAirspace)
-          }
-          zIndexOffset={TAKEOFF_Z_INDEX}
+          icon={cardDivIcon}
+          zIndexOffset={CARD_Z_INDEX}
           eventHandlers={{
-            click: handleMarkerClick,
+            click: (e) => {
+              e.originalEvent.stopPropagation();
+              if (onTakeoffClick) onTakeoffClick(site);
+            },
           }}
         />
       )}
 
-      {/* Parking marker - only visible when zoomed in */}
-      {shouldShowParkingMarker && (
+      {/* High zoom: paramotor icon at takeoff point */}
+      {isHighZoom && (
+        <Marker
+          position={[takeoffLat, takeoffLon]}
+          icon={takeoffIcon}
+          zIndexOffset={TAKEOFF_Z_INDEX}
+          eventHandlers={{
+            click: (e) => {
+              e.originalEvent.stopPropagation();
+              if (onTakeoffClick) onTakeoffClick(site);
+            },
+          }}
+        />
+      )}
+
+      {/* High zoom: parking marker */}
+      {isHighZoom && (
         <Marker
           position={[parkingLat, parkingLon]}
           icon={parkingIcon}
           zIndexOffset={PARKING_Z_INDEX}
-          eventHandlers={{
-            click: handleParkingClick,
-          }}
+          eventHandlers={{ click: handleParkingClick }}
         />
       )}
     </>

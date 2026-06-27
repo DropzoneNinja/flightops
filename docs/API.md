@@ -154,6 +154,230 @@ docker compose exec postgres psql -U flightops -d flightops -c \
 
 ---
 
+## Equipment
+
+Equipment (paramotors, engines, and wings) is private to the authenticated user. All endpoints require `Authorization: Bearer <token>`.
+
+### List Engines
+```http
+GET /equipment/engines
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+[
+  {
+    "id": "uuid",
+    "user_id": "uuid",
+    "name": "Vittorazi Moster 185",
+    "tank_size_litres": 10,
+    "fuel_consumption_lph": 3.5,
+    "notes": null,
+    "created_at": "2026-01-15T10:00:00.000Z",
+    "updated_at": "2026-01-15T10:00:00.000Z"
+  }
+]
+```
+
+---
+
+### Create Engine
+```http
+POST /equipment/engines
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Vittorazi Moster 185",
+  "tank_size_litres": 10,
+  "fuel_consumption_lph": 3.5,
+  "notes": "Optional notes"
+}
+```
+
+---
+
+### Get Engine
+```http
+GET /equipment/engines/:id
+Authorization: Bearer <token>
+```
+
+---
+
+### Update Engine
+```http
+PUT /equipment/engines/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Vittorazi Moster 185 Plus",
+  "tank_size_litres": 12
+}
+```
+
+---
+
+### Delete Engine
+```http
+DELETE /equipment/engines/:id
+Authorization: Bearer <token>
+```
+
+Response: `{ "message": "Engine deleted" }`
+
+---
+
+### List Wings
+```http
+GET /equipment/wings
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+[
+  {
+    "id": "uuid",
+    "user_id": "uuid",
+    "name": "My Main Wing",
+    "manufacturer": "Ozone",
+    "model": "Spyder 3",
+    "size": "26m²",
+    "trim_speed_kmh": 38,
+    "notes": null,
+    "created_at": "2026-01-15T10:00:00.000Z",
+    "updated_at": "2026-01-15T10:00:00.000Z"
+  }
+]
+```
+
+---
+
+### Create Wing
+```http
+POST /equipment/wings
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "My Main Wing",
+  "manufacturer": "Ozone",
+  "model": "Spyder 3",
+  "size": "26m²",
+  "trim_speed_kmh": 38,
+  "notes": "Optional notes"
+}
+```
+
+---
+
+### Get Wing
+```http
+GET /equipment/wings/:id
+Authorization: Bearer <token>
+```
+
+---
+
+### Update Wing
+```http
+PUT /equipment/wings/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "size": "28m²" }
+```
+
+---
+
+### Delete Wing
+```http
+DELETE /equipment/wings/:id
+Authorization: Bearer <token>
+```
+
+Response: `{ "message": "Wing deleted" }`
+
+---
+
+### List Paramotors
+```http
+GET /equipment/paramotors
+Authorization: Bearer <token>
+```
+
+Response includes the nested `engine` object when an engine is linked:
+```json
+[
+  {
+    "id": "uuid",
+    "user_id": "uuid",
+    "name": "My Paramotor",
+    "engine_id": "uuid",
+    "engine": {
+      "id": "uuid",
+      "name": "Vittorazi Moster 185",
+      "tank_size_litres": 10,
+      "fuel_consumption_lph": 3.5
+    },
+    "notes": null,
+    "created_at": "2026-01-15T10:00:00.000Z",
+    "updated_at": "2026-01-15T10:00:00.000Z"
+  }
+]
+```
+
+---
+
+### Create Paramotor
+```http
+POST /equipment/paramotors
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "My Paramotor",
+  "engine_id": "uuid",
+  "notes": "Optional notes"
+}
+```
+
+`engine_id` is optional — omit or pass `null` for a paramotor with no linked engine.
+
+---
+
+### Get Paramotor
+```http
+GET /equipment/paramotors/:id
+Authorization: Bearer <token>
+```
+
+---
+
+### Update Paramotor
+```http
+PUT /equipment/paramotors/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "engine_id": "uuid" }
+```
+
+---
+
+### Delete Paramotor
+```http
+DELETE /equipment/paramotors/:id
+Authorization: Bearer <token>
+```
+
+Response: `{ "message": "Paramotor deleted" }`
+
+---
+
 ## Sites
 
 ### List Sites

@@ -8,10 +8,10 @@ interface FlightCardProps {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  uploaded: 'bg-sky-100 text-sky-700',
-  parsing: 'bg-yellow-100 text-yellow-700',
-  analyzed: 'bg-green-100 text-green-700',
-  failed: 'bg-red-100 text-red-700',
+  uploaded: 'bg-blue-900/30 text-blue-400',
+  parsing: 'bg-amber-900/30 text-amber-400',
+  analyzed: 'bg-green-900/30 text-green-400',
+  failed: 'bg-red-900/30 text-red-400',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -66,15 +66,15 @@ export default function FlightCard({ flight, date }: FlightCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-elevation border border-sky-midday/30 p-4 flex flex-col gap-3">
+    <div className="bg-[#1e2a3a] rounded-xl border border-[#2a3a54] p-4 flex flex-col gap-3">
       {/* Header row */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-sky-night truncate">
+          <h3 className="font-semibold text-white truncate">
             {flight.title || flight.original_filename}
           </h3>
           {flight.pilot && (
-            <p className="text-sm text-sky-dusk mt-0.5">{flight.pilot.display_name}</p>
+            <p className="text-sm text-[#6b7fa3] mt-0.5">{flight.pilot.display_name}</p>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -105,21 +105,21 @@ export default function FlightCard({ flight, date }: FlightCardProps) {
       {/* Metrics row */}
       {isAnalyzed && (
         <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="bg-sky-cloud rounded-lg py-2 px-1">
-            <p className="text-xs text-sky-dusk">Duration</p>
-            <p className="text-sm font-semibold text-sky-night">
+          <div className="bg-[#141d2e] rounded-lg py-2 px-1">
+            <p className="text-xs text-[#6b7fa3]">Duration</p>
+            <p className="text-sm font-semibold text-white">
               {formatDuration(flight.duration_seconds)}
             </p>
           </div>
-          <div className="bg-sky-cloud rounded-lg py-2 px-1">
-            <p className="text-xs text-sky-dusk">Distance</p>
-            <p className="text-sm font-semibold text-sky-night">
+          <div className="bg-[#141d2e] rounded-lg py-2 px-1">
+            <p className="text-xs text-[#6b7fa3]">Distance</p>
+            <p className="text-sm font-semibold text-white">
               {formatDistance(flight.total_distance_m)}
             </p>
           </div>
-          <div className="bg-sky-cloud rounded-lg py-2 px-1">
-            <p className="text-xs text-sky-dusk">Max Alt</p>
-            <p className="text-sm font-semibold text-sky-night">
+          <div className="bg-[#141d2e] rounded-lg py-2 px-1">
+            <p className="text-xs text-[#6b7fa3]">Max Alt</p>
+            <p className="text-sm font-semibold text-white">
               {formatAltitude(flight.max_altitude_m)}
             </p>
           </div>
@@ -129,31 +129,31 @@ export default function FlightCard({ flight, date }: FlightCardProps) {
       {/* Metadata pills */}
       <div className="flex flex-wrap gap-1.5">
         {(flight.glider || flight.harness) && (
-          <span className="inline-flex items-center px-2 py-0.5 rounded bg-sky-midday/30 text-sky-night text-xs">
+          <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#2a3a54] text-[#a0b3cc] text-xs">
             {flight.glider}{flight.glider && flight.harness ? ' / ' : ''}{flight.harness}
           </span>
         )}
         {flight.launch_site_name && (
-          <span className="inline-flex items-center px-2 py-0.5 rounded bg-sky-midday/30 text-sky-night text-xs">
+          <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#2a3a54] text-[#a0b3cc] text-xs">
             📍 {flight.launch_site_name}
           </span>
         )}
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2 mt-auto pt-1 border-t border-sky-midday/30">
+      <div className="flex gap-2 mt-auto pt-1 border-t border-[#2a3a54]">
         <button
           onClick={() => navigate(`/flights/${flight.id}`)}
           disabled={!analysisComplete}
           title={analysisComplete ? 'View flight analysis' : 'Analysis not yet complete'}
-          className="flex-1 px-3 py-1.5 bg-sky-morning text-white text-sm rounded-lg hover:bg-sky-dusk transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           View Analysis
         </button>
         <button
           onClick={handleDelete}
           disabled={deleteMutation.isPending}
-          className="px-3 py-1.5 border border-red-300 text-red-600 text-sm rounded-lg hover:bg-red-50 transition-colors disabled:opacity-40"
+          className="px-3 py-1.5 border border-[#2a3a54] text-red-400 text-sm rounded-lg hover:bg-red-900/20 hover:border-red-700/40 transition-colors disabled:opacity-40"
           title="Delete flight"
         >
           {deleteMutation.isPending ? '…' : 'Delete'}

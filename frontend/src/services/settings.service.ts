@@ -30,6 +30,9 @@ export enum SettingKey {
   SHOW_ZOOM_INDICATOR = 'map.show_zoom_indicator',
   PARKING_ICON_ZOOM_LEVEL = 'map.parking_icon_zoom_level',
 
+  // Best Window Settings
+  BEST_WINDOW_MIN_SCORE = 'weather.best_window_min_score',
+
   // Debug Settings
   HEATBAR_DEBUG_MODE = 'debug.heatbar_debug_mode',
 

@@ -99,11 +99,11 @@ export default function CalendarView({
     return (
       <div className="calendar-container">
         <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
-          <div className="h-8 w-48 bg-sky-midday rounded animate-pulse"></div>
+          <div className="h-8 w-48 bg-[#1e2a3a] rounded animate-pulse"></div>
           <div className="flex gap-2">
-            <div className="h-10 w-24 bg-sky-midday rounded animate-pulse"></div>
-            <div className="h-10 w-10 bg-sky-midday rounded animate-pulse"></div>
-            <div className="h-10 w-10 bg-sky-midday rounded animate-pulse"></div>
+            <div className="h-10 w-24 bg-[#1e2a3a] rounded animate-pulse"></div>
+            <div className="h-10 w-10 bg-[#1e2a3a] rounded animate-pulse"></div>
+            <div className="h-10 w-10 bg-[#1e2a3a] rounded animate-pulse"></div>
           </div>
         </div>
         <div className="flex gap-8 sm:gap-12">
@@ -118,12 +118,12 @@ export default function CalendarView({
                     : 'calc(50% - 1.5rem)',
               }}
             >
-              <div className="h-6 w-32 bg-sky-midday rounded animate-pulse mb-4 mx-auto"></div>
+              <div className="h-6 w-32 bg-[#1e2a3a] rounded animate-pulse mb-4 mx-auto"></div>
               <div className="grid grid-cols-7 gap-2">
                 {Array.from({ length: 35 }).map((_, dayIdx) => (
                   <div
                     key={dayIdx}
-                    className="h-20 sm:h-24 bg-sky-midday rounded animate-pulse"
+                    className="h-20 sm:h-24 bg-[#1e2a3a] rounded animate-pulse"
                   ></div>
                 ))}
               </div>
@@ -138,7 +138,7 @@ export default function CalendarView({
     <div className="calendar-container">
       {/* Calendar Header */}
       <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl sm:text-3xl font-display font-semibold text-sky-night">
+        <h2 className="text-2xl sm:text-3xl font-display font-semibold text-white">
           {visibleMonthCount === 1
             ? format(referenceMonth, 'MMMM yyyy')
             : `${format(visibleMonths[0], 'MMM yyyy')} - ${format(referenceMonth, 'MMM yyyy')}`}
@@ -147,13 +147,13 @@ export default function CalendarView({
         <div className="flex items-center gap-2">
           <button
             onClick={handleToday}
-            className="px-4 py-2 text-sm font-body text-sky-dusk hover:text-sky-night border border-sky-midday hover:border-sky-morning rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-body text-[#a0b3cc] hover:text-white border border-[#2a3a54] hover:border-blue-500 rounded-lg transition-colors"
           >
             Today
           </button>
           <button
             onClick={handlePreviousMonth}
-            className="p-2 text-sky-dusk hover:text-sky-night hover:bg-sky-midday rounded-lg transition-all"
+            className="p-2 text-[#a0b3cc] hover:text-white hover:bg-[#1e2a3a] rounded-lg transition-all"
             aria-label="Previous month"
           >
             <svg
@@ -173,7 +173,7 @@ export default function CalendarView({
           <button
             onClick={handleNextMonth}
             disabled={isNextDisabled}
-            className="p-2 text-sky-dusk hover:text-sky-night hover:bg-sky-midday rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2 text-[#a0b3cc] hover:text-white hover:bg-[#1e2a3a] rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Next month"
           >
             <svg
@@ -197,22 +197,22 @@ export default function CalendarView({
       <style>{`
         .calendar-scroll-container {
           scrollbar-width: thin;
-          scrollbar-color: #4A5568 #E8F4F8;
+          scrollbar-color: #2a3a54 #1e2a3a;
           -webkit-overflow-scrolling: touch;
         }
         .calendar-scroll-container::-webkit-scrollbar {
-          height: 12px;
+          height: 8px;
         }
         .calendar-scroll-container::-webkit-scrollbar-track {
-          background-color: #E8F4F8;
-          border-radius: 6px;
+          background-color: #1e2a3a;
+          border-radius: 4px;
         }
         .calendar-scroll-container::-webkit-scrollbar-thumb {
-          background-color: #4A5568;
-          border-radius: 6px;
+          background-color: #2a3a54;
+          border-radius: 4px;
         }
         .calendar-scroll-container::-webkit-scrollbar-thumb:hover {
-          background-color: #1A202C;
+          background-color: #3a4f6e;
         }
       `}</style>
 
@@ -243,17 +243,17 @@ export default function CalendarView({
 
       {/* Empty state message */}
       {mediaDateCounts.length === 0 && (
-        <div className="mt-8 text-center py-8 bg-sky-cloud rounded-lg border-2 border-dashed border-sky-midday">
-          <p className="text-sky-dusk font-body text-lg mb-2">
+        <div className="mt-8 text-center py-8 bg-[#1e2a3a] rounded-xl border-2 border-dashed border-[#2a3a54]">
+          <p className="text-[#a0b3cc] text-lg mb-2">
             No media uploaded yet
           </p>
-          <p className="text-sky-dusk/70 font-body text-sm mb-4">
+          <p className="text-[#6b7fa3] text-sm mb-4">
             Start building your sky archive by uploading photos and videos
           </p>
           {onUploadClick && (
             <button
               onClick={onUploadClick}
-              className="px-6 py-3 bg-sky-morning text-white font-body rounded-lg hover:bg-sky-dusk transition-colors shadow-elevation"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Upload First Media
             </button>

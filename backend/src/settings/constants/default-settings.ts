@@ -65,6 +65,9 @@ export enum SettingKey {
 
   // OpenSky Integration
   OPENSKY_AIRSPACE_RADIUS_KM = 'opensky.airspace_radius_km',
+
+  // Best Window Settings
+  BEST_WINDOW_MIN_SCORE = 'weather.best_window_min_score',
 }
 
 export enum SettingType {
@@ -330,6 +333,15 @@ export const DEFAULT_SETTINGS: DefaultSetting[] = [
     type: SettingType.NUMBER,
     description: 'Radius (km) around each flying pilot to query for nearby aircraft via OpenSky Network',
     category: 'OpenSky Integration',
+  },
+
+  // Best Window Settings
+  {
+    key: SettingKey.BEST_WINDOW_MIN_SCORE,
+    value: 50,
+    type: SettingType.NUMBER,
+    description: 'Minimum flyability score (0–100) for the morning/evening thermal window analysis',
+    category: 'Weather Updates',
   },
 ];
 

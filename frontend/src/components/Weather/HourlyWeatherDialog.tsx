@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
 import { WeatherForecast } from '../../services/weather.service';
 import { formatForecastDate } from '../../utils/dateUtils';
+import { useSettings } from '../../hooks/useSettings';
+import { SettingKey } from '../../services/settings.service';
+import { convertWindSpeed, windSpeedUnitLabel } from '../../utils/windSpeed';
 
 interface HourlyWeatherDialogProps {
   forecast: WeatherForecast | null;
@@ -8,6 +11,9 @@ interface HourlyWeatherDialogProps {
 }
 
 export default function HourlyWeatherDialog({ forecast, onClose }: HourlyWeatherDialogProps) {
+  const { settingsMap } = useSettings();
+  const windUnit = (settingsMap[SettingKey.UNITS_WIND_SPEED] as string) || 'kmh';
+
   // Handle Escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -195,13 +201,13 @@ export default function HourlyWeatherDialog({ forecast, onClose }: HourlyWeather
                         {Number(data.temperature).toFixed(1)}°C
                       </td>
                       <td className="py-2 text-right text-sm text-gray-700 px-2 whitespace-nowrap">
-                        {Number(data.windSpeed).toFixed(1)} km/h
+                        {convertWindSpeed(Number(data.windSpeed), windUnit).toFixed(1)} {windSpeedUnitLabel(windUnit)}
                       </td>
                       <td className="py-2 text-center text-sm font-medium text-gray-900 px-2 whitespace-nowrap">
                         {getWindDirection(Number(data.windDirection))}
                       </td>
                       <td className="py-2 text-right text-sm text-gray-700 px-2 whitespace-nowrap">
-                        {Number(data.gustSpeed).toFixed(1)} km/h
+                        {convertWindSpeed(Number(data.gustSpeed), windUnit).toFixed(1)} {windSpeedUnitLabel(windUnit)}
                       </td>
                       <td className="py-2 text-right text-sm text-gray-700 px-2 whitespace-nowrap">
                         {Number(data.rain).toFixed(1)} mm

@@ -81,7 +81,7 @@ export default function WaypointSidebar({
 }: WaypointSidebarProps) {
   if (waypoints.length === 0) {
     return (
-      <div className="p-4 text-center text-gray-400 text-sm">
+      <div className="p-4 text-center text-[#6b7fa3] text-sm">
         <p>No waypoints yet.</p>
         {canEdit && <p className="mt-1">Click on the map to add one.</p>}
       </div>
@@ -143,15 +143,15 @@ export default function WaypointSidebar({
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Map label toggles */}
-      <div className="px-3 py-2 border-b border-gray-200 shrink-0">
-        <p className="text-xs text-gray-500 mb-1.5">Show on map</p>
+      <div className="px-3 py-2 border-b border-[#1e2a3a] shrink-0">
+        <p className="text-xs text-[#6b7fa3] mb-1.5">Show on map</p>
         <div className="flex gap-1.5">
           <button
             onClick={onToggleDist}
             className={`flex-1 py-1 text-xs font-medium rounded border transition-colors ${
               showSegDist
                 ? 'bg-orange-500 border-orange-500 text-white'
-                : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                : 'bg-[#1e2a3a] border-[#2a3a54] text-[#a0b3cc] hover:bg-[#243048]'
             }`}
           >
             Distance
@@ -161,7 +161,7 @@ export default function WaypointSidebar({
             className={`flex-1 py-1 text-xs font-medium rounded border transition-colors ${
               showSegTime
                 ? 'bg-orange-500 border-orange-500 text-white'
-                : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                : 'bg-[#1e2a3a] border-[#2a3a54] text-[#a0b3cc] hover:bg-[#243048]'
             }`}
           >
             Time
@@ -171,7 +171,7 @@ export default function WaypointSidebar({
             className={`flex-1 py-1 text-xs font-medium rounded border transition-colors ${
               showFuel
                 ? 'bg-orange-500 border-orange-500 text-white'
-                : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                : 'bg-[#1e2a3a] border-[#2a3a54] text-[#a0b3cc] hover:bg-[#243048]'
             }`}
           >
             Fuel
@@ -180,51 +180,51 @@ export default function WaypointSidebar({
       </div>
 
       {/* Totals */}
-      <div className="px-3 py-3 bg-gray-50 border-b border-gray-200 shrink-0">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+      <div className="px-3 py-3 border-b border-[#1e2a3a] shrink-0" style={{ background: '#1e2a3a' }}>
+        <p className="text-xs font-semibold text-[#6b7fa3] uppercase tracking-wide mb-2">
           Total · {waypoints.length} waypoints
         </p>
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 flex items-center gap-1">
+            <span className="text-xs text-[#6b7fa3] flex items-center gap-1">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
               Distance
             </span>
-            <span className="text-xs font-semibold text-gray-800">
+            <span className="text-xs font-semibold text-white">
               {formatDistance(totalDistKm, distanceUnit)}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 flex items-center gap-1">
+            <span className="text-xs text-[#6b7fa3] flex items-center gap-1">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Time
             </span>
-            <span className="text-xs font-semibold text-gray-800">
+            <span className="text-xs font-semibold text-white">
               {formatTime(totalTimeH)}
             </span>
           </div>
           {fuelConfigured && (
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400 flex items-center gap-1">
+              <span className="text-xs text-[#6b7fa3] flex items-center gap-1">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M3 6h18M3 12h18M3 18h12" />
                 </svg>
                 Fuel
               </span>
-              <span className={`text-xs font-semibold ${fuelOverLimit ? 'text-red-600' : 'text-gray-800'}`}>
+              <span className={`text-xs font-semibold ${fuelOverLimit ? 'text-red-400' : 'text-white'}`}>
                 {totalFuelL.toFixed(1)} L
                 {usableFuel !== null && (
-                  <span className="font-normal text-gray-400"> / {usableFuel.toFixed(1)} L usable</span>
+                  <span className="font-normal text-[#6b7fa3]"> / {usableFuel.toFixed(1)} L usable</span>
                 )}
                 {fuelOverLimit && (
-                  <span className="ml-1.5 text-xs font-bold text-red-600">⚠ EXCEEDS TANK</span>
+                  <span className="ml-1.5 text-xs font-bold text-red-400">⚠ EXCEEDS TANK</span>
                 )}
               </span>
             </div>
@@ -238,10 +238,10 @@ export default function WaypointSidebar({
           <div
             key={wp.id}
             onClick={() => onSelect(wp.id)}
-            className={`px-3 py-2.5 border-b border-gray-100 cursor-pointer transition-colors group ${
+            className={`px-3 py-2.5 border-b border-[#1e2a3a] cursor-pointer transition-colors group ${
               selectedWaypointId === wp.id
-                ? 'bg-blue-50 border-l-2 border-l-blue-500'
-                : 'hover:bg-gray-50'
+                ? 'bg-blue-900/30 border-l-2 border-l-blue-500'
+                : 'hover:bg-[#1a2234]'
             }`}
           >
             <div className="flex items-start gap-1">
@@ -250,33 +250,33 @@ export default function WaypointSidebar({
                   {i + 1}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-mono text-gray-700 truncate">
+                  <p className="text-xs font-mono text-[#a0b3cc] truncate">
                     {Number(wp.latitude).toFixed(5)}, {Number(wp.longitude).toFixed(5)}
                   </p>
                   {i > 0 && (
                     <div className="mt-1.5 grid grid-cols-3 gap-y-1 items-center">
                       {/* Dist row */}
-                      <span className="text-xs text-gray-400">Dist</span>
-                      <span className="text-xs font-medium text-gray-600 text-center">
+                      <span className="text-xs text-[#6b7fa3]">Dist</span>
+                      <span className="text-xs font-medium text-[#a0b3cc] text-center">
                         +{formatDistance(segDistKm, distanceUnit)}
                       </span>
-                      <span className="text-xs text-gray-600 text-center">
+                      <span className="text-xs text-[#a0b3cc] text-center">
                         {formatDistance(cumulativeDistKm, distanceUnit)}
                       </span>
 
                       {/* Time row */}
-                      <span className="text-xs text-gray-400">Time</span>
-                      <span className="text-xs font-medium text-gray-600 text-center">
+                      <span className="text-xs text-[#6b7fa3]">Time</span>
+                      <span className="text-xs font-medium text-[#a0b3cc] text-center">
                         +{formatTime(segTimeH)}
                       </span>
-                      <span className="text-xs text-gray-600 text-center">
+                      <span className="text-xs text-[#a0b3cc] text-center">
                         {formatTime(cumulativeTimeH)}
                       </span>
 
                       {/* Fuel row */}
                       {fuelConfigured && (
                         <>
-                          <span className={`text-xs flex items-center gap-1 ${segExceeds ? 'text-red-500' : 'text-gray-400'}`}>
+                          <span className={`text-xs flex items-center gap-1 ${segExceeds ? 'text-red-400' : 'text-[#6b7fa3]'}`}>
                             {segExceeds && (
                               <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -285,10 +285,10 @@ export default function WaypointSidebar({
                             )}
                             Fuel
                           </span>
-                          <span className={`text-xs font-medium text-center ${segExceeds ? 'text-red-600' : 'text-orange-600'}`}>
+                          <span className={`text-xs font-medium text-center ${segExceeds ? 'text-red-400' : 'text-orange-400'}`}>
                             +{segFuelL.toFixed(1)} L
                           </span>
-                          <span className={`text-xs text-center ${segExceeds ? 'text-red-600' : 'text-orange-600'}`}>
+                          <span className={`text-xs text-center ${segExceeds ? 'text-red-400' : 'text-orange-400'}`}>
                             {cumulativeFuelL.toFixed(1)} L
                           </span>
                         </>
@@ -305,7 +305,7 @@ export default function WaypointSidebar({
                     <button
                       onClick={(e) => { e.stopPropagation(); onMoveUp(wp.id); }}
                       disabled={i === 0}
-                      className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      className="p-1 rounded text-[#6b7fa3] hover:text-white hover:bg-[#243048] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       title="Move up"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -315,7 +315,7 @@ export default function WaypointSidebar({
                     <button
                       onClick={(e) => { e.stopPropagation(); onMoveDown(wp.id); }}
                       disabled={i === waypoints.length - 1}
-                      className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      className="p-1 rounded text-[#6b7fa3] hover:text-white hover:bg-[#243048] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       title="Move down"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -324,7 +324,7 @@ export default function WaypointSidebar({
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onDelete(wp.id); }}
-                      className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      className="p-1 rounded text-[#6b7fa3] hover:text-red-400 hover:bg-red-900/20 transition-colors"
                       title="Delete waypoint"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -342,10 +342,10 @@ export default function WaypointSidebar({
       </div>
 
       {/* Export footer */}
-      <div className="px-3 py-2.5 border-t border-gray-200 shrink-0">
+      <div className="px-3 py-2.5 border-t border-[#1e2a3a] shrink-0">
         <button
           onClick={() => exportGpx(waypoints, missionName)}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-800 transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium text-[#a0b3cc] border border-[#2a3a54] bg-[#1e2a3a] rounded-lg hover:bg-[#243048] hover:text-white transition-colors"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

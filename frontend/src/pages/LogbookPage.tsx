@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { useIsMobile } from '../hooks/useIsMobile';
+import LeftSidebar from '../components/Layout/LeftSidebar';
 import { useLogbook, useCreateLogbookEntry, useDeleteLogbookEntry, useOrphanedFlights, useImportFlightToLogbook, useLogbookBaseline, useUpsertLogbookBaseline, LOGBOOK_IMPORT_PROMPT_KEY } from '../hooks/useLogbook';
 import { logbookService, CreateLogbookEntryData } from '../services/logbook.service';
 import LogbookEntryForm from '../components/Logbook/LogbookEntryForm';
@@ -31,6 +34,9 @@ interface BaselineFormState {
 
 export default function LogbookPage() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const isMobile = useIsMobile();
+
   const [showForm, setShowForm] = useState(false);
   const [showBaselineForm, setShowBaselineForm] = useState(false);
   const [baselineForm, setBaselineForm] = useState<BaselineFormState>({
@@ -106,19 +112,19 @@ export default function LogbookPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading logbook…</div>
+      <div className="h-screen flex items-center justify-center" style={{ background: '#0d1421' }}>
+        <div className="text-[#6b7fa3]">Loading logbook…</div>
       </div>
     );
   }
 
   if (noPilot) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 max-w-md text-center">
+      <div className="h-screen flex items-center justify-center p-4" style={{ background: '#0d1421' }}>
+        <div className="bg-[#141d2e] rounded-xl border border-[#1e2a3a] p-8 max-w-md text-center">
           <div className="text-4xl mb-4">✈️</div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">No pilot profile linked</h2>
-          <p className="text-gray-500 text-sm">
+          <h2 className="text-xl font-semibold text-white mb-2">No pilot profile linked</h2>
+          <p className="text-[#6b7fa3] text-sm">
             Your account isn't linked to a pilot profile yet. Ask an admin to link your account, then come back.
           </p>
           <button
@@ -143,33 +149,35 @@ export default function LogbookPage() {
   const totalFlights = baselineFlights + active.length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {showImportPrompt && (orphanedQuery.data?.length ?? 0) > 0 && (
-        <LogbookImportPrompt
-          flights={orphanedQuery.data!}
-          importMutation={importMutation}
-          onDismiss={() => setShowImportPrompt(false)}
+    <div className="h-screen flex flex-row overflow-hidden" style={{ background: '#0d1421' }}>
+      {!isMobile && (
+        <LeftSidebar
+          user={user}
+          showAirspace={false}
+          onToggleAirspace={() => {}}
+          onLogout={logout}
         />
       )}
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/')}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label="Back"
-            >
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </button>
-            <h1 className="text-lg font-bold text-gray-900">My Logbook</h1>
+
+      <div className="flex-1 overflow-y-auto">
+        {showImportPrompt && (orphanedQuery.data?.length ?? 0) > 0 && (
+          <LogbookImportPrompt
+            flights={orphanedQuery.data!}
+            importMutation={importMutation}
+            onDismiss={() => setShowImportPrompt(false)}
+          />
+        )}
+
+        {/* Header */}
+        <div className="border-b border-[#1e2a3a] px-6 py-4 flex items-center justify-between sticky top-0 z-10" style={{ background: '#0d1421' }}>
+          <div>
+            <h1 className="text-xl font-bold text-white">My Logbook</h1>
+            <p className="text-xs text-[#6b7fa3]">Flight history &amp; records</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={openBaselineForm}
-              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-[#2a3a54] bg-[#1e2a3a] text-[#a0b3cc] hover:bg-[#243048] transition-colors"
               title="Set baseline totals (Record 0)"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,7 +188,7 @@ export default function LogbookPage() {
             <button
               onClick={handleDownloadPdf}
               disabled={pdfLoading || !active.length}
-              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-[#2a3a54] bg-[#1e2a3a] text-[#a0b3cc] hover:bg-[#243048] disabled:opacity-40 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -198,265 +206,262 @@ export default function LogbookPage() {
             </button>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* Summary */}
-        {(active.length > 0 || baseline) && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            {[
-              { label: 'Total flights', value: totalFlights },
-              { label: 'Total hours', value: `${totalHours.toFixed(1)} h` },
-              { label: 'Total distance', value: fmtDist(totalDist) },
-              { label: 'Latest', value: active[0]?.flight_date ?? '—' },
-            ].map(({ label, value }) => (
-              <div key={label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                <div className="text-2xl font-bold text-gray-900">{value}</div>
-                <div className="text-xs text-gray-500 mt-1">{label}</div>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="max-w-5xl mx-auto px-6 py-6">
+          {/* Summary */}
+          {(active.length > 0 || baseline) && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              {[
+                { label: 'Total flights', value: totalFlights },
+                { label: 'Total hours', value: `${totalHours.toFixed(1)} h` },
+                { label: 'Total distance', value: fmtDist(totalDist) },
+                { label: 'Latest', value: active[0]?.flight_date ?? '—' },
+              ].map(({ label, value }) => (
+                <div key={label} className="bg-[#141d2e] rounded-xl border border-[#1e2a3a] p-4">
+                  <div className="text-2xl font-bold text-white">{value}</div>
+                  <div className="text-xs text-[#6b7fa3] mt-1">{label}</div>
+                </div>
+              ))}
+            </div>
+          )}
 
-        {/* Baseline modal */}
-        {showBaselineForm && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-1">Set baseline (Record 0)</h2>
-              <p className="text-sm text-gray-500 mb-5">
-                Enter the totals you accumulated before using this logbook. These are added to your running totals but do not count as individual entries.
+          {/* Empty state */}
+          {active.length === 0 && !showForm && (
+            <div className="bg-[#141d2e] rounded-2xl border border-dashed border-[#2a3a54] p-12 text-center">
+              <div className="text-5xl mb-4">📋</div>
+              <h3 className="text-lg font-semibold text-white mb-2">No flights yet</h3>
+              <p className="text-[#6b7fa3] text-sm mb-6">
+                Flights from flightnow appear here automatically. You can also add manual entries.
               </p>
-              <form onSubmit={handleBaselineSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Prior flights
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    placeholder="0"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    value={baselineForm.prior_flights}
-                    onChange={(e) => setBaselineForm((f) => ({ ...f, prior_flights: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Prior airtime (hours)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.1}
-                    placeholder="0.0"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    value={baselineForm.prior_hours}
-                    onChange={(e) => setBaselineForm((f) => ({ ...f, prior_hours: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Prior distance (km)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.1}
-                    placeholder="0.0"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    value={baselineForm.prior_distance_km}
-                    onChange={(e) => setBaselineForm((f) => ({ ...f, prior_distance_km: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Notes <span className="text-gray-400 font-normal">(optional)</span>
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="e.g. Accumulated totals from paper logbook, Jan 2010 – Dec 2023"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-                    value={baselineForm.notes}
-                    onChange={(e) => setBaselineForm((f) => ({ ...f, notes: e.target.value }))}
-                  />
-                </div>
-                <div className="flex gap-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowBaselineForm(false)}
-                    className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={baselineMutation.isPending}
-                    className="flex-1 px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                  >
-                    {baselineMutation.isPending ? 'Saving…' : 'Save baseline'}
-                  </button>
-                </div>
-              </form>
+              <button
+                onClick={() => setShowForm(true)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              >
+                Add your first flight
+              </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Add entry modal */}
-        {showForm && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Add manual flight</h2>
-              <LogbookEntryForm
-                onSubmit={handleCreate}
-                onCancel={() => setShowForm(false)}
-                isLoading={createMutation.isPending}
-              />
-            </div>
-          </div>
-        )}
+          {/* Table */}
+          {active.length > 0 && (
+            <div className="bg-[#141d2e] rounded-xl border border-[#1e2a3a] overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#1e2a3a]" style={{ background: '#1e2a3a' }}>
+                    <th className="text-left px-4 py-3 font-medium text-[#6b7fa3] w-12">#</th>
+                    <th className="text-left px-4 py-3 font-medium text-[#6b7fa3]">Date</th>
+                    <th className="text-left px-4 py-3 font-medium text-[#6b7fa3] hidden sm:table-cell">Launch</th>
+                    <th className="text-left px-4 py-3 font-medium text-[#6b7fa3] hidden md:table-cell">Duration</th>
+                    <th className="text-left px-4 py-3 font-medium text-[#6b7fa3] hidden md:table-cell">Distance</th>
+                    <th className="text-left px-4 py-3 font-medium text-[#6b7fa3] hidden lg:table-cell">Max alt</th>
+                    <th className="text-left px-4 py-3 font-medium text-[#6b7fa3] hidden sm:table-cell">Wing</th>
+                    <th className="text-left px-4 py-3 font-medium text-[#6b7fa3] hidden md:table-cell">Category</th>
+                    <th className="w-8"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#1e2a3a]">
+                  {active.map((entry) => (
+                    <tr
+                      key={entry.id}
+                      className="hover:bg-[#1a2234] cursor-pointer transition-colors"
+                      onClick={() => navigate(`/logbook/${entry.id}`)}
+                    >
+                      <td className="px-4 py-3 text-[#6b7fa3] text-sm tabular-nums whitespace-nowrap">
+                        {entry.flight_number != null ? (
+                          <span className={entry.flight_number_override != null ? 'font-semibold text-white' : ''}>
+                            {entry.flight_number}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-white whitespace-nowrap">
+                        {entry.flight_date}
+                        {entry.gpx && (
+                          <span className="ml-2 text-xs bg-emerald-900/60 text-emerald-400 rounded px-1.5 py-0.5 border border-emerald-800">GPX</span>
+                        )}
+                        {entry.media.length > 0 && (
+                          <span className="ml-1 text-xs bg-purple-900/60 text-purple-400 rounded px-1.5 py-0.5 border border-purple-800">
+                            📷{entry.media.length}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-[#a0b3cc] hidden sm:table-cell">
+                        {entry.launch_site_name ?? entry.title ?? '—'}
+                      </td>
+                      <td className="px-4 py-3 text-[#a0b3cc] hidden md:table-cell">
+                        {fmtDuration(entry.analyzed_duration_seconds ?? entry.duration_seconds)}
+                      </td>
+                      <td className="px-4 py-3 text-[#a0b3cc] hidden md:table-cell">
+                        {fmtDist(entry.analyzed_distance_m ?? entry.distance_m)}
+                      </td>
+                      <td className="px-4 py-3 text-[#a0b3cc] hidden lg:table-cell">
+                        {fmtAlt(entry.analyzed_max_altitude_m ?? entry.max_altitude_m)}
+                      </td>
+                      <td className="px-4 py-3 text-[#a0b3cc] hidden sm:table-cell">
+                        {entry.wing ?? '—'}
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        {entry.category && (
+                          <span className="text-xs bg-[#1e2a3a] text-[#a0b3cc] rounded-full px-2 py-0.5 border border-[#2a3a54]">
+                            {entry.category}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Delete this logbook entry?')) {
+                              deleteMutation.mutate(entry.id);
+                            }
+                          }}
+                          className="text-[#4a5568] hover:text-red-400 transition-colors"
+                          aria-label="Delete"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
 
-        {/* Empty state */}
-        {active.length === 0 && !showForm && (
-          <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
-            <div className="text-5xl mb-4">📋</div>
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">No flights yet</h3>
-            <p className="text-gray-500 text-sm mb-6">
-              Flights from flightnow appear here automatically. You can also add manual entries.
-            </p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-            >
-              Add your first flight
-            </button>
-          </div>
-        )}
-
-        {/* Table */}
-        {active.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-sky-50 border-b border-gray-200">
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 w-12">#</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Date</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Launch</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Duration</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Distance</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden lg:table-cell">Max alt</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Wing</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Category</th>
-                  <th className="w-8"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {active.map((entry) => (
-                  <tr
-                    key={entry.id}
-                    className="hover:bg-sky-50/50 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/logbook/${entry.id}`)}
-                  >
-                    <td className="px-4 py-3 text-gray-500 text-sm tabular-nums whitespace-nowrap">
-                      {entry.flight_number != null ? (
-                        <span className={entry.flight_number_override != null ? 'font-semibold text-gray-700' : ''}>
-                          {entry.flight_number}
+                  {/* Record 0 — baseline row */}
+                  {baseline && (
+                    <tr
+                      className="cursor-pointer transition-colors border-t-2 border-amber-800/50"
+                      style={{ background: 'rgba(180,130,0,0.08)' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(180,130,0,0.14)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'rgba(180,130,0,0.08)')}
+                      onClick={openBaselineForm}
+                    >
+                      <td className="px-4 py-3 tabular-nums whitespace-nowrap">
+                        <span className="text-sm font-bold text-amber-500">0</span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className="text-sm font-medium text-amber-400">Baseline</span>
+                      </td>
+                      <td className="px-4 py-3 text-amber-600/80 text-sm hidden sm:table-cell">
+                        {baseline.notes ?? 'Prior accumulated totals'}
+                      </td>
+                      <td className="px-4 py-3 text-amber-600/80 text-sm hidden md:table-cell">
+                        {baseline.prior_duration_seconds != null
+                          ? fmtDuration(baseline.prior_duration_seconds)
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-amber-600/80 text-sm hidden md:table-cell">
+                        {baseline.prior_distance_m != null ? fmtDist(baseline.prior_distance_m) : '—'}
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell" />
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <span className="text-xs text-amber-600/80">
+                          {baseline.prior_flights} flight{baseline.prior_flights !== 1 ? 's' : ''}
                         </span>
-                      ) : '—'}
-                    </td>
-                    <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
-                      {entry.flight_date}
-                      {entry.gpx && (
-                        <span className="ml-2 text-xs bg-green-100 text-green-700 rounded px-1">GPX</span>
-                      )}
-                      {entry.media.length > 0 && (
-                        <span className="ml-1 text-xs bg-purple-100 text-purple-700 rounded px-1">
-                          📷{entry.media.length}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 hidden sm:table-cell">
-                      {entry.launch_site_name ?? entry.title ?? '—'}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell">
-                      {fmtDuration(entry.analyzed_duration_seconds ?? entry.duration_seconds)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell">
-                      {fmtDist(entry.analyzed_distance_m ?? entry.distance_m)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 hidden lg:table-cell">
-                      {fmtAlt(entry.analyzed_max_altitude_m ?? entry.max_altitude_m)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 hidden sm:table-cell">
-                      {entry.wing ?? '—'}
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      {entry.category && (
-                        <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">
-                          {entry.category}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => {
-                          if (window.confirm('Delete this logbook entry?')) {
-                            deleteMutation.mutate(entry.id);
-                          }
-                        }}
-                        className="text-gray-400 hover:text-red-500 transition-colors"
-                        aria-label="Delete"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell" />
+                      <td className="px-4 py-3">
+                        <svg className="w-4 h-4 text-amber-600/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-
-                {/* Record 0 — baseline row */}
-                {baseline && (
-                  <tr
-                    className="bg-amber-50/60 hover:bg-amber-50 cursor-pointer transition-colors border-t-2 border-amber-200"
-                    onClick={openBaselineForm}
-                  >
-                    <td className="px-4 py-3 tabular-nums whitespace-nowrap">
-                      <span className="text-sm font-bold text-amber-700">0</span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="text-sm font-medium text-amber-800">Baseline</span>
-                    </td>
-                    <td className="px-4 py-3 text-amber-700 text-sm hidden sm:table-cell">
-                      {baseline.notes ?? 'Prior accumulated totals'}
-                    </td>
-                    <td className="px-4 py-3 text-amber-700 text-sm hidden md:table-cell">
-                      {baseline.prior_duration_seconds != null
-                        ? fmtDuration(baseline.prior_duration_seconds)
-                        : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-amber-700 text-sm hidden md:table-cell">
-                      {baseline.prior_distance_m != null ? fmtDist(baseline.prior_distance_m) : '—'}
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell" />
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      <span className="text-xs text-amber-600">
-                        {baseline.prior_flights} flight{baseline.prior_flights !== 1 ? 's' : ''}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell" />
-                    <td className="px-4 py-3">
-                      <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Baseline modal */}
+      {showBaselineForm && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#141d2e] rounded-2xl border border-[#1e2a3a] shadow-2xl w-full max-w-md p-6">
+            <h2 className="text-lg font-bold text-white mb-1">Set baseline (Record 0)</h2>
+            <p className="text-sm text-[#6b7fa3] mb-5">
+              Enter the totals you accumulated before using this logbook. These are added to your running totals but do not count as individual entries.
+            </p>
+            <form onSubmit={handleBaselineSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[#a0b3cc] mb-1">Prior flights</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="0"
+                  className="w-full bg-[#0d1421] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5568] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  value={baselineForm.prior_flights}
+                  onChange={(e) => setBaselineForm((f) => ({ ...f, prior_flights: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#a0b3cc] mb-1">Prior airtime (hours)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  placeholder="0.0"
+                  className="w-full bg-[#0d1421] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5568] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  value={baselineForm.prior_hours}
+                  onChange={(e) => setBaselineForm((f) => ({ ...f, prior_hours: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#a0b3cc] mb-1">Prior distance (km)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  placeholder="0.0"
+                  className="w-full bg-[#0d1421] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5568] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  value={baselineForm.prior_distance_km}
+                  onChange={(e) => setBaselineForm((f) => ({ ...f, prior_distance_km: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#a0b3cc] mb-1">
+                  Notes <span className="text-[#4a5568] font-normal">(optional)</span>
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Accumulated totals from paper logbook, Jan 2010 – Dec 2023"
+                  className="w-full bg-[#0d1421] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5568] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+                  value={baselineForm.notes}
+                  onChange={(e) => setBaselineForm((f) => ({ ...f, notes: e.target.value }))}
+                />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowBaselineForm(false)}
+                  className="flex-1 px-4 py-2 text-sm rounded-lg border border-[#2a3a54] text-[#a0b3cc] hover:bg-[#1e2a3a] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={baselineMutation.isPending}
+                  className="flex-1 px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {baselineMutation.isPending ? 'Saving…' : 'Save baseline'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add entry modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#141d2e] rounded-2xl border border-[#1e2a3a] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+            <h2 className="text-lg font-bold text-white mb-4">Add manual flight</h2>
+            <LogbookEntryForm
+              onSubmit={handleCreate}
+              onCancel={() => setShowForm(false)}
+              isLoading={createMutation.isPending}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

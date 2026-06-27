@@ -6,6 +6,7 @@ import {
   calculateDistance, calculateTime, formatDistance, formatTime,
   calculateBearing, windAdjustedSpeed,
 } from '../../utils/distanceUtils';
+import { createWindSockIcon } from '../../utils/windsockIcon';
 import 'leaflet/dist/leaflet.css';
 
 interface MissionMapProps {
@@ -135,46 +136,6 @@ function createWaypointIcon(index: number, selected: boolean, fuelPercent: numbe
   });
 }
 
-function createWindSockIcon(direction: number, speed: number): L.DivIcon {
-  // Sock tail points downwind; default orientation is pointing right (+x).
-  const sockAngle = (direction + 90) % 360;
-
-  // 2× scale: sockLen=48, mH=16, tH=8
-  // Taper: h(x) = 16 - (16-8)*(x/48) = 16 - x/6
-  // Stripe boundaries at x = 0, 12, 24, 36, 48 → h = 16, 14, 12, 10, 8
-  const stripes = [
-    { x1: 0,  x2: 12, y1: 16, y2: 14, fill: '#f97316' },
-    { x1: 12, x2: 24, y1: 14, y2: 12, fill: 'white'   },
-    { x1: 24, x2: 36, y1: 12, y2: 10, fill: '#f97316' },
-    { x1: 36, x2: 48, y1: 10, y2: 8,  fill: 'white'   },
-  ].map(({ x1, x2, y1, y2, fill }) =>
-    `<polygon points="${x1},${-y1} ${x2},${-y2} ${x2},${y2} ${x1},${y1}" fill="${fill}"/>`
-  ).join('');
-
-  // SVG: 120×130. Pole: (60,60)→(60,110). iconAnchor=[60,128] places the
-  // pole base 18px above the waypoint centre (just above the 28px marker circle).
-  const html = `<svg width="120" height="130" viewBox="0 0 120 130" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
-    <ellipse cx="60" cy="112" rx="10" ry="3.5" fill="#9ca3af" opacity="0.45"/>
-    <line x1="60" y1="110" x2="60" y2="60" stroke="#374151" stroke-width="4" stroke-linecap="round"/>
-    <g transform="translate(60,60) rotate(${sockAngle})">
-      ${stripes}
-      <polygon points="0,-16 48,-8 48,8 0,16" fill="none" stroke="#c2410c" stroke-width="2.5" stroke-linejoin="round"/>
-      <ellipse cx="0"  cy="0" rx="2.5" ry="16" fill="none" stroke="#9a3412" stroke-width="2.5"/>
-      <ellipse cx="48" cy="0" rx="1.5" ry="8"  fill="none" stroke="#9a3412" stroke-width="1.5"/>
-    </g>
-    <circle cx="60" cy="60" r="5.5" fill="#6b7280"/>
-    <circle cx="60" cy="60" r="3.5" fill="#e5e7eb"/>
-    <text x="72" y="114" font-size="16" font-weight="700" fill="#111827" font-family="sans-serif"
-          stroke="white" stroke-width="5" paint-order="stroke">${speed} km/h</text>
-  </svg>`;
-
-  return L.divIcon({
-    className: 'wind-sock-marker',
-    html,
-    iconSize: [120, 130],
-    iconAnchor: [60, 128],
-  });
-}
 
 function createLaunchSiteIcon(name: string) {
   return L.divIcon({
@@ -450,7 +411,7 @@ export default function MissionMap({
       {windDirection !== null && windSpeed != null && windSpeed > 0 && waypoints.length > 0 && (
         <Marker
           position={[Number(waypoints[0].latitude), Number(waypoints[0].longitude)]}
-          icon={createWindSockIcon(windDirection, windSpeed)}
+          icon={createWindSockIcon(windDirection, windSpeed, 'km/h')}
           interactive={false}
           zIndexOffset={750}
         />

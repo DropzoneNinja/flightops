@@ -16,10 +16,13 @@ interface UploadModalProps {
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
-const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
+const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024;
 const MAX_FILE_SIZE_LABEL = MAX_FILE_SIZE >= 1024 * 1024 * 1024
   ? `${MAX_FILE_SIZE / (1024 * 1024 * 1024)}GB`
   : `${Math.round(MAX_FILE_SIZE / (1024 * 1024))}MB`;
+
+const inputCls = 'w-full px-3 py-2 bg-[#0d1421] border border-[#2a3a54] rounded-lg text-sm text-white placeholder-[#4a5568] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-40 disabled:cursor-not-allowed';
+const labelCls = 'block text-xs font-medium text-[#a0b3cc] mb-1';
 
 export default function UploadModal({ defaultDate, missionId, defaultSiteId }: UploadModalProps) {
   const { uploadModalOpen, closeUploadModal, setUploadProgress, resetUploadProgress, uploadProgress } = useMediaStore();
@@ -28,7 +31,6 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
   const { user } = useAuth();
   const toast = useToastContext();
 
-  // Form state
   const [flightDate, setFlightDate] = useState(defaultDate || new Date().toISOString().split('T')[0]);
   const [uploadedBy, setUploadedBy] = useState('');
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
@@ -40,7 +42,6 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
 
-  // UI state
   const [dragActive, setDragActive] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isUploading, setIsUploading] = useState(false);
@@ -52,52 +53,29 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
   const [selectedMissionId, setSelectedMissionId] = useState<string>('');
   const [isLoadingMissions, setIsLoadingMissions] = useState(false);
 
-  // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Load usernames on mount and update uploadedBy when user changes
   useEffect(() => {
-    if (user) {
-      setUploadedBy(user.username || user.email);
-    }
+    if (user) setUploadedBy(user.username || user.email);
   }, [user]);
 
-  // Fetch available usernames on mount
   useEffect(() => {
-    const fetchUsernames = async () => {
-      setIsLoadingUsernames(true);
-      try {
-        const usernames = await usersService.getUsernames();
-        setAvailableUsernames(usernames);
-      } catch (error) {
-        console.error('Failed to fetch usernames:', error);
-      } finally {
-        setIsLoadingUsernames(false);
-      }
-    };
-
-    fetchUsernames();
+    setIsLoadingUsernames(true);
+    usersService.getUsernames()
+      .then(setAvailableUsernames)
+      .catch(() => {})
+      .finally(() => setIsLoadingUsernames(false));
   }, []);
 
-  // Fetch missions on mount
   useEffect(() => {
-    const fetchMissions = async () => {
-      setIsLoadingMissions(true);
-      try {
-        const data = await missionsService.getAll({ sort: 'name', order: 'ASC' });
-        setMissions(data);
-      } catch (error) {
-        console.error('Failed to fetch missions:', error);
-      } finally {
-        setIsLoadingMissions(false);
-      }
-    };
-
-    fetchMissions();
+    setIsLoadingMissions(true);
+    missionsService.getAll({ sort: 'name', order: 'ASC' })
+      .then(setMissions)
+      .catch(() => {})
+      .finally(() => setIsLoadingMissions(false));
   }, []);
 
-  // Reset form when modal opens/closes
   useEffect(() => {
     if (uploadModalOpen) {
       setFlightDate(defaultDate || new Date().toISOString().split('T')[0]);
@@ -117,33 +95,20 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
     }
   }, [uploadModalOpen, defaultDate, defaultSiteId, missionId, resetUploadProgress]);
 
-  // Auto-detect default flying site from media on the same date, or the user's last used site
   useEffect(() => {
     if (!uploadModalOpen || siteManuallySet || !uploadedBy) return;
-
     const autoDetectSite = async () => {
       try {
-        // Check if any media on this date already has a site
         const mediaOnDate = await mediaService.getMediaByDate(flightDate);
         const siteFromDate = mediaOnDate.find(m => m.site_id)?.site_id;
-        if (siteFromDate) {
-          setSelectedSiteId(siteFromDate);
-          return;
-        }
-
-        // No site found for this date — fall back to the user's last used site
+        if (siteFromDate) { setSelectedSiteId(siteFromDate); return; }
         const userMedia = await mediaService.searchMedia({ uploadedBy });
         const lastWithSite = userMedia
           .filter(m => m.site_id)
           .sort((a, b) => new Date(b.flight_date).getTime() - new Date(a.flight_date).getTime())[0];
-        if (lastWithSite?.site_id) {
-          setSelectedSiteId(lastWithSite.site_id);
-        }
-      } catch (error) {
-        console.error('Failed to auto-detect site:', error);
-      }
+        if (lastWithSite?.site_id) setSelectedSiteId(lastWithSite.site_id);
+      } catch {}
     };
-
     autoDetectSite();
   }, [flightDate, uploadModalOpen, uploadedBy, siteManuallySet]);
 
@@ -151,34 +116,19 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
 
   const validateFile = (file: File): string | null => {
     const allAllowedTypes = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
-
-    if (!allAllowedTypes.includes(file.type)) {
-      return `Invalid file type. Allowed types: JPEG, PNG, WebP, MP4, WebM, MOV`;
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-      return `File too large. Maximum size is ${MAX_FILE_SIZE_LABEL}`;
-    }
-
+    if (!allAllowedTypes.includes(file.type)) return 'Invalid file type. Allowed: JPEG, PNG, WebP, MP4, WebM, MOV';
+    if (file.size > MAX_FILE_SIZE) return `File too large. Maximum size is ${MAX_FILE_SIZE_LABEL}`;
     return null;
   };
 
   const handleFileSelect = (file: File) => {
     const error = validateFile(file);
-    if (error) {
-      setErrors({ ...errors, file: error });
-      return;
-    }
-
+    if (error) { setErrors({ ...errors, file: error }); return; }
     setSelectedFile(file);
     setErrors({ ...errors, file: '' });
-
-    // Generate preview for images
     if (ALLOWED_IMAGE_TYPES.includes(file.type)) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setFilePreview(e.target?.result as string);
-      };
+      reader.onload = (e) => setFilePreview(e.target?.result as string);
       reader.readAsDataURL(file);
     } else {
       setFilePreview(null);
@@ -187,103 +137,55 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      handleFileSelect(file);
-    }
+    if (file) handleFileSelect(file);
   };
 
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
+  const handleDragEnter = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); };
+  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); };
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
+    e.preventDefault(); e.stopPropagation(); setDragActive(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) {
-      handleFileSelect(file);
-    }
+    if (file) handleFileSelect(file);
   };
 
   const handlePilotCheckboxChange = (username: string, checked: boolean) => {
-    if (checked) {
-      setSelectedPilots([...selectedPilots, username]);
-    } else {
-      setSelectedPilots(selectedPilots.filter(p => p !== username));
-    }
+    setSelectedPilots(checked ? [...selectedPilots, username] : selectedPilots.filter(p => p !== username));
   };
 
   const handleOtherCheckboxChange = (checked: boolean) => {
     setShowOtherInput(checked);
-    if (!checked) {
-      setOtherPilots(['']);
-    }
+    if (!checked) setOtherPilots(['']);
   };
 
   const handleOtherPilotChange = (index: number, value: string) => {
-    const newOtherPilots = [...otherPilots];
-    newOtherPilots[index] = value;
-    setOtherPilots(newOtherPilots);
+    const next = [...otherPilots];
+    next[index] = value;
+    setOtherPilots(next);
   };
 
-  const handleAddOtherPilot = () => {
-    setOtherPilots([...otherPilots, '']);
-  };
-
+  const handleAddOtherPilot = () => setOtherPilots([...otherPilots, '']);
   const handleRemoveOtherPilot = (index: number) => {
-    if (otherPilots.length > 1) {
-      const newOtherPilots = otherPilots.filter((_, i) => i !== index);
-      setOtherPilots(newOtherPilots);
-    }
+    if (otherPilots.length > 1) setOtherPilots(otherPilots.filter((_, i) => i !== index));
   };
 
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
-
-    if (!flightDate) {
-      newErrors.flightDate = 'Flight date is required';
-    }
-
-    if (!uploadedBy.trim()) {
-      newErrors.uploadedBy = 'Uploaded by is required';
-    }
-
-    if (!selectedFile) {
-      newErrors.file = 'Please select a file to upload';
-    }
-
+    if (!flightDate) newErrors.flightDate = 'Flight date is required';
+    if (!uploadedBy.trim()) newErrors.uploadedBy = 'Uploaded by is required';
+    if (!selectedFile) newErrors.file = 'Please select a file to upload';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const performUpload = async () => {
     if (!selectedFile) return;
-
     setIsUploading(true);
     setUploadError(null);
     abortControllerRef.current = new AbortController();
-
     try {
-      const validOtherPilots = showOtherInput
-        ? otherPilots.filter(p => p.trim() !== '')
-        : [];
+      const validOtherPilots = showOtherInput ? otherPilots.filter(p => p.trim() !== '') : [];
       const allPilots = [...selectedPilots, ...validOtherPilots];
-
       await uploadMutation.mutateAsync({
         file: selectedFile,
         data: {
@@ -294,18 +196,12 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
           site_id: selectedSiteId || undefined,
           mission_id: selectedMissionId || undefined,
         },
-        onProgress: (progress) => {
-          setUploadProgress(progress, selectedFile.name);
-        },
+        onProgress: (progress) => setUploadProgress(progress, selectedFile.name),
       });
-
       toast.success('Media uploaded successfully!');
       closeUploadModal();
     } catch (error: any) {
-      console.error('Upload failed:', error);
-      const errorMessage = error.response?.data?.message ||
-        error.message ||
-        'Upload failed. Please try again.';
+      const errorMessage = error.response?.data?.message || error.message || 'Upload failed. Please try again.';
       setUploadError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -316,15 +212,8 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateForm()) return;
-    if (!selectedFile) return;
-
-    if (!selectedSiteId) {
-      setShowNoSiteConfirm(true);
-      return;
-    }
-
+    if (!validateForm() || !selectedFile) return;
+    if (!selectedSiteId) { setShowNoSiteConfirm(true); return; }
     await performUpload();
   };
 
@@ -336,21 +225,34 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
     closeUploadModal();
   };
 
+  const allPilotsSelected = [...selectedPilots, ...(showOtherInput ? otherPilots.filter(p => p.trim()) : [])];
+
   return (
-    <div className="fixed inset-0 z-[1001] flex items-center justify-center bg-black bg-opacity-50 animate-fade-in">
-      <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto animate-scale-in">
+    <div className="fixed inset-0 z-[1001] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="relative bg-[#111827] border border-[#1e2a3a] rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+
         {/* Header */}
-        <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-xl font-semibold text-sky-night">Upload Media</h2>
-          <p className="text-sm text-sky-dusk mt-1">Share photos and videos from your flight day</p>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e2a3a]">
+          <div>
+            <h2 className="text-base font-bold text-white">Upload Media</h2>
+            <p className="text-xs text-[#6b7fa3] mt-0.5">Share photos and videos from your flight day</p>
+          </div>
+          <button
+            onClick={handleCancel}
+            className="text-[#6b7fa3] hover:text-white transition-colors p-1 rounded-lg hover:bg-[#1e2a3a]"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+
           {/* Flight Date */}
           <div>
-            <label htmlFor="flight-date" className="block text-sm font-medium text-sky-dusk mb-2">
-              Flight Date <span className="text-red-500">*</span>
+            <label htmlFor="flight-date" className={labelCls}>
+              Flight Date <span className="text-red-400">*</span>
             </label>
             <input
               type="date"
@@ -358,19 +260,16 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
               value={flightDate}
               onChange={(e) => setFlightDate(e.target.value)}
               disabled={isUploading}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-sky-morning focus:border-sky-morning ${
-                errors.flightDate ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`${inputCls} ${errors.flightDate ? 'border-red-500' : ''}`}
+              style={{ colorScheme: 'dark' }}
             />
-            {errors.flightDate && (
-              <p className="text-sm text-red-500 mt-1">{errors.flightDate}</p>
-            )}
+            {errors.flightDate && <p className="text-xs text-red-400 mt-1">{errors.flightDate}</p>}
           </div>
 
-          {/* File Upload Area */}
+          {/* File Upload */}
           <div>
-            <label className="block text-sm font-medium text-sky-dusk mb-2">
-              Media File <span className="text-red-500">*</span>
+            <label className={labelCls}>
+              Media File <span className="text-red-400">*</span>
             </label>
 
             {!selectedFile ? (
@@ -380,87 +279,52 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
                   dragActive
-                    ? 'border-sky-morning bg-sky-midday'
+                    ? 'border-blue-500 bg-blue-500/10'
                     : errors.file
-                    ? 'border-red-500 bg-red-50'
-                    : 'border-gray-300 hover:border-sky-morning hover:bg-sky-midday'
+                    ? 'border-red-500 bg-red-500/5'
+                    : 'border-[#2a3a54] hover:border-blue-500/60 hover:bg-blue-500/5'
                 }`}
               >
-                <svg
-                  className="mx-auto h-12 w-12 text-gray-400"
-                  stroke="currentColor"
-                  fill="none"
-                  viewBox="0 0 48 48"
-                  aria-hidden="true"
-                >
+                <svg className="mx-auto h-10 w-10 text-[#4a5a74] mb-3" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                   <path
                     d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                    strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
                   />
                 </svg>
-                <p className="mt-2 text-sm text-sky-dusk">
-                  <span className="font-semibold text-sky-morning">Click to upload</span> or drag and drop
+                <p className="text-sm text-[#6b7fa3]">
+                  <span className="text-blue-400 font-medium">Click to upload</span> or drag and drop
                 </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  JPEG, PNG, WebP, MP4, WebM, MOV (max 500MB)
-                </p>
+                <p className="text-xs text-[#4a5a74] mt-1">JPEG, PNG, WebP, MP4, WebM, MOV (max {MAX_FILE_SIZE_LABEL})</p>
               </div>
             ) : (
-              <div className="border-2 border-gray-300 rounded-lg p-4">
+              <div className="border border-[#2a3a54] rounded-xl p-4 bg-[#0d1421]">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center gap-3">
                     {filePreview ? (
-                      <img
-                        src={filePreview}
-                        alt="Preview"
-                        className="w-16 h-16 object-cover rounded"
-                      />
+                      <img src={filePreview} alt="Preview" className="w-14 h-14 object-cover rounded-lg" />
                     ) : (
-                      <div className="w-16 h-16 bg-gray-200 rounded flex items-center justify-center">
-                        <svg
-                          className="w-8 h-8 text-gray-400"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                          />
+                      <div className="w-14 h-14 bg-[#1e2a3a] rounded-lg flex items-center justify-center">
+                        <svg className="w-7 h-7 text-[#4a5a74]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
                       </div>
                     )}
                     <div>
-                      <p className="text-sm font-medium text-sky-night">{selectedFile.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
+                      <p className="text-sm font-medium text-white">{selectedFile.name}</p>
+                      <p className="text-xs text-[#4a5a74]">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
                   </div>
                   {!isUploading && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedFile(null);
-                        setFilePreview(null);
-                        if (fileInputRef.current) {
-                          fileInputRef.current.value = '';
-                        }
-                      }}
-                      className="text-red-500 hover:text-red-700"
+                      onClick={() => { setSelectedFile(null); setFilePreview(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                      className="text-[#6b7fa3] hover:text-red-400 transition-colors p-1"
                     >
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                          fillRule="evenodd"
-                          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                          clipRule="evenodd"
-                        />
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
                     </button>
                   )}
@@ -475,16 +339,13 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
               accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov"
               className="hidden"
             />
-
-            {errors.file && (
-              <p className="text-sm text-red-500 mt-1">{errors.file}</p>
-            )}
+            {errors.file && <p className="text-xs text-red-400 mt-1">{errors.file}</p>}
           </div>
 
-          {/* Uploaded By (Read-only) */}
+          {/* Uploaded By */}
           <div>
-            <label htmlFor="uploaded-by" className="block text-sm font-medium text-sky-dusk mb-2">
-              Uploaded By <span className="text-red-500">*</span>
+            <label htmlFor="uploaded-by" className={labelCls}>
+              Uploaded By <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
@@ -492,117 +353,99 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
               value={uploadedBy}
               readOnly
               disabled
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+              className={`${inputCls} opacity-50 cursor-not-allowed`}
             />
-            <p className="text-xs text-gray-500 mt-1">This field is automatically set to your username</p>
+            <p className="text-xs text-[#4a5a74] mt-1">Automatically set to your username</p>
           </div>
 
-          {/* Site Selection */}
+          {/* Flying Site */}
           <div>
-            <label htmlFor="site" className="block text-sm font-medium text-sky-dusk mb-2">
-              Flying Site (Optional)
-            </label>
+            <label htmlFor="site" className={labelCls}>Flying Site</label>
             {isLoadingSites ? (
-              <div className="text-sm text-gray-500">Loading sites...</div>
+              <div className="text-sm text-[#4a5a74]">Loading sites…</div>
             ) : (
               <select
                 id="site"
                 value={selectedSiteId}
                 onChange={(e) => { setSelectedSiteId(e.target.value); setSiteManuallySet(true); }}
                 disabled={isUploading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-morning focus:border-sky-morning"
+                className={inputCls}
+                style={{ colorScheme: 'dark' }}
               >
                 <option value="">Select a site</option>
                 {sites
                   .filter(site => site.enabled)
                   .sort((a, b) => a.name.localeCompare(b.name))
                   .map((site) => (
-                    <option key={site.id} value={site.id}>
-                      {site.name}
-                    </option>
+                    <option key={site.id} value={site.id}>{site.name}</option>
                   ))}
               </select>
             )}
-            <p className="text-xs text-gray-500 mt-1">
-              Selecting a site will save its GPS coordinates for future features
-            </p>
           </div>
 
-          {/* Mission Selection */}
+          {/* Mission */}
           <div>
-            <label htmlFor="mission" className="block text-sm font-medium text-sky-dusk mb-2">
-              Mission (Optional)
-            </label>
+            <label htmlFor="mission" className={labelCls}>Mission</label>
             {isLoadingMissions ? (
-              <div className="text-sm text-gray-500">Loading missions...</div>
+              <div className="text-sm text-[#4a5a74]">Loading missions…</div>
             ) : (
               <select
                 id="mission"
                 value={selectedMissionId}
                 onChange={(e) => setSelectedMissionId(e.target.value)}
                 disabled={isUploading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-morning focus:border-sky-morning"
+                className={inputCls}
+                style={{ colorScheme: 'dark' }}
               >
                 <option value="">Select a mission</option>
                 {missions.map((mission) => (
-                  <option key={mission.id} value={mission.id}>
-                    {mission.name}
-                  </option>
+                  <option key={mission.id} value={mission.id}>{mission.name}</option>
                 ))}
               </select>
             )}
           </div>
 
-          {/* Pilots Multi-Select */}
+          {/* Pilots */}
           <div>
-            <label className="block text-sm font-medium text-sky-dusk mb-2">
-              Pilots (Optional)
-            </label>
-
+            <label className={labelCls}>Pilots</label>
             {isLoadingUsernames ? (
-              <div className="text-sm text-gray-500">Loading pilots...</div>
+              <div className="text-sm text-[#4a5a74]">Loading pilots…</div>
             ) : (
               <div className="space-y-2">
-                {/* Usernames from system */}
-                <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-3">
+                <div className="max-h-40 overflow-y-auto border border-[#2a3a54] rounded-lg p-2 bg-[#0d1421]">
                   {availableUsernames.length === 0 ? (
-                    <p className="text-sm text-gray-500">No pilots available</p>
+                    <p className="text-sm text-[#4a5a74]">No pilots available</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       {availableUsernames.sort((a, b) => a.localeCompare(b)).map((username) => (
-                        <label
-                          key={username}
-                          className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
-                        >
+                        <label key={username} className="flex items-center gap-2 px-1 py-0.5 rounded cursor-pointer hover:bg-[#1e2a3a]">
                           <input
                             type="checkbox"
                             checked={selectedPilots.includes(username)}
                             onChange={(e) => handlePilotCheckboxChange(username, e.target.checked)}
                             disabled={isUploading}
-                            className="rounded text-sky-morning focus:ring-sky-morning"
+                            className="rounded accent-blue-500"
                           />
-                          <span className="text-sm text-gray-700">{username}</span>
+                          <span className="text-sm text-[#a0b3cc]">{username}</span>
                         </label>
                       ))}
                     </div>
                   )}
                 </div>
 
-                {/* Other checkbox */}
-                <label className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                <label className="flex items-center gap-2 px-1 py-0.5 rounded cursor-pointer hover:bg-[#1e2a3a]">
                   <input
                     type="checkbox"
                     checked={showOtherInput}
                     onChange={(e) => handleOtherCheckboxChange(e.target.checked)}
                     disabled={isUploading}
-                    className="rounded text-sky-morning focus:ring-sky-morning"
+                    className="rounded accent-blue-500"
                   />
-                  <span className="text-sm font-medium text-sky-dusk">Other (enter custom name)</span>
+                  <span className="text-sm text-[#a0b3cc]">Other (custom name)</span>
                 </label>
 
-                {/* Other pilot inputs */}
                 {showOtherInput && (
-                  <div className="pl-6 space-y-2 border-l-2 border-sky-morning">
+                  <div className="pl-4 space-y-2 border-l-2 border-blue-600/40">
                     {otherPilots.map((pilot, index) => (
                       <div key={index} className="flex gap-2">
                         <input
@@ -611,21 +454,17 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
                           onChange={(e) => handleOtherPilotChange(index, e.target.value)}
                           disabled={isUploading}
                           placeholder={`Pilot name ${index + 1}`}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-morning focus:border-sky-morning"
+                          className={inputCls}
                         />
                         {otherPilots.length > 1 && (
                           <button
                             type="button"
                             onClick={() => handleRemoveOtherPilot(index)}
                             disabled={isUploading}
-                            className="px-3 py-2 text-red-500 hover:text-red-700 disabled:opacity-50"
+                            className="px-2 text-[#6b7fa3] hover:text-red-400 transition-colors disabled:opacity-50"
                           >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fillRule="evenodd"
-                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                clipRule="evenodd"
-                              />
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                             </svg>
                           </button>
                         )}
@@ -635,7 +474,7 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
                       type="button"
                       onClick={handleAddOtherPilot}
                       disabled={isUploading}
-                      className="text-sm text-sky-morning hover:text-sky-night disabled:opacity-50"
+                      className="text-sm text-blue-400 hover:text-white transition-colors disabled:opacity-50"
                     >
                       + Add another pilot
                     </button>
@@ -643,19 +482,14 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
                 )}
               </div>
             )}
-
-            {selectedPilots.length > 0 || (showOtherInput && otherPilots.some(p => p.trim())) ? (
-              <div className="mt-2 text-xs text-gray-600">
-                Selected: {[...selectedPilots, ...otherPilots.filter(p => p.trim())].join(', ')}
-              </div>
-            ) : null}
+            {allPilotsSelected.length > 0 && (
+              <p className="text-xs text-[#4a5a74] mt-1">Selected: {allPilotsSelected.join(', ')}</p>
+            )}
           </div>
 
           {/* Notes */}
           <div>
-            <label htmlFor="notes" className="block text-sm font-medium text-sky-dusk mb-2">
-              Notes (Optional)
-            </label>
+            <label htmlFor="notes" className={labelCls}>Notes</label>
             <textarea
               id="notes"
               value={notes}
@@ -663,20 +497,20 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
               disabled={isUploading}
               placeholder="Add any notes about this flight..."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-morning focus:border-sky-morning resize-none"
+              className={`${inputCls} resize-none`}
             />
           </div>
 
           {/* Upload Progress */}
           {isUploading && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-sky-dusk">Uploading...</span>
-                <span className="text-sky-night font-medium">{uploadProgress}%</span>
+            <div>
+              <div className="flex justify-between text-xs text-[#6b7fa3] mb-1">
+                <span>Uploading…</span>
+                <span>{uploadProgress}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-[#1e2a3a] rounded-full h-1.5">
                 <div
-                  className="bg-sky-morning h-full transition-all duration-300 ease-out"
+                  className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
@@ -685,53 +519,50 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
 
           {/* Upload Error */}
           {uploadError && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-              <p className="text-sm text-red-700">{uploadError}</p>
+            <div className="bg-red-900/20 border border-red-500/30 rounded-lg px-4 py-3">
+              <p className="text-sm text-red-400">{uploadError}</p>
             </div>
           )}
-        </form>
 
-        {/* Footer */}
-        <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 rounded-b-lg">
-          <div className="flex justify-end space-x-3">
+          {/* Actions */}
+          <div className="flex gap-3 pt-1 border-t border-[#1e2a3a]">
             <button
               type="button"
               onClick={handleCancel}
-              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="flex-1 px-4 py-2 border border-[#2a3a54] text-[#a0b3cc] rounded-lg hover:bg-[#1e2a3a] transition-colors text-sm"
             >
               {isUploading ? 'Cancel Upload' : 'Cancel'}
             </button>
             <button
               type="submit"
-              onClick={handleSubmit}
               disabled={isUploading || !selectedFile}
-              className="px-4 py-2 bg-sky-morning text-white rounded-lg hover:bg-sky-night disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isUploading ? 'Uploading...' : 'Upload'}
+              {isUploading ? 'Uploading…' : 'Upload'}
             </button>
           </div>
-        </div>
+        </form>
 
-        {/* No Flying Site confirmation dialog */}
+        {/* No Flying Site confirmation */}
         {showNoSiteConfirm && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black bg-opacity-40 rounded-lg">
-            <div className="bg-white rounded-lg shadow-xl p-6 mx-6 max-w-sm w-full">
-              <h3 className="text-base font-semibold text-sky-night mb-2">No Flying Site Selected</h3>
-              <p className="text-sm text-sky-dusk mb-5">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 rounded-2xl">
+            <div className="bg-[#141d2e] border border-[#1e2a3a] rounded-xl shadow-2xl p-6 mx-6 max-w-sm w-full">
+              <h3 className="text-base font-semibold text-white mb-2">No Flying Site Selected</h3>
+              <p className="text-sm text-[#6b7fa3] mb-5">
                 You haven't selected a flying site. Do you want to upload without one?
               </p>
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowNoSiteConfirm(false)}
-                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+                  className="px-4 py-2 border border-[#2a3a54] text-[#a0b3cc] rounded-lg hover:bg-[#1e2a3a] transition-colors text-sm"
                 >
                   Go Back
                 </button>
                 <button
                   type="button"
                   onClick={performUpload}
-                  className="px-4 py-2 bg-sky-morning text-white rounded-lg hover:bg-sky-night text-sm transition-colors"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
                 >
                   Upload Anyway
                 </button>

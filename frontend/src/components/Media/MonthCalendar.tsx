@@ -46,7 +46,7 @@ function MonthCalendar({
   return (
     <div className="calendar-month-grid">
       {/* Month header */}
-      <h3 className="text-lg sm:text-xl font-display font-semibold text-sky-night mb-4 text-center">
+      <h3 className="text-lg sm:text-xl font-display font-semibold text-white mb-4 text-center">
         {format(month, 'MMMM yyyy')}
       </h3>
 
@@ -56,7 +56,7 @@ function MonthCalendar({
         {weekDays.map((day) => (
           <div
             key={day}
-            className="calendar-weekday text-center py-3 text-sm font-mono font-medium text-sky-dusk uppercase tracking-wider"
+            className="calendar-weekday text-center py-3 text-sm font-mono font-medium text-[#6b7fa3] uppercase tracking-wider"
           >
             {day}
           </div>
@@ -82,14 +82,14 @@ function MonthCalendar({
                 flex flex-col items-center justify-start
                 ${
                   isCurrentMonth
-                    ? 'hover:shadow-elevation hover:scale-105 cursor-pointer'
+                    ? 'hover:scale-105 cursor-pointer'
                     : 'opacity-30 cursor-not-allowed'
                 }
-                ${isTodayDate ? 'ring-2 ring-sky-morning' : ''}
+                ${isTodayDate ? 'ring-2 ring-blue-500' : ''}
                 ${
                   hasMedia && isCurrentMonth
-                    ? 'bg-green-50 hover:bg-green-100'
-                    : 'bg-sky-cloud hover:bg-sky-midday'
+                    ? 'bg-green-900/25 hover:bg-green-900/40'
+                    : 'bg-[#1e2a3a] hover:bg-[#243048]'
                 }
               `}
               style={{
@@ -100,8 +100,8 @@ function MonthCalendar({
               <span
                 className={`
                   text-base sm:text-lg font-display font-semibold mb-1
-                  ${isCurrentMonth ? 'text-sky-night' : 'text-sky-dusk/50'}
-                  ${isTodayDate ? 'text-sky-morning' : ''}
+                  ${isCurrentMonth ? 'text-white' : 'text-[#4a5568]'}
+                  ${isTodayDate ? 'text-blue-400' : ''}
                 `}
               >
                 {format(day, 'd')}
@@ -111,7 +111,7 @@ function MonthCalendar({
               {hasMedia && isCurrentMonth && mediaCounts && (
                 <div className="flex flex-col gap-1 text-xs sm:text-sm">
                   {mediaCounts.image_count > 0 && (
-                    <div className="flex items-center gap-1 text-sky-dusk">
+                    <div className="flex items-center gap-1 text-[#a0b3cc]">
                       <svg
                         className="w-3 h-3 sm:w-4 sm:h-4"
                         fill="none"
@@ -129,7 +129,7 @@ function MonthCalendar({
                     </div>
                   )}
                   {mediaCounts.video_count > 0 && (
-                    <div className="flex items-center gap-1 text-sky-dusk">
+                    <div className="flex items-center gap-1 text-[#a0b3cc]">
                       <svg
                         className="w-3 h-3 sm:w-4 sm:h-4"
                         fill="none"
@@ -147,7 +147,7 @@ function MonthCalendar({
                     </div>
                   )}
                   {mediaCounts.flight_count > 0 && (
-                    <div className="flex items-center gap-1 text-emerald-600">
+                    <div className="flex items-center gap-1 text-emerald-400">
                       <svg
                         className="w-3 h-3 sm:w-4 sm:h-4"
                         fill="none"

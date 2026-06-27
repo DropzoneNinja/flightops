@@ -49,6 +49,9 @@ export class FlightSite {
   @Column({ type: 'text', nullable: true })
   weather_notes: string;
 
+  @Column({ type: 'integer', nullable: true })
+  elevation_m: number;
+
   @Column({ type: 'jsonb', nullable: true })
   plot_data: { points: Array<{ lat: number; lon: number }> } | null;
 

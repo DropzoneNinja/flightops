@@ -23,7 +23,10 @@ interface FlightUploadModalProps {
   onSuccess?: () => void;
 }
 
-const MAX_GPX_SIZE = 50 * 1024 * 1024; // 50 MB
+const MAX_GPX_SIZE = 50 * 1024 * 1024;
+
+const inputCls = 'w-full px-3 py-2 bg-[#0d1421] border border-[#2a3a54] rounded-lg text-sm text-white placeholder-[#4a5568] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-40 disabled:cursor-not-allowed';
+const labelCls = 'block text-xs font-medium text-[#a0b3cc] mb-1';
 
 export default function FlightUploadModal({ date, open, onClose, onSuccess }: FlightUploadModalProps) {
   const uploadMutation = useFlightUpload(date);
@@ -32,7 +35,6 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
   const { sites, isLoading: isLoadingSites } = useSites();
   const toast = useToastContext();
 
-  // Pilot list from users (same source as Upload Media dialog)
   const [availableUsernames, setAvailableUsernames] = useState<string[]>([]);
   const [isLoadingUsernames, setIsLoadingUsernames] = useState(false);
 
@@ -44,7 +46,6 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
       .finally(() => setIsLoadingUsernames(false));
   }, []);
 
-  // Form state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedUsername, setSelectedUsername] = useState('');
   const [title, setTitle] = useState('');
@@ -53,11 +54,9 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
   const [selectedSiteId, setSelectedSiteId] = useState('');
   const [notes, setNotes] = useState('');
 
-  // GPX-extracted date (locked — cannot be overridden by user)
   const [gpxDate, setGpxDate] = useState<string | null>(null);
   const [gpxParsing, setGpxParsing] = useState(false);
 
-  // UI state
   const [dragActive, setDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileError, setFileError] = useState('');
@@ -67,7 +66,7 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
 
   const validateFile = (file: File): string | null => {
     if (!file.name.toLowerCase().endsWith('.gpx')) return 'Only .gpx files are accepted';
-    if (file.size > MAX_GPX_SIZE) return `File exceeds maximum size of 50 MB`;
+    if (file.size > MAX_GPX_SIZE) return 'File exceeds maximum size of 50 MB';
     return null;
   };
 
@@ -78,7 +77,6 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
     setSelectedFile(file);
     if (!title) setTitle(file.name.replace(/\.gpx$/i, ''));
 
-    // Parse GPX metadata in the background
     setGpxParsing(true);
     try {
       const text = await file.text();
@@ -88,7 +86,6 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
       if (meta.glider && !glider) setGlider(meta.glider);
       if (meta.harness && !harness) setHarness(meta.harness);
 
-      // Auto-select launch site: find the nearest enabled site within 1 km
       if (meta.firstLat !== undefined && meta.firstLon !== undefined) {
         const match = sites
           .filter((s) => s.enabled)
@@ -101,7 +98,7 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
         if (match) setSelectedSiteId(match.site.id);
       }
     } catch {
-      // GPX parse failure is non-fatal — continue with empty fields
+      // non-fatal
     } finally {
       setGpxParsing(false);
     }
@@ -141,7 +138,6 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
     }
     setPilotError('');
 
-    // Resolve username → pilot_id; create the pilot record if it doesn't exist yet
     let resolvedPilotId: string | undefined;
     try {
       const existing = pilots.find((p) => p.display_name === selectedUsername);
@@ -156,7 +152,6 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
       return;
     }
 
-    // Use the GPX date if extracted, otherwise fall back to the calendar date
     const flightDate = gpxDate ?? date;
 
     try {
@@ -185,15 +180,15 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-[#111827] border border-[#1e2a3a] rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-sky-midday">
-          <h2 className="text-lg font-bold text-sky-night">Upload GPX Flight</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e2a3a]">
+          <h2 className="text-base font-bold text-white">Upload GPX Flight</h2>
           <button
             onClick={handleClose}
             disabled={uploadMutation.isPending}
-            className="text-sky-dusk hover:text-sky-night transition-colors p-1 rounded"
+            className="text-[#6b7fa3] hover:text-white transition-colors p-1 rounded-lg hover:bg-[#1e2a3a] disabled:opacity-40"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -201,7 +196,7 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-5">
+        <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-4">
           {/* Drop zone */}
           <div
             onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
@@ -210,10 +205,10 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
             onClick={() => fileInputRef.current?.click()}
             className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
               dragActive
-                ? 'border-sky-morning bg-sky-morning/5'
+                ? 'border-blue-500 bg-blue-500/10'
                 : selectedFile
-                ? 'border-green-400 bg-green-50'
-                : 'border-sky-midday hover:border-sky-morning hover:bg-sky-morning/5'
+                ? 'border-green-500 bg-green-500/10'
+                : 'border-[#2a3a54] hover:border-blue-500/60 hover:bg-blue-500/5'
             }`}
           >
             <input
@@ -225,108 +220,108 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
             />
             {selectedFile ? (
               <>
-                <svg className="mx-auto w-8 h-8 text-green-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="mx-auto w-8 h-8 text-green-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-sm font-medium text-green-700">{selectedFile.name}</p>
-                <p className="text-xs text-green-600 mt-1">
+                <p className="text-sm font-medium text-green-400">{selectedFile.name}</p>
+                <p className="text-xs text-green-500/70 mt-1">
                   {(selectedFile.size / 1024).toFixed(0)} KB
-                  {gpxParsing && <span className="ml-2 text-sky-dusk animate-pulse">Reading GPX…</span>}
+                  {gpxParsing && <span className="ml-2 text-blue-400 animate-pulse">Reading GPX…</span>}
                 </p>
               </>
             ) : (
               <>
-                <svg className="mx-auto w-8 h-8 text-sky-dusk/50 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="mx-auto w-8 h-8 text-[#4a5a74] mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                <p className="text-sm text-sky-dusk">
-                  Drag & drop or <span className="text-sky-morning font-medium">browse</span>
+                <p className="text-sm text-[#6b7fa3]">
+                  Drag & drop or <span className="text-blue-400 font-medium">browse</span>
                 </p>
-                <p className="text-xs text-sky-dusk/70 mt-1">.gpx files only, max 50 MB</p>
+                <p className="text-xs text-[#4a5a74] mt-1">.gpx files only, max 50 MB</p>
               </>
             )}
           </div>
-          {fileError && <p className="text-red-500 text-sm -mt-3">{fileError}</p>}
+          {fileError && <p className="text-red-400 text-sm -mt-2">{fileError}</p>}
 
-          {/* Flight date (read-only when extracted from GPX) */}
+          {/* Flight date from GPX */}
           {gpxDate && (
             <div>
-              <label className="block text-sm font-medium text-sky-night mb-1">Flight Date</label>
-              <div className="flex items-center gap-2 border border-sky-midday rounded-lg px-3 py-2 bg-sky-cloud/50">
-                <svg className="w-4 h-4 text-sky-dusk flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <label className={labelCls}>Flight Date</label>
+              <div className="flex items-center gap-2 border border-[#2a3a54] rounded-lg px-3 py-2 bg-[#0d1421]">
+                <svg className="w-4 h-4 text-[#6b7fa3] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span className="text-sm text-sky-night">{gpxDate}</span>
-                <span className="ml-auto text-xs text-sky-dusk">from GPX</span>
+                <span className="text-sm text-white">{gpxDate}</span>
+                <span className="ml-auto text-xs text-[#4a5a74]">from GPX</span>
               </div>
             </div>
           )}
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-sky-night mb-1">Title</label>
+            <label className={labelCls}>Title</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Morning flight at Dunstable"
-              className="w-full border border-sky-midday rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-morning"
+              className={inputCls}
             />
           </div>
 
           {/* Pilot */}
           <div>
-            <label className="block text-sm font-medium text-sky-night mb-1">Pilot</label>
+            <label className={labelCls}>Pilot</label>
             <select
               value={selectedUsername}
               onChange={(e) => { setSelectedUsername(e.target.value); setPilotError(''); }}
-              className="w-full border border-sky-midday rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-morning"
+              className={inputCls}
               disabled={isLoadingUsernames}
+              style={{ colorScheme: 'dark' }}
             >
               <option value="">{isLoadingUsernames ? 'Loading pilots…' : '— Select pilot —'}</option>
               {availableUsernames.sort((a, b) => a.localeCompare(b)).map((username) => (
                 <option key={username} value={username}>{username}</option>
               ))}
             </select>
-            {pilotError && (
-              <p className="mt-1 text-xs text-red-600">{pilotError}</p>
-            )}
+            {pilotError && <p className="mt-1 text-xs text-red-400">{pilotError}</p>}
           </div>
 
           {/* Glider & Harness */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-sky-night mb-1">Glider / Wing</label>
+              <label className={labelCls}>Glider / Wing</label>
               <input
                 type="text"
                 value={glider}
                 onChange={(e) => setGlider(e.target.value)}
                 placeholder="e.g. Ozone Roadster 3"
-                className="w-full border border-sky-midday rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-morning"
+                className={inputCls}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-sky-night mb-1">Harness / Trike</label>
+              <label className={labelCls}>Harness / Trike</label>
               <input
                 type="text"
                 value={harness}
                 onChange={(e) => setHarness(e.target.value)}
                 placeholder="e.g. Dudek Comfort"
-                className="w-full border border-sky-midday rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-morning"
+                className={inputCls}
               />
             </div>
           </div>
 
           {/* Launch site */}
           <div>
-            <label className="block text-sm font-medium text-sky-night mb-1">Launch Site</label>
+            <label className={labelCls}>Launch Site</label>
             {isLoadingSites ? (
-              <div className="text-sm text-sky-dusk">Loading sites…</div>
+              <div className="text-sm text-[#4a5a74]">Loading sites…</div>
             ) : (
               <select
                 value={selectedSiteId}
                 onChange={(e) => setSelectedSiteId(e.target.value)}
-                className="w-full border border-sky-midday rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-morning"
+                className={inputCls}
+                style={{ colorScheme: 'dark' }}
               >
                 <option value="">— Select launch site —</option>
                 {sites
@@ -341,46 +336,46 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-sky-night mb-1">Notes</label>
+            <label className={labelCls}>Notes</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               placeholder="Any notes about this flight…"
-              className="w-full border border-sky-midday rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-morning resize-none"
+              className={`${inputCls} resize-none`}
             />
           </div>
 
           {/* Upload progress */}
           {uploadMutation.isPending && (
             <div>
-              <div className="flex justify-between text-xs text-sky-dusk mb-1">
+              <div className="flex justify-between text-xs text-[#6b7fa3] mb-1">
                 <span>Uploading…</span>
                 <span>{uploadProgress}%</span>
               </div>
-              <div className="w-full bg-sky-midday rounded-full h-1.5">
+              <div className="w-full bg-[#1e2a3a] rounded-full h-1.5">
                 <div
-                  className="bg-sky-morning h-1.5 rounded-full transition-all"
+                  className="bg-blue-500 h-1.5 rounded-full transition-all"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
             </div>
           )}
 
-          {/* Submit */}
+          {/* Actions */}
           <div className="flex gap-3 pt-1">
             <button
               type="button"
               onClick={handleClose}
               disabled={uploadMutation.isPending}
-              className="flex-1 px-4 py-2.5 border border-sky-midday text-sky-dusk rounded-lg hover:bg-sky-cloud transition-colors text-sm disabled:opacity-40"
+              className="flex-1 px-4 py-2 border border-[#2a3a54] text-[#a0b3cc] rounded-lg hover:bg-[#1e2a3a] transition-colors text-sm disabled:opacity-40"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!selectedFile || uploadMutation.isPending || gpxParsing}
-              className="flex-1 px-4 py-2.5 bg-sky-morning text-white rounded-lg hover:bg-sky-dusk transition-colors text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {uploadMutation.isPending ? 'Uploading…' : gpxParsing ? 'Reading…' : 'Upload GPX'}
             </button>

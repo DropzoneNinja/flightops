@@ -36,6 +36,7 @@ export default function EditSitePanel({
     takeoff_notes: '',
     parking_notes: '',
     weather_notes: '',
+    elevation_m: '' as number | '',
   });
 
   // Initialise form when site changes
@@ -50,6 +51,7 @@ export default function EditSitePanel({
         takeoff_notes: site.takeoff_notes ?? '',
         parking_notes: site.parking_notes ?? '',
         weather_notes: site.weather_notes ?? '',
+        elevation_m: site.elevation_m ?? '',
       });
     }
   }, [site]);
@@ -93,6 +95,7 @@ export default function EditSitePanel({
         takeoff_notes: formData.takeoff_notes || undefined,
         parking_notes: formData.parking_notes || undefined,
         weather_notes: formData.weather_notes || undefined,
+        elevation_m: formData.elevation_m !== '' ? Number(formData.elevation_m) : undefined,
       };
 
       await updateSiteMutation.mutateAsync({ id: site.id, data: updateData });
@@ -347,6 +350,23 @@ export default function EditSitePanel({
             <div className="text-xs text-gray-500 text-right">
               {formData.weather_notes.length}/10000
             </div>
+          </div>
+
+          {/* Elevation */}
+          <div>
+            <label htmlFor="edit-elevation" className="block text-sm font-medium text-gray-700 mb-1">
+              Elevation (m above sea level)
+            </label>
+            <input
+              id="edit-elevation"
+              type="number"
+              value={formData.elevation_m}
+              onChange={(e) => setFormData({ ...formData, elevation_m: e.target.value === '' ? '' : Number(e.target.value) })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+              placeholder="e.g. 1460"
+              min="-500"
+              max="9000"
+            />
           </div>
 
           {/* Action Buttons */}

@@ -16,6 +16,7 @@ export interface FlightSite {
   parking_notes?: string;
   weather_notes?: string;
   parking_address?: string;
+  elevation_m?: number;
   plot_data?: PlotData | null;
   enabled: boolean;
   created_at: string;
@@ -31,6 +32,7 @@ export interface CreateSiteData {
   takeoff_notes?: string;
   parking_notes?: string;
   weather_notes?: string;
+  elevation_m?: number;
   plot_data?: PlotData | null;
 }
 
@@ -43,6 +45,7 @@ export interface UpdateSiteData {
   takeoff_notes?: string;
   parking_notes?: string;
   weather_notes?: string;
+  elevation_m?: number;
   plot_data?: PlotData | null;
 }
 

@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { MapContainer, TileLayer, useMapEvents, Marker, Popup, useMap } from 'react-leaflet';
 import { LatLng } from 'leaflet';
 import { useSites } from '../hooks/useSites';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
+import { SettingKey } from '../services/settings.service';
 import { useIsMobile } from '../hooks/useIsMobile';
 import SiteMarker from '../components/Site/SiteMarker';
-import AddSitePanel from '../components/Site/AddSitePanel';
-import EditSitePanel from '../components/Site/EditSitePanel';
+import SiteInspectionPanel from '../components/Site/SiteInspectionPanel';
+import { createWindSockIcon } from '../utils/windsockIcon';
+import { convertWindSpeed, windSpeedUnitLabel } from '../utils/windSpeed';
+import LeftSidebar from '../components/Layout/LeftSidebar';
 import AirspaceOverlay from '../components/Airspace/AirspaceOverlay';
 import AirspaceClassFilter from '../components/Airspace/AirspaceClassFilter';
 import AirspaceLayerVisualization from '../components/Airspace/AirspaceLayerVisualization';
@@ -26,7 +29,6 @@ import { MissionWaypoint, missionsService } from '../services/missions.service';
 import { useMissionsStore } from '../stores/missionsStore';
 import 'leaflet/dist/leaflet.css';
 
-// Fix for default marker icons in React-Leaflet
 import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -37,7 +39,6 @@ let DefaultIcon = L.icon({
   iconAnchor: [12, 41],
 });
 
-// Create a custom orange icon for temporary location selection
 const TempIcon = L.divIcon({
   className: 'custom-temp-marker',
   html: `<div style="
@@ -57,35 +58,22 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 function MapClickHandler({ onMapClick }: { onMapClick: (latlng: LatLng) => void }) {
   useMapEvents({
-    click: (e) => {
-      onMapClick(e.latlng);
-    },
+    click: (e) => { onMapClick(e.latlng); },
   });
   return null;
 }
 
 function ZoomTracker({ onZoomChange }: { onZoomChange: (zoom: number) => void }) {
   const map = useMapEvents({
-    zoomend: () => {
-      onZoomChange(map.getZoom());
-    },
+    zoomend: () => { onZoomChange(map.getZoom()); },
   });
-
-  // Set initial zoom
-  useState(() => {
-    onZoomChange(map.getZoom());
-  });
-
+  useState(() => { onZoomChange(map.getZoom()); });
   return null;
 }
 
 function MapController({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> }) {
   const map = useMap();
-
-  useEffect(() => {
-    mapRef.current = map;
-  }, [map, mapRef]);
-
+  useEffect(() => { mapRef.current = map; }, [map, mapRef]);
   return null;
 }
 
@@ -94,7 +82,11 @@ function FlyToSite({ sites, siteId }: { sites: FlightSite[]; siteId: string | nu
   const flown = useRef(false);
 
   useEffect(() => {
-    if (!siteId || flown.current) return;
+    if (!siteId) {
+      flown.current = false;
+      return;
+    }
+    if (flown.current) return;
     const site = sites.find(s => s.id === siteId);
     if (site) {
       map.setView([site.takeoff_lat, site.takeoff_lon], 16);
@@ -111,13 +103,12 @@ export default function MapView() {
   const { settingsMap, isLoadingMap } = useSettings();
   const { airspace } = useAirspace();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const mapRef = useRef<L.Map | null>(null);
-  const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
-  const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
-  const [activeLocationSelection, setActiveLocationSelection] = useState<'takeoff' | 'parking' | null>(null);
-  const [pendingLocation, setPendingLocation] = useState<LatLng | null>(null);
-  const [pendingLocationType, setPendingLocationType] = useState<'takeoff' | 'parking' | null>(null);
+  const prevMapStateRef = useRef<{ lat: number; lng: number; zoom: number } | null>(
+    (location.state as { prevMapState?: { lat: number; lng: number; zoom: number } } | null)?.prevMapState ?? null,
+  );
   const [isMissionMode, setIsMissionMode] = useState(false);
   const [waypointsByMission, setWaypointsByMission] = useState<Map<string, MissionWaypoint[]>>(new Map());
   const { missions, fetchMissions } = useMissionsStore();
@@ -126,7 +117,6 @@ export default function MapView() {
   const [parkingIconZoomLevel, setParkingIconZoomLevel] = useState(10);
   const [showAirspace, setShowAirspace] = useState(false);
   const [enabledAirspaceClasses, setEnabledAirspaceClasses] = useState<Set<AirspaceClass>>(() => {
-    // Try to load from localStorage first
     const stored = localStorage.getItem('enabledAirspaceClasses');
     if (stored) {
       try {
@@ -136,10 +126,13 @@ export default function MapView() {
         console.error('Failed to parse stored airspace classes:', e);
       }
     }
-    // Default classes: A, C, CTR, D, Q, R (G and RMZ disabled by default)
     return new Set(['A', 'C', 'CTR', 'D', 'Q', 'R']);
   });
-  const [selectedSiteForAirspace, setSelectedSiteForAirspace] = useState<FlightSite | null>(null);
+
+  // Selected site drives both the inspection panel and the airspace visualization
+  const [selectedSite, setSelectedSite] = useState<FlightSite | null>(null);
+  const [windsockWind, setWindsockWind] = useState<{ dir: number; speed: number } | null>(null);
+  const windUnit = (settingsMap[SettingKey.UNITS_WIND_SPEED] as string) || 'kmh';
 
   // Mobile state
   const isMobile = useIsMobile(900);
@@ -148,26 +141,27 @@ export default function MapView() {
   const [showMobileMultiHeight, setShowMobileMultiHeight] = useState(false);
   const [selectedMobileHeightForecast, setSelectedMobileHeightForecast] = useState<any>(null);
 
-  // Update state when settings are loaded
+  // Mobile location selection state (used by MobileAddSiteSheet)
+  const [activeLocationSelection, setActiveLocationSelection] = useState<'takeoff' | 'parking' | null>(null);
+  const [pendingLocation, setPendingLocation] = useState<LatLng | null>(null);
+  const [pendingLocationType, setPendingLocationType] = useState<'takeoff' | 'parking' | null>(null);
+
   useEffect(() => {
     if (!isLoadingMap && settingsMap) {
       if (settingsMap['map.show_zoom_indicator'] !== undefined) {
         setShowZoomIndicator(settingsMap['map.show_zoom_indicator']);
       }
-
       if (settingsMap['map.parking_icon_zoom_level'] !== undefined) {
         setParkingIconZoomLevel(settingsMap['map.parking_icon_zoom_level']);
       }
     }
   }, [settingsMap, isLoadingMap]);
 
-  // Persist enabled airspace classes to localStorage
   useEffect(() => {
     const classesArray = Array.from(enabledAirspaceClasses);
     localStorage.setItem('enabledAirspaceClasses', JSON.stringify(classesArray));
   }, [enabledAirspaceClasses]);
 
-  // Fetch waypoints for each mission when in high-zoom mission mode
   useEffect(() => {
     if (!isMissionMode || currentZoom < parkingIconZoomLevel) return;
     missions.forEach(mission => {
@@ -179,52 +173,17 @@ export default function MapView() {
     });
   }, [isMissionMode, currentZoom, parkingIconZoomLevel, missions]);
 
-  // Handle mobile tab navigation
   useEffect(() => {
-    if (mobileActiveTab === 'media') {
-      navigate('/media');
-    } else if (mobileActiveTab === 'logbook') {
-      navigate('/logbook');
-    }
+    if (mobileActiveTab === 'media') navigate('/media');
+    else if (mobileActiveTab === 'logbook') navigate('/logbook');
   }, [mobileActiveTab, navigate]);
 
   const handleMapClick = (latlng: LatLng) => {
-    // Only handle clicks when actively selecting a location
     if (activeLocationSelection) {
       setPendingLocation(latlng);
       setPendingLocationType(activeLocationSelection);
-      setActiveLocationSelection(null); // Return to neutral mode after selection
+      setActiveLocationSelection(null);
     }
-  };
-
-  const handleAddSiteClick = () => {
-    setIsAddPanelOpen(true);
-  };
-
-  const handlePanelClose = () => {
-    setIsAddPanelOpen(false);
-    setActiveLocationSelection(null);
-    setPendingLocation(null);
-    setPendingLocationType(null);
-  };
-
-  const handleEditSiteClick = () => {
-    setIsEditPanelOpen(true);
-  };
-
-  const handleEditPanelClose = () => {
-    setIsEditPanelOpen(false);
-    setActiveLocationSelection(null);
-    setPendingLocation(null);
-    setPendingLocationType(null);
-  };
-
-  const canEditSelectedSite =
-    selectedSiteForAirspace !== null &&
-    (user?.is_admin || selectedSiteForAirspace.user_id === user?.id);
-
-  const handleSelectLocation = (type: 'takeoff' | 'parking') => {
-    setActiveLocationSelection(type);
   };
 
   const handleZoomToLocation = useCallback((lat: number, lon: number, zoom: number = 17) => {
@@ -253,16 +212,17 @@ export default function MapView() {
   const handleToggleAirspaceClass = (airspaceClass: AirspaceClass) => {
     setEnabledAirspaceClasses(prev => {
       const next = new Set(prev);
-      if (next.has(airspaceClass)) {
-        next.delete(airspaceClass);
-      } else {
-        next.add(airspaceClass);
-      }
+      if (next.has(airspaceClass)) next.delete(airspaceClass);
+      else next.add(airspaceClass);
       return next;
     });
   };
 
   const handleTakeoffClick = (site: FlightSite) => {
+    if (mapRef.current) {
+      const center = mapRef.current.getCenter();
+      prevMapStateRef.current = { lat: center.lat, lng: center.lng, zoom: mapRef.current.getZoom() };
+    }
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       next.set('site', site.id);
@@ -271,23 +231,34 @@ export default function MapView() {
     if (isMobile) {
       setSelectedMobileSite(site);
     } else {
-      if (!showAirspace) {
-        setShowAirspace(true);
-      }
-      setSelectedSiteForAirspace(site);
+      setSelectedSite(site);
     }
   };
 
-  const handleCloseAirspaceVisualization = () => {
-    setSelectedSiteForAirspace(null);
+  const handleForecastSelect = (windDir: number, windSpeed: number) => {
+    setWindsockWind({ dir: windDir, speed: windSpeed });
+  };
+
+  const handleCloseInspectionPanel = () => {
+    setSelectedSite(null);
+    setWindsockWind(null);
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       next.delete('site');
       return next;
     });
+    if (mapRef.current && prevMapStateRef.current) {
+      const { lat, lng, zoom } = prevMapStateRef.current;
+      mapRef.current.setView([lat, lng], zoom);
+      prevMapStateRef.current = null;
+    }
   };
 
-  // On initial load, if a site param is present, open its panel once sites are loaded
+  const handleSelectLocation = (type: 'takeoff' | 'parking') => {
+    setActiveLocationSelection(type);
+  };
+
+  // On initial load, open site panel if URL has ?site=
   useEffect(() => {
     if (isLoading) return;
     const siteId = searchParams.get('site');
@@ -297,144 +268,53 @@ export default function MapView() {
     if (isMobile) {
       setSelectedMobileSite(site);
     } else {
-      setShowAirspace(true);
-      setSelectedSiteForAirspace(site);
+      setSelectedSite(site);
     }
   }, [isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Custom styles for crosshair and pulse animation */}
+    <div
+      className={`h-screen flex ${isMobile ? 'flex-col' : 'flex-row'} overflow-hidden`}
+      style={{ background: '#0d1421' }}
+    >
       <style>{`
-        .cursor-crosshair,
-        .cursor-crosshair * {
-          cursor: crosshair !important;
-        }
-
         @keyframes pulse {
-          0%, 100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: scale(1.2);
-            opacity: 0.8;
-          }
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.2); opacity: 0.8; }
         }
-
-        /* Custom crosshair cursor for better visibility */
-        .leaflet-container.leaflet-crosshair-cursor-enabled {
-          cursor: crosshair !important;
-        }
+        .site-card-marker { background: transparent !important; border: none !important; }
+        .leaflet-container { background: #1a2234; }
       `}</style>
 
-      {/* Desktop Header - Hidden on mobile */}
+      {/* Desktop left sidebar */}
       {!isMobile && (
-        <div className="bg-white shadow-sm border-b-2 border-gray-200 z-10">
-        <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="border-r-2 border-gray-300 pr-6 flex items-center gap-4">
-              <img
-                src="/logo.png"
-                alt="Throttle Junkies"
-                className="h-16 w-auto"
-              />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">FlightOps</h1>
-                <p className="text-sm text-gray-600">Paramotor Flight Sites</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-end space-x-4 ml-auto">
-              <span className="text-sm text-gray-600">{user?.username || user?.email}</span>
-              <button
-                onClick={() => setShowAirspace(!showAirspace)}
-                className={`px-4 py-2 text-white rounded-md text-sm font-medium transition-colors ${
-                  showAirspace
-                    ? 'bg-green-600 hover:bg-green-700'
-                    : 'bg-gray-600 hover:bg-gray-700'
-                }`}
-              >
-                {showAirspace ? 'Hide Airspace' : 'Show Airspace'}
-              </button>
-              <button
-                onClick={
-                  isMissionMode
-                    ? () => navigate('/missions')
-                    : canEditSelectedSite
-                    ? handleEditSiteClick
-                    : handleAddSiteClick
-                }
-                className={`px-4 py-2 text-white rounded-md text-sm font-medium transition-colors ${
-                  isMissionMode
-                    ? 'bg-indigo-600 hover:bg-indigo-700'
-                    : canEditSelectedSite
-                    ? 'bg-amber-600 hover:bg-amber-700'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-              >
-                {isMissionMode ? 'Mission List' : canEditSelectedSite ? 'Edit Site' : 'Add Site'}
-              </button>
-              <button
-                onClick={handleToggleMissionMode}
-                className={`px-4 py-2 text-white rounded-md text-sm font-medium transition-colors ${
-                  isMissionMode ? 'bg-sky-600 hover:bg-sky-700' : 'bg-indigo-600 hover:bg-indigo-700'
-                }`}
-              >
-                {isMissionMode ? 'Weather' : 'Missions'}
-              </button>
-              <button
-                onClick={() => navigate('/media')}
-                className="px-4 py-2 bg-sky-morning text-white rounded-md text-sm font-medium hover:bg-sky-dusk transition-colors"
-              >
-                Album
-              </button>
-              <button
-                onClick={() => navigate('/logbook')}
-                className="px-4 py-2 bg-sky-600 text-white rounded-md text-sm font-medium hover:bg-sky-700 transition-colors"
-              >
-                Logbook
-              </button>
-              {user?.is_admin && (
-                <button
-                  onClick={() => navigate('/settings')}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
-                >
-                  Settings
-                </button>
-              )}
-              <button
-                onClick={logout}
-                className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+        <LeftSidebar
+          user={user}
+          showAirspace={showAirspace}
+          onToggleAirspace={() => setShowAirspace(v => !v)}
+          onLogout={logout}
+        />
       )}
 
-      {/* Mobile Site Name Banner - Show only on mobile when site is selected */}
+      {/* Mobile site name banner */}
       {isMobile && selectedMobileSite && (
         <WeatherStatusBanner site={selectedMobileSite} />
       )}
 
-      {/* Map */}
+      {/* Map area */}
       <div className="flex-1 relative">
         {isLoading ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1421]">
             <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Loading sites...</p>
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+              <p className="mt-4 text-[#6b7fa3]">Loading sites...</p>
             </div>
           </div>
         ) : (
           <MapContainer
-            center={[-37.8136, 144.9631]} // Default center (Melbourne, Australia)
+            center={[-37.8136, 144.9631]}
             zoom={9}
-            className={`h-full w-full ${
-              activeLocationSelection ? 'cursor-crosshair' : ''
-            }`}
+            className={`h-full w-full ${activeLocationSelection ? 'cursor-crosshair' : ''}`}
             style={activeLocationSelection ? { cursor: 'crosshair' } : {}}
           >
             <TileLayer
@@ -447,7 +327,6 @@ export default function MapView() {
             <MapController mapRef={mapRef} />
             <FlyToSite sites={sites} siteId={searchParams.get('site')} />
 
-            {/* Airspace overlay */}
             {showAirspace && airspace && (
               <AirspaceOverlay
                 airspace={airspace}
@@ -455,27 +334,18 @@ export default function MapView() {
               />
             )}
 
-            {/* Render site markers */}
-            {!isMissionMode && sites.filter(site => site.enabled || user?.is_admin).map((site) => (
+            {!isMissionMode && sites.filter(site => site.enabled || user?.is_admin).map(site => (
               <SiteMarker
                 key={site.id}
                 site={site}
                 currentZoom={currentZoom}
                 parkingIconZoomLevel={parkingIconZoomLevel}
                 onTakeoffClick={handleTakeoffClick}
-                isSelectedForAirspace={selectedSiteForAirspace?.id === site.id}
-                onMobileDayClick={isMobile ? (forecast) => {
-                  if (selectedMobileSite?.id !== site.id) {
-                    setSelectedMobileSite(site);
-                  }
-                  setSelectedMobileHeightForecast(forecast);
-                  setShowMobileMultiHeight(true);
-                } : undefined}
+                isSelected={selectedSite?.id === site.id}
               />
             ))}
 
-            {/* Mission markers — shown in mission mode */}
-            {isMissionMode && missions.map((mission) => {
+            {isMissionMode && missions.map(mission => {
               const lat = mission.launch_site?.takeoff_lat ?? mission.waypoints?.[0]?.latitude;
               const lon = mission.launch_site?.takeoff_lon ?? mission.waypoints?.[0]?.longitude;
               if (lat == null || lon == null) return null;
@@ -501,7 +371,6 @@ export default function MapView() {
               );
             })}
 
-            {/* Temporary marker for location selection */}
             {pendingLocation && (
               <Marker position={pendingLocation} icon={TempIcon}>
                 <Popup>
@@ -516,26 +385,38 @@ export default function MapView() {
               </Marker>
             )}
 
-            {/* Plot overlay - show saved plots only for selected site */}
+            {windsockWind && selectedSite && (
+              <Marker
+                position={[
+                  parseFloat(selectedSite.takeoff_lat.toString()),
+                  parseFloat(selectedSite.takeoff_lon.toString()),
+                ]}
+                icon={createWindSockIcon(
+                    windsockWind.dir,
+                    convertWindSpeed(windsockWind.speed, windUnit),
+                    windSpeedUnitLabel(windUnit),
+                  )}
+                interactive={false}
+                zIndexOffset={750}
+              />
+            )}
           </MapContainer>
         )}
 
-        {/* Desktop Overlays - Hidden on mobile */}
+        {/* Desktop overlays */}
         {!isMobile && (
           <>
-            {/* Zoom Indicator */}
             {showZoomIndicator && !isLoading && (
-              <div className="absolute bottom-4 left-4 bg-white px-4 py-2 rounded-lg shadow-lg border-2 border-gray-300 z-[500]">
-                <div className="text-sm font-semibold text-gray-700">
+              <div className="absolute bottom-4 left-4 bg-[#1a2234] border border-[#2a3a54] px-4 py-2 rounded-lg shadow-lg z-[500]">
+                <div className="text-sm font-semibold text-[#a0b3cc]">
                   Zoom Level: {currentZoom}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-[#6b7fa3] mt-1">
                   Parking icons: {currentZoom >= parkingIconZoomLevel ? 'ON' : 'OFF'}
                 </div>
               </div>
             )}
 
-            {/* Airspace class filter */}
             {showAirspace && !isLoading && (
               <AirspaceClassFilter
                 enabledClasses={enabledAirspaceClasses}
@@ -543,54 +424,28 @@ export default function MapView() {
               />
             )}
 
-            {/* Airspace layer visualization */}
-            {selectedSiteForAirspace && showAirspace && airspace && (
+            {selectedSite && showAirspace && airspace && (
               <AirspaceLayerVisualization
-                site={selectedSiteForAirspace}
+                site={selectedSite}
                 airspace={airspace}
-                onClose={handleCloseAirspaceVisualization}
+                onClose={handleCloseInspectionPanel}
               />
             )}
           </>
         )}
       </div>
 
-      {/* Desktop Add Site Panel - Hidden on mobile */}
-      {!isMobile && (
-        <AddSitePanel
-          isOpen={isAddPanelOpen}
-          onClose={handlePanelClose}
-          onSelectLocation={handleSelectLocation}
-          activeLocationSelection={activeLocationSelection}
-          pendingLocation={pendingLocation}
-          pendingLocationType={pendingLocationType}
-          onLocationUsed={() => {
-            setPendingLocation(null);
-            setPendingLocationType(null);
-          }}
-          onZoomToLocation={handleZoomToLocation}
+      {/* Desktop site inspection panel */}
+      {!isMobile && selectedSite && (
+        <SiteInspectionPanel
+          site={selectedSite}
+          onClose={handleCloseInspectionPanel}
+          onForecastSelect={handleForecastSelect}
+          prevMapState={prevMapStateRef.current}
         />
       )}
 
-      {/* Desktop Edit Site Panel - Hidden on mobile */}
-      {!isMobile && (
-        <EditSitePanel
-          isOpen={isEditPanelOpen}
-          site={selectedSiteForAirspace}
-          onClose={handleEditPanelClose}
-          onSelectLocation={handleSelectLocation}
-          activeLocationSelection={activeLocationSelection}
-          pendingLocation={pendingLocation}
-          pendingLocationType={pendingLocationType}
-          onLocationUsed={() => {
-            setPendingLocation(null);
-            setPendingLocationType(null);
-          }}
-          onZoomToLocation={handleZoomToLocation}
-        />
-      )}
-
-      {/* Mobile Bottom Navigation - Show only on mobile */}
+      {/* Mobile bottom nav */}
       {isMobile && (
         <BottomNavigationBar
           activeTab={mobileActiveTab}
@@ -614,7 +469,7 @@ export default function MapView() {
         />
       )}
 
-      {/* Mobile Add Site Sheet - Show when Sites tab is active */}
+      {/* Mobile Add Site Sheet */}
       {isMobile && mobileActiveTab === 'sites' && (
         <MobileAddSiteSheet
           isOpen={true}
@@ -631,7 +486,7 @@ export default function MapView() {
         />
       )}
 
-      {/* Mobile Tools Sheet - Show when Tools tab is active */}
+      {/* Mobile Tools Sheet */}
       {isMobile && mobileActiveTab === 'tools' && (
         <MobileToolsSheet
           isOpen={true}
