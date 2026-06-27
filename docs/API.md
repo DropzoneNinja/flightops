@@ -928,7 +928,45 @@ GET /flights/:id
 Authorization: Bearer <token>
 ```
 
-Response includes parsed stats: duration, distance, max altitude, speeds, climb rate, bounding box, parse and analysis status.
+> Owner only — returns `403` if the requesting user did not upload the flight.
+
+Response includes parsed stats: duration, distance, max altitude, speeds, climb rate, bounding box, parse and analysis status, and the full `trackpoints_json` array.
+
+---
+
+### Get Flight Trackpoints
+```http
+GET /flights/:id/trackpoints
+Authorization: Bearer <token>
+```
+
+> Owner only — returns `403` if the requesting user did not upload the flight.
+
+Returns only the parsed trackpoint array with minimal metadata. Intended for mobile clients syncing GPS breadcrumb data to a local logbook without downloading the full flight record.
+
+Response:
+```json
+{
+  "flight_id": "uuid",
+  "parse_status": "analyzed",
+  "timezone": "UTC",
+  "trackpoints": [
+    {
+      "timestamp": "2026-01-15T09:23:00.000Z",
+      "lat": 52.3555,
+      "lon": -1.1743,
+      "elevation_m": 450.0,
+      "speed_mps": 12.5,
+      "vertical_speed_mps": 2.1,
+      "phase": "climb"
+    }
+  ]
+}
+```
+
+`timezone` is either `"UTC"` (timestamps are true UTC — convert to local for display) or `"local"` (Gaggle wrote local clock time without a UTC offset — display the stored values directly without conversion).
+
+`parse_status` will be `"analyzed"` when trackpoints are ready. If it is `"uploaded"` or `"parsing"`, the array will be empty — poll `GET /flights/:id` until `parse_status` is `"analyzed"` before fetching trackpoints.
 
 ---
 
@@ -937,6 +975,8 @@ Response includes parsed stats: duration, distance, max altitude, speeds, climb 
 GET /flights/:id/file
 Authorization: Bearer <token>
 ```
+
+> Owner only — returns `403` if the requesting user did not upload the flight.
 
 Returns the raw `.gpx` file as `application/gpx+xml`.
 
@@ -989,6 +1029,286 @@ Authorization: Bearer <token>
 ```
 
 Deletes the flight record and the GPX file from disk.
+
+---
+
+## Logbook
+
+All logbook endpoints are scoped to the authenticated user's pilot record. All require `Authorization: Bearer <token>`.
+
+### List Entries
+```http
+GET /logbook
+Authorization: Bearer <token>
+```
+
+Optional query params:
+| Param | Description |
+|-------|-------------|
+| `from` | Start date filter `YYYY-MM-DD` |
+| `to` | End date filter `YYYY-MM-DD` |
+
+Returns an array of `LogbookEntryResponse` objects (see [Entry Response Shape](#logbook-entry-response-shape)).
+
+---
+
+### Get Entry
+```http
+GET /logbook/:id
+Authorization: Bearer <token>
+```
+
+Returns a single `LogbookEntryResponse`.
+
+---
+
+### Create Entry (Manual / Web)
+```http
+POST /logbook
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "flight_date": "2026-01-15",
+  "client_id": "uuid",
+  "title": "Morning flight",
+  "notes": "Great conditions",
+  "duration_seconds": 3600,
+  "distance_m": 45000,
+  "max_altitude_m": 650,
+  "max_speed_mps": 14.2,
+  "wing": "Ozone Alpina 4",
+  "engine": "Moster 185",
+  "fuel_used_litres": 8.5,
+  "takeoff_lat": 52.3555,
+  "takeoff_lon": -1.1743
+}
+```
+
+`client_id` is optional — if provided it is used for idempotency (repeated calls with the same `client_id` return the existing entry).
+
+---
+
+### Update Entry
+```http
+PATCH /logbook/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "notes": "Updated notes",
+  "rating": 4
+}
+```
+
+---
+
+### Delete Entry (Soft Delete)
+```http
+DELETE /logbook/:id
+Authorization: Bearer <token>
+```
+
+Sets `deleted_at` on the entry. The entry is still returned by sync endpoints so clients can tombstone their local copy.
+
+---
+
+### Download PDF Logbook
+```http
+GET /logbook/pdf
+Authorization: Bearer <token>
+```
+
+Optional `from` / `to` query params (`YYYY-MM-DD`) to limit the date range. Returns a PDF file (`application/pdf`).
+
+---
+
+### Baseline (Record 0)
+
+The baseline stores flight totals accumulated before the pilot started using this app.
+
+```http
+GET /logbook/baseline
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+{
+  "prior_flights": 142,
+  "prior_duration_seconds": 511200,
+  "prior_distance_m": 4200000,
+  "notes": "Total from old paper logbook",
+  "updated_at": "2026-01-15T10:00:00.000Z"
+}
+```
+
+Returns `null` if no baseline has been set.
+
+```http
+PUT /logbook/baseline
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "prior_flights": 142,
+  "prior_duration_seconds": 511200,
+  "prior_distance_m": 4200000,
+  "notes": "Total from old paper logbook"
+}
+```
+
+---
+
+### Orphaned Flights
+
+Flights that were uploaded via GPX but have no linked logbook entry.
+
+```http
+GET /logbook/orphaned-flights
+Authorization: Bearer <token>
+```
+
+Returns an array of `Flight` records.
+
+```http
+POST /logbook/orphaned-flights/:flightId/import
+Authorization: Bearer <token>
+```
+
+Creates a logbook entry linked to the given flight and returns the new `LogbookEntry`.
+
+---
+
+## Logbook Sync (Mobile)
+
+The sync protocol lets mobile clients push local changes and pull server changes in a single round-trip each way. All sync endpoints are scoped to the authenticated pilot.
+
+### Pull (incremental)
+```http
+GET /logbook/sync?since=2026-01-14T12:00:00.000Z
+Authorization: Bearer <token>
+```
+
+Returns all entries (including soft-deleted ones) whose `updated_at` is after `since`. Omit `since` for a full initial sync.
+
+Response:
+```json
+{
+  "server_time": "2026-01-15T10:00:00.000Z",
+  "entries": [ ]
+}
+```
+
+Save `server_time` and use it as `since` on the next pull.
+
+Each entry in `entries` is a `LogbookEntryResponse` (see [Entry Response Shape](#logbook-entry-response-shape)). Entries with a non-null `deleted_at` should be tombstoned locally.
+
+---
+
+### Push (batch upsert)
+```http
+POST /logbook/sync
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "entries": [
+    {
+      "client_id": "uuid",
+      "flight_date": "2026-01-15",
+      "client_updated_at": "2026-01-15T09:45:00.000Z",
+      "duration_seconds": 3600,
+      "distance_m": 45000,
+      "wing": "Ozone Alpina 4"
+    }
+  ],
+  "deletes": [
+    {
+      "client_id": "uuid",
+      "deleted_at": "2026-01-15T09:50:00.000Z"
+    }
+  ]
+}
+```
+
+Uses last-write-wins conflict resolution based on `client_updated_at`. The server returns the authoritative state for each pushed entry — always apply the `server` value to the local record.
+
+Response:
+```json
+{
+  "server_time": "2026-01-15T10:00:00.000Z",
+  "results": [
+    {
+      "client_id": "uuid",
+      "id": "uuid",
+      "status": "created",
+      "revision": 1,
+      "server": { }
+    }
+  ]
+}
+```
+
+`status` is one of `created`, `updated`, `unchanged`, or `deleted`.
+
+---
+
+### Logbook Entry Response Shape
+
+```json
+{
+  "id": "uuid",
+  "pilot_id": "uuid",
+  "client_id": "uuid",
+  "source": "flightnow",
+  "flight_date": "2026-01-15",
+  "start_at": "2026-01-15T09:23:00.000Z",
+  "end_at": "2026-01-15T10:23:00.000Z",
+  "duration_seconds": 3600,
+  "distance_m": 45000,
+  "max_altitude_m": 650,
+  "max_speed_mps": 14.2,
+  "max_climb_mps": 3.1,
+  "wing": "Ozone Alpina 4",
+  "engine": "Moster 185",
+  "fuel_used_litres": 8.5,
+  "takeoff_lat": 52.3555,
+  "takeoff_lon": -1.1743,
+  "flight_number": 143,
+  "flight_number_override": null,
+  "revision": 2,
+  "client_updated_at": "2026-01-15T09:45:00.000Z",
+  "deleted_at": null,
+  "created_at": "2026-01-15T10:00:00.000Z",
+  "updated_at": "2026-01-15T10:01:00.000Z",
+  "analyzed_duration_seconds": 3612,
+  "analyzed_distance_m": 45320,
+  "analyzed_max_altitude_m": 658,
+  "analyzed_max_speed_mps": 14.8,
+  "gpx": {
+    "flight_id": "uuid",
+    "gpx_url": "/flights/{flight_id}/file",
+    "parse_status": "analyzed",
+    "analysis_status": "complete",
+    "bbox_json": { "minLon": -1.18, "minLat": 52.34, "maxLon": -1.16, "maxLat": 52.37 }
+  },
+  "media": []
+}
+```
+
+When `gpx` is non-null the entry has a server-side GPX flight linked to it. The `analyzed_*` fields carry the server's parsed values and should be preferred over the raw client-entered fields for display.
+
+**Fetching GPS breadcrumbs from a linked flight:**
+
+If `gpx` is non-null and `gpx.parse_status` is `"analyzed"`, fetch the parsed trackpoint array for local storage:
+
+```http
+GET /flights/{gpx.flight_id}/trackpoints
+Authorization: Bearer <token>
+```
+
+See [Get Flight Trackpoints](#get-flight-trackpoints) for the response shape and `timezone` handling. To download the original GPX file instead, use `gpx.gpx_url` with a `Bearer` token header.
 
 ---
 

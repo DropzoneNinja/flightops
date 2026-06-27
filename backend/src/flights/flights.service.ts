@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
   Optional,
 } from '@nestjs/common';
@@ -326,9 +327,40 @@ export class FlightsService {
     await this.flightsRepository.remove(flight);
   }
 
-  async getFilePath(id: string): Promise<string> {
+  async findByIdForUser(id: string, userId: string): Promise<Flight> {
     const flight = await this.findById(id);
+    if (flight.uploaded_by !== userId) {
+      throw new ForbiddenException('You do not have access to this flight');
+    }
+    return flight;
+  }
+
+  async getFilePath(id: string, requestingUserId: string): Promise<string> {
+    const flight = await this.findById(id);
+    if (flight.uploaded_by !== requestingUserId) {
+      throw new ForbiddenException('You do not have access to this flight file');
+    }
     return path.join(this.mediaStoragePath, flight.storage_key);
+  }
+
+  async getTrackpoints(
+    id: string,
+    userId: string,
+  ): Promise<{ flight_id: string; parse_status: string; timezone: string; trackpoints: unknown[] }> {
+    const flight = await this.flightsRepository.findOne({
+      where: { id },
+      select: ['id', 'uploaded_by', 'parse_status', 'timezone', 'trackpoints_json'],
+    });
+    if (!flight) throw new NotFoundException(`Flight with ID ${id} not found`);
+    if (flight.uploaded_by !== userId) {
+      throw new ForbiddenException('You do not have access to this flight');
+    }
+    return {
+      flight_id: flight.id,
+      parse_status: flight.parse_status,
+      timezone: flight.timezone,
+      trackpoints: (flight.trackpoints_json as unknown[]) ?? [],
+    };
   }
 
   /** POST /flights/compare — return normalized comparison data for selected flights */

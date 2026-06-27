@@ -71,22 +71,31 @@ export class FlightsController {
   }
 
   /**
-   * GET /flights/:id — flight detail
+   * GET /flights/:id — flight detail (owner only)
    */
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.flightsService.findById(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.flightsService.findByIdForUser(id, user.id);
   }
 
   /**
-   * GET /flights/:id/file — stream the raw GPX file
+   * GET /flights/:id/trackpoints — parsed trackpoint array for local sync (owner only)
+   */
+  @Get(':id/trackpoints')
+  getTrackpoints(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.flightsService.getTrackpoints(id, user.id);
+  }
+
+  /**
+   * GET /flights/:id/file — stream the raw GPX file (owner only)
    */
   @Get(':id/file')
   async streamFile(
     @Param('id') id: string,
     @Res({ passthrough: true }) res: Response,
+    @CurrentUser() user: User,
   ): Promise<StreamableFile> {
-    const filePath = await this.flightsService.getFilePath(id);
+    const filePath = await this.flightsService.getFilePath(id, user.id);
     let stat: ReturnType<typeof statSync>;
     try {
       stat = statSync(filePath);
