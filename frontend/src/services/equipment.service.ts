@@ -6,6 +6,7 @@ export interface EquipmentEngine {
   name: string;
   tank_size_litres: number | null;
   fuel_consumption_lph: number | null;
+  base_hours: number;
   total_hours: number;
   notes: string | null;
   created_at: string;
@@ -20,6 +21,7 @@ export interface EquipmentWing {
   model: string | null;
   size: string | null;
   trim_speed_kmh: number | null;
+  base_hours: number;
   total_hours: number;
   notes: string | null;
   created_at: string;
@@ -32,6 +34,7 @@ export interface EquipmentParamotor {
   name: string;
   engine_id: string | null;
   engine: EquipmentEngine | null;
+  base_hours: number;
   total_hours: number;
   notes: string | null;
   created_at: string;
@@ -39,17 +42,17 @@ export interface EquipmentParamotor {
 }
 
 export type CreateEngineData = Pick<EquipmentEngine, 'name'> &
-  Partial<Pick<EquipmentEngine, 'tank_size_litres' | 'fuel_consumption_lph' | 'total_hours' | 'notes'>>;
+  Partial<Pick<EquipmentEngine, 'tank_size_litres' | 'fuel_consumption_lph' | 'base_hours' | 'total_hours' | 'notes'>>;
 
 export type UpdateEngineData = Partial<CreateEngineData>;
 
 export type CreateWingData = Pick<EquipmentWing, 'name'> &
-  Partial<Pick<EquipmentWing, 'manufacturer' | 'model' | 'size' | 'trim_speed_kmh' | 'total_hours' | 'notes'>>;
+  Partial<Pick<EquipmentWing, 'manufacturer' | 'model' | 'size' | 'trim_speed_kmh' | 'base_hours' | 'total_hours' | 'notes'>>;
 
 export type UpdateWingData = Partial<CreateWingData>;
 
 export type CreateParamotorData = Pick<EquipmentParamotor, 'name'> &
-  Partial<Pick<EquipmentParamotor, 'engine_id' | 'total_hours' | 'notes'>>;
+  Partial<Pick<EquipmentParamotor, 'engine_id' | 'base_hours' | 'total_hours' | 'notes'>>;
 
 export type UpdateParamotorData = Partial<CreateParamotorData>;
 

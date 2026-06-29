@@ -46,7 +46,7 @@ export default function FlightsSection({ date }: FlightsSectionProps) {
         <div className="flex items-center gap-2">
           {flights && flights.length > 0 && (
             <button
-              onClick={() => navigate(`/flights/gaggle?date=${date}`)}
+              onClick={() => navigate(`/flights/formation?date=${date}`)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#2a3a54] bg-[#1e2a3a] text-[#a0b3cc] text-sm rounded-lg hover:bg-[#243048] hover:text-white transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

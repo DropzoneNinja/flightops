@@ -418,7 +418,7 @@ export default function MapView() {
                     windSpeedUnitLabel(windUnit),
                   )}
                 interactive={false}
-                zIndexOffset={750}
+                zIndexOffset={1100}
               />
             )}
           </MapContainer>

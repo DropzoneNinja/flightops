@@ -50,9 +50,6 @@ export enum SettingKey {
   SHOW_ZOOM_INDICATOR = 'map.show_zoom_indicator',
   PARKING_ICON_ZOOM_LEVEL = 'map.parking_icon_zoom_level',
 
-  // Debug Settings
-  HEATBAR_DEBUG_MODE = 'debug.heatbar_debug_mode',
-
   // Fuel Planning
   FUEL_RESERVE = 'fuel.reserve_percentage',
 
@@ -270,15 +267,6 @@ export const DEFAULT_SETTINGS: DefaultSetting[] = [
     type: SettingType.NUMBER,
     description: 'Zoom level to show parking icons',
     category: 'Map Display',
-  },
-
-  // Debug Settings
-  {
-    key: SettingKey.HEATBAR_DEBUG_MODE,
-    value: false,
-    type: SettingType.BOOLEAN,
-    description: 'Show multi-height wind data grid in detail view',
-    category: 'Debug',
   },
 
   {

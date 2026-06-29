@@ -25,7 +25,7 @@ export default function EquipmentWingCard({ wing, onEdit, onDelete }: Props) {
         <div className="flex items-baseline gap-3">
           <p className="text-white font-semibold truncate">{wing.name}</p>
           <span className="flex-shrink-0 text-sm font-mono font-semibold text-blue-400">
-            {wing.total_hours.toFixed(1)} hrs
+            {(wing.base_hours + wing.total_hours).toFixed(1)} hrs
           </span>
         </div>
         {subtitle && (

@@ -61,8 +61,11 @@ export interface LogbookEntry {
   wing: string | null;
   engine: string | null;
   paramotor: string | null;
+  wing_id: string | null;
+  paramotor_id: string | null;
   fuel_start_litres: number | null;
   fuel_used_litres: number | null;
+  fuel_rate_lph: number | null;
   battery_start_percent: number | null;
   battery_used_percent: number | null;
   category: string | null;
@@ -102,6 +105,8 @@ export interface CreateLogbookEntryData {
   wing?: string;
   engine?: string;
   paramotor?: string;
+  wing_id?: string;
+  paramotor_id?: string;
   fuel_start_litres?: number;
   fuel_used_litres?: number;
   battery_start_percent?: number;

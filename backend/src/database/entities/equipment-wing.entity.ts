@@ -35,6 +35,9 @@ export class EquipmentWing {
   trim_speed_kmh: number | null;
 
   @Column({ type: 'float', default: 0 })
+  base_hours: number;
+
+  @Column({ type: 'float', default: 0 })
   total_hours: number;
 
   @Column({ type: 'text', nullable: true })

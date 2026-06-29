@@ -7,10 +7,10 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import type { MapViewState } from '@deck.gl/core';
 import type { Trackpoint } from '../../services/flights.service';
 
-// Re-export so GaggleView can use them without depending on FlightViewer3D directly
+// Re-export so FormationView can use them without depending on FlightViewer3D directly
 export { PILOT_COLORS } from './FlightViewer3D';
 
-export interface GagglePilot {
+export interface FormationPilot {
   id: string;
   pilotName: string;
   color: [number, number, number]; // RGB 0–255
@@ -19,9 +19,9 @@ export interface GagglePilot {
   lastTimestampMs: number | null;
 }
 
-export interface GaggleViewerProps {
+export interface FormationViewerProps {
   /** Pilots to display (already filtered to selected only) */
-  pilots: GagglePilot[];
+  pilots: FormationPilot[];
   /** Current playback position as unix ms. null = static full-track preview */
   playbackTime: number | null;
   /** Wall opacity 0–1 */
@@ -159,7 +159,7 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function GaggleViewer({
+export default function FormationViewer({
   pilots,
   playbackTime,
   wallOpacity,
@@ -171,7 +171,7 @@ export default function GaggleViewer({
   showLineDistance = false,
   isPlaying = false,
   className = '',
-}: GaggleViewerProps) {
+}: FormationViewerProps) {
   const initialViewState = useMemo<MapViewState>(() => {
     const lon = bbox ? (bbox.minLon + bbox.maxLon) / 2 : 0;
     const lat = bbox ? (bbox.minLat + bbox.maxLat) / 2 : 0;
@@ -240,7 +240,7 @@ export default function GaggleViewer({
 
       return { pilot, path, wallQuads, currentTp, color };
     }).filter(Boolean) as {
-      pilot: GagglePilot;
+      pilot: FormationPilot;
       path: [number, number, number][];
       wallQuads: WallQuad[];
       currentTp: Trackpoint;
@@ -352,7 +352,7 @@ export default function GaggleViewer({
           billboard: true,
           extensions: [new CollisionFilterExtension()],
           collideEnabled: true,
-          collisionGroup: 'gaggle-labels',
+          collisionGroup: 'formation-labels',
           getCollisionPriority: 1,
         } as any), // eslint-disable-line @typescript-eslint/no-explicit-any
       );
@@ -431,7 +431,7 @@ export default function GaggleViewer({
                 billboard: true,
                 extensions: [new CollisionFilterExtension()],
                 collideEnabled: true,
-                collisionGroup: 'gaggle-labels',
+                collisionGroup: 'formation-labels',
                 getCollisionPriority: 0,
               } as any), // eslint-disable-line @typescript-eslint/no-explicit-any
             );

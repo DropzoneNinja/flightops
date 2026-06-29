@@ -22,7 +22,7 @@ export default function EquipmentParamotorCard({ paramotor, onEdit, onDelete }: 
         <div className="flex items-baseline gap-3">
           <p className="text-white font-semibold truncate">{paramotor.name}</p>
           <span className="flex-shrink-0 text-sm font-mono font-semibold text-blue-400">
-            {paramotor.total_hours.toFixed(1)} hrs
+            {(paramotor.base_hours + paramotor.total_hours).toFixed(1)} hrs
           </span>
         </div>
         {paramotor.engine ? (

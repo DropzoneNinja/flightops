@@ -14,6 +14,7 @@ export default function EquipmentWingForm({ initial, onSave, onCancel, isSaving 
   const [model, setModel] = useState('');
   const [size, setSize] = useState('');
   const [trimSpeed, setTrimSpeed] = useState('');
+  const [baseHours, setBaseHours] = useState('');
   const [totalHours, setTotalHours] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -23,6 +24,7 @@ export default function EquipmentWingForm({ initial, onSave, onCancel, isSaving 
     setModel(initial?.model ?? '');
     setSize(initial?.size ?? '');
     setTrimSpeed(initial?.trim_speed_kmh != null ? String(initial.trim_speed_kmh) : '');
+    setBaseHours(initial?.base_hours != null ? String(initial.base_hours) : '0');
     setTotalHours(initial?.total_hours != null ? String(initial.total_hours) : '0');
     setNotes(initial?.notes ?? '');
   }, [initial]);
@@ -35,6 +37,7 @@ export default function EquipmentWingForm({ initial, onSave, onCancel, isSaving 
       model: model.trim() || undefined,
       size: size.trim() || undefined,
       trim_speed_kmh: trimSpeed !== '' ? Number(trimSpeed) : undefined,
+      base_hours: baseHours !== '' ? Number(baseHours) : 0,
       total_hours: totalHours !== '' ? Number(totalHours) : 0,
       notes: notes.trim() || undefined,
     });
@@ -98,17 +101,31 @@ export default function EquipmentWingForm({ initial, onSave, onCancel, isSaving 
         </div>
       </div>
 
-      <div>
-        <label className="block text-xs text-[#6b7fa3] mb-1">Hour meter (hrs)</label>
-        <input
-          type="number"
-          step="0.1"
-          min="0"
-          value={totalHours}
-          onChange={e => setTotalHours(e.target.value)}
-          placeholder="0"
-          className="w-full bg-[#141d2e] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5a74] focus:outline-none focus:border-blue-500"
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-[#6b7fa3] mb-1">Base hours (hrs)</label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            value={baseHours}
+            onChange={e => setBaseHours(e.target.value)}
+            placeholder="0"
+            className="w-full bg-[#141d2e] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5a74] focus:outline-none focus:border-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-[#6b7fa3] mb-1">Logged hours (hrs)</label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            value={totalHours}
+            onChange={e => setTotalHours(e.target.value)}
+            placeholder="0"
+            className="w-full bg-[#141d2e] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5a74] focus:outline-none focus:border-blue-500"
+          />
+        </div>
       </div>
 
       <div>

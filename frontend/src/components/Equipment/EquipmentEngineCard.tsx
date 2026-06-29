@@ -23,7 +23,7 @@ export default function EquipmentEngineCard({ engine, onEdit, onDelete }: Props)
         <div className="flex items-baseline gap-3">
           <p className="text-white font-semibold truncate">{engine.name}</p>
           <span className="flex-shrink-0 text-sm font-mono font-semibold text-blue-400">
-            {engine.total_hours.toFixed(1)} hrs
+            {(engine.base_hours + engine.total_hours).toFixed(1)} hrs
           </span>
         </div>
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">

@@ -88,6 +88,14 @@ export class CreateLogbookEntryDto {
   paramotor?: string;
 
   @IsOptional()
+  @IsUUID()
+  wing_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  paramotor_id?: string;
+
+  @IsOptional()
   @IsNumber()
   fuel_start_litres?: number;
 

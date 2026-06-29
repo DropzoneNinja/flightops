@@ -12,6 +12,11 @@ export class CreateParamotorDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  base_hours?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   total_hours?: number;
 
   @IsOptional()

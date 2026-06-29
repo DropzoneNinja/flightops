@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FlightSite } from '../../services/sites.service';
 import { WeatherForecast } from '../../services/weather.service';
@@ -9,6 +9,9 @@ import { useWeather } from '../../hooks/useWeather';
 import { useSettings } from '../../hooks/useSettings';
 import { SettingKey } from '../../services/settings.service';
 import CombinedWeatherDialog from '../Weather/CombinedWeatherDialog';
+import { useAirspace } from '../../hooks/useAirspace';
+import { computeAirspaceLayers, CLASS_COLORS } from '../../utils/airspaceUtils';
+import type { AirspaceLayer } from '../../utils/airspaceUtils';
 
 export interface MapState {
   lat: number;
@@ -60,6 +63,40 @@ function getPeakScore(forecast: WeatherForecast): number {
   const hours = getDaylightHours(forecast);
   if (hours.length === 0) return 0;
   return Math.max(...hours.map(h => h.overallScore));
+}
+
+function getFlyabilityScore(forecast: WeatherForecast): number {
+  const sunriseHour = parseInt(forecast.sunrise.split(':')[0]);
+  const sunsetHour = parseInt(forecast.sunset.split(':')[0]);
+  const GOOD_THRESHOLD = 55;
+
+  const morningHours = forecast.hourlyData.filter(h => {
+    const hour = new Date(h.timestamp).getHours();
+    return hour >= sunriseHour && hour < 12;
+  });
+  const afternoonHours = forecast.hourlyData.filter(h => {
+    const hour = new Date(h.timestamp).getHours();
+    return hour >= 12 && hour <= sunsetHour;
+  });
+
+  const isWindowGood = (hours: typeof morningHours) => {
+    if (hours.length === 0) return false;
+    const goodCount = hours.filter(h => h.overallScore >= GOOD_THRESHOLD).length;
+    return goodCount > hours.length / 2;
+  };
+
+  const morningGood = isWindowGood(morningHours);
+  const afternoonGood = isWindowGood(afternoonHours);
+
+  if (morningGood && afternoonGood) return 85;
+  if (morningGood || afternoonGood) return 65;
+
+  const allDaylight = forecast.hourlyData.filter(h => {
+    const hour = new Date(h.timestamp).getHours();
+    return hour >= sunriseHour && hour <= sunsetHour;
+  });
+  if (allDaylight.length === 0) return 0;
+  return Math.min(Math.max(...allDaylight.map(h => h.overallScore)), 54);
 }
 
 function getPeakThermalScore(forecast: WeatherForecast): number {
@@ -213,6 +250,63 @@ const PencilIcon = () => (
   </svg>
 );
 
+const AIRSPACE_CAP_FT = 15000;
+
+function fmtAltFt(feet: number): string {
+  if (feet === 0) return 'SFC';
+  if (feet % 100 === 0) return `FL${feet / 100}`;
+  return `${feet.toLocaleString()}ft`;
+}
+
+function AirspaceSvgBar({ layers }: { layers: AirspaceLayer[] }) {
+  const PAD_TOP = 8, PAD_BOT = 16, H = 148, GRAPH = H - PAD_TOP - PAD_BOT;
+  const AXIS_W = 44, BAR_W = 42;
+
+  const fy = (ft: number) => PAD_TOP + GRAPH - (ft / AIRSPACE_CAP_FT) * GRAPH;
+
+  const boundaries = Array.from(
+    new Set(layers.flatMap(l => [l.lowerFeet, l.upperFeet]))
+  ).sort((a, b) => a - b);
+
+  return (
+    <svg width={AXIS_W + BAR_W} height={H} className="shrink-0">
+      {boundaries.map(ft => (
+        <g key={ft}>
+          <text x={AXIS_W - 4} y={fy(ft)} textAnchor="end" dominantBaseline="middle"
+            fontSize={7.5} fill="#4a5a74" fontWeight="600">
+            {fmtAltFt(ft)}
+          </text>
+          <line x1={AXIS_W - 2} y1={fy(ft)} x2={AXIS_W} y2={fy(ft)}
+            stroke="#2a3a54" strokeWidth={1} />
+        </g>
+      ))}
+      {layers.map((layer, i) => {
+        const y1 = fy(layer.upperFeet);
+        const y2 = fy(layer.lowerFeet);
+        const h = y2 - y1;
+        return (
+          <g key={`${layer.class}-${layer.lowerFeet}-${i}`}>
+            <rect x={AXIS_W} y={y1} width={BAR_W} height={h}
+              fill={layer.color} opacity={0.88} stroke="#111827" strokeWidth={1.5} />
+            {h >= 14 && (
+              <text x={AXIS_W + BAR_W / 2} y={y1 + h / 2} textAnchor="middle"
+                dominantBaseline="middle" fontSize={h >= 22 ? 14 : 9}
+                fontWeight="bold" fill="white" className="pointer-events-none"
+                style={{ filter: 'drop-shadow(1px 1px 1px rgba(0,0,0,0.7))' }}>
+                {layer.class}
+              </text>
+            )}
+          </g>
+        );
+      })}
+      <text x={AXIS_W + BAR_W / 2} y={H - 2} textAnchor="middle"
+        fontSize={7} fill="#3a4a64" fontWeight="600">
+        GND
+      </text>
+    </svg>
+  );
+}
+
 export default function SiteInspectionPanel({ site, onClose, onForecastSelect, prevMapState, windOverride, canEdit, onEdit }: SiteInspectionPanelProps) {
   const navigate = useNavigate();
   const { forecasts, isLoading } = useWeather(site.id);
@@ -228,16 +322,31 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
   const takeoffLat = parseFloat(site.takeoff_lat.toString());
   const takeoffLon = parseFloat(site.takeoff_lon.toString());
 
+  const { airspace } = useAirspace();
+  const airspaceLayers = useMemo(() => {
+    if (!airspace) return [];
+    return computeAirspaceLayers(takeoffLat, takeoffLon, airspace, AIRSPACE_CAP_FT);
+  }, [takeoffLat, takeoffLon, airspace]);
+
+  const displayLayers: AirspaceLayer[] = airspaceLayers.length > 0
+    ? airspaceLayers
+    : airspace
+      ? [{ class: 'G', lowerFeet: 0, upperFeet: AIRSPACE_CAP_FT, color: CLASS_COLORS['G'], name: 'Class G', lower: 'SFC', upper: `FL${AIRSPACE_CAP_FT / 100}` }]
+      : [];
+
   useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        const d = haversineKm(pos.coords.latitude, pos.coords.longitude, takeoffLat, takeoffLon);
-        setDistanceKm(d);
-      },
-      () => {},
-      { timeout: 5000 },
-    );
+    if (!navigator.geolocation || !navigator.permissions) return;
+    navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+      if (result.state !== 'granted') return;
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const d = haversineKm(pos.coords.latitude, pos.coords.longitude, takeoffLat, takeoffLon);
+          setDistanceKm(d);
+        },
+        () => {},
+        { timeout: 5000 },
+      );
+    });
   }, [takeoffLat, takeoffLon]);
 
   useEffect(() => {
@@ -335,7 +444,7 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 {forecasts.slice(0, 4).map(forecast => {
-                  const peak = getPeakScore(forecast);
+                  const peak = getFlyabilityScore(forecast);
                   const { label, color } = getScoreLabel(peak);
                   const { wind, gust } = getAvgWind(forecast);
                   const isBest = bestForecast?.id === forecast.id;
@@ -406,6 +515,39 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
               </div>
             )}
           </div>
+
+          {/* Airspace */}
+          {displayLayers.length > 0 && (
+            <div>
+              <h3 className="text-[#6b7fa3] text-xs font-semibold tracking-widest uppercase mb-3">
+                Airspace
+              </h3>
+              <div className="flex gap-3 items-end">
+                <AirspaceSvgBar layers={displayLayers} />
+                <div className="flex-1 flex flex-col-reverse gap-1 pb-4">
+                  {displayLayers.map((layer, i) => (
+                    <div key={`${layer.class}-${layer.lowerFeet}-${i}`}
+                      className="flex items-center gap-2">
+                      <span
+                        className="w-6 h-6 rounded flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                        style={{ backgroundColor: layer.color }}
+                      >
+                        {layer.class}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-[#a0b3cc] text-[11px] font-medium leading-tight">
+                          {fmtAltFt(layer.lowerFeet)} – {fmtAltFt(layer.upperFeet)}
+                        </div>
+                        <div className="text-[#4a5a74] text-[9px] truncate leading-tight">
+                          {layer.name}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Missions for this site */}
           <div>

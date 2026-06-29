@@ -165,6 +165,14 @@ export class LogbookEntry {
   @Column({ type: 'text', nullable: true })
   paramotor: string | null;
 
+  /** FK to equipment_wings — set when user selects from their equipment list. */
+  @Column({ type: 'uuid', nullable: true })
+  wing_id: string | null;
+
+  /** FK to equipment_paramotors — set when user selects from their equipment list. */
+  @Column({ type: 'uuid', nullable: true })
+  paramotor_id: string | null;
+
   /** Opaque pass-through of the mobile's local equipment refs for round-trip. */
   @Column({ type: 'jsonb', nullable: true })
   equipment_refs_json: {

@@ -11,6 +11,9 @@ import { LogbookEntry, WeatherSnapshot } from '../database/entities/logbook-entr
 import { LogbookBaseline } from '../database/entities/logbook-baseline.entity';
 import { Flight } from '../database/entities/flight.entity';
 import { Pilot } from '../database/entities/pilot.entity';
+import { EquipmentWing } from '../database/entities/equipment-wing.entity';
+import { EquipmentParamotor } from '../database/entities/equipment-paramotor.entity';
+import { EquipmentEngine } from '../database/entities/equipment-engine.entity';
 import { PilotsService } from '../pilots/pilots.service';
 import { LogbookWeatherService } from './logbook-weather.service';
 import { LogbookMediaService, MediaRef } from './logbook-media.service';
@@ -54,9 +57,13 @@ export interface LogbookEntryResponse {
   wing: string | null;
   engine: string | null;
   paramotor: string | null;
+  wing_id: string | null;
+  paramotor_id: string | null;
   equipment_refs_json: unknown;
   fuel_start_litres: number | null;
   fuel_used_litres: number | null;
+  /** Calculated from fuel_used_litres / effective_duration. Litres per hour. */
+  fuel_rate_lph: number | null;
   battery_start_percent: number | null;
   battery_used_percent: number | null;
   category: string | null;
@@ -110,10 +117,74 @@ export class LogbookService {
     private readonly baselineRepository: Repository<LogbookBaseline>,
     @InjectRepository(Flight)
     private readonly flightsRepository: Repository<Flight>,
+    @InjectRepository(EquipmentWing)
+    private readonly wingRepository: Repository<EquipmentWing>,
+    @InjectRepository(EquipmentParamotor)
+    private readonly paramotorRepository: Repository<EquipmentParamotor>,
+    @InjectRepository(EquipmentEngine)
+    private readonly engineRepository: Repository<EquipmentEngine>,
     private readonly pilotsService: PilotsService,
     private readonly weatherService: LogbookWeatherService,
     private readonly mediaService: LogbookMediaService,
   ) {}
+
+  // ---------------------------------------------------------------------------
+  // Equipment hours recalculation
+  // ---------------------------------------------------------------------------
+
+  /**
+   * After any logbook mutation that may affect equipment hours, call this with
+   * the set of wing IDs and paramotor IDs touched. Each piece of equipment's
+   * total_hours is recomputed as the sum of duration_seconds across all
+   * non-deleted entries that reference it. Engine hours are the aggregate of
+   * all paramotors that use that engine.
+   */
+  private async recalculateEquipmentHours(
+    wingIds: Set<string>,
+    paramotorIds: Set<string>,
+  ): Promise<void> {
+    for (const wingId of wingIds) {
+      const row = await this.logbookRepository
+        .createQueryBuilder('e')
+        .select('COALESCE(SUM(e.duration_seconds), 0)', 'total')
+        .where('e.wing_id = :wingId', { wingId })
+        .andWhere('e.deleted_at IS NULL')
+        .getRawOne<{ total: string }>();
+      const hours = Number(row?.total ?? 0) / 3600;
+      await this.wingRepository.update(wingId, { total_hours: hours });
+    }
+
+    const engineIdsToRecalc = new Set<string>();
+
+    for (const paramotorId of paramotorIds) {
+      const row = await this.logbookRepository
+        .createQueryBuilder('e')
+        .select('COALESCE(SUM(e.duration_seconds), 0)', 'total')
+        .where('e.paramotor_id = :paramotorId', { paramotorId })
+        .andWhere('e.deleted_at IS NULL')
+        .getRawOne<{ total: string }>();
+      const hours = Number(row?.total ?? 0) / 3600;
+      await this.paramotorRepository.update(paramotorId, { total_hours: hours });
+
+      const pm = await this.paramotorRepository.findOne({ where: { id: paramotorId } });
+      if (pm?.engine_id) engineIdsToRecalc.add(pm.engine_id);
+    }
+
+    for (const engineId of engineIdsToRecalc) {
+      const paramotors = await this.paramotorRepository.find({ where: { engine_id: engineId } });
+      let engineHours = 0;
+      for (const pm of paramotors) {
+        const row = await this.logbookRepository
+          .createQueryBuilder('e')
+          .select('COALESCE(SUM(e.duration_seconds), 0)', 'total')
+          .where('e.paramotor_id = :pid', { pid: pm.id })
+          .andWhere('e.deleted_at IS NULL')
+          .getRawOne<{ total: string }>();
+        engineHours += Number(row?.total ?? 0) / 3600;
+      }
+      await this.engineRepository.update(engineId, { total_hours: engineHours });
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Privacy resolution
@@ -302,6 +373,8 @@ export class LogbookService {
       wing: dto.wing ?? null,
       engine: dto.engine ?? null,
       paramotor: dto.paramotor ?? null,
+      wing_id: dto.wing_id ?? null,
+      paramotor_id: dto.paramotor_id ?? null,
       fuel_start_litres: dto.fuel_start_litres ?? null,
       fuel_used_litres: dto.fuel_used_litres ?? null,
       battery_start_percent: dto.battery_start_percent ?? null,
@@ -317,6 +390,13 @@ export class LogbookService {
     });
 
     const saved = await this.logbookRepository.save(entry);
+
+    const wingIds = new Set(saved.wing_id ? [saved.wing_id] : []);
+    const paramotorIds = new Set(saved.paramotor_id ? [saved.paramotor_id] : []);
+    if (wingIds.size || paramotorIds.size) {
+      await this.recalculateEquipmentHours(wingIds, paramotorIds);
+    }
+
     const names = this.pilotNames(pilot);
     const media = await this.mediaService.getMediaForPilotOnDate(names, saved.flight_date as Date);
     const flightNumber = await this.flightNumberForEntry(pilot.id, saved.id);
@@ -339,6 +419,9 @@ export class LogbookService {
     });
     if (!entry) throw new NotFoundException(`Logbook entry not found`);
 
+    const oldWingId = entry.wing_id;
+    const oldParamotorId = entry.paramotor_id;
+
     if (dto.title !== undefined) entry.title = dto.title;
     if (dto.notes !== undefined) entry.notes = dto.notes;
     if (dto.launch_site_name !== undefined) entry.launch_site_name = dto.launch_site_name;
@@ -350,6 +433,8 @@ export class LogbookService {
     if (dto.wing !== undefined) entry.wing = dto.wing;
     if (dto.engine !== undefined) entry.engine = dto.engine;
     if (dto.paramotor !== undefined) entry.paramotor = dto.paramotor;
+    if (dto.wing_id !== undefined) entry.wing_id = dto.wing_id ?? null;
+    if (dto.paramotor_id !== undefined) entry.paramotor_id = dto.paramotor_id ?? null;
     if (dto.fuel_start_litres !== undefined) entry.fuel_start_litres = dto.fuel_start_litres;
     if (dto.fuel_used_litres !== undefined) entry.fuel_used_litres = dto.fuel_used_litres;
     if (dto.battery_start_percent !== undefined) entry.battery_start_percent = dto.battery_start_percent;
@@ -380,6 +465,12 @@ export class LogbookService {
     entry.revision += 1;
     const saved = await this.logbookRepository.save(entry);
 
+    const wingIds = new Set([oldWingId, saved.wing_id].filter(Boolean) as string[]);
+    const paramotorIds = new Set([oldParamotorId, saved.paramotor_id].filter(Boolean) as string[]);
+    if (wingIds.size || paramotorIds.size) {
+      await this.recalculateEquipmentHours(wingIds, paramotorIds);
+    }
+
     const names = this.pilotNames(pilot);
     const media = await this.mediaService.getMediaForPilotOnDate(names, saved.flight_date as Date);
     const flightNumber = await this.flightNumberForEntry(pilot.id, saved.id);
@@ -396,9 +487,18 @@ export class LogbookService {
       where: { id, pilot_id: pilot.id },
     });
     if (!entry) throw new NotFoundException(`Logbook entry not found`);
+    const wingId = entry.wing_id;
+    const paramotorId = entry.paramotor_id;
     entry.deleted_at = new Date();
     entry.revision += 1;
     await this.logbookRepository.save(entry);
+
+    const wingIds = new Set(wingId ? [wingId] : []);
+    const paramotorIds = new Set(paramotorId ? [paramotorId] : []);
+    if (wingIds.size || paramotorIds.size) {
+      await this.recalculateEquipmentHours(wingIds, paramotorIds);
+    }
+
     return { id: entry.id, deleted_at: entry.deleted_at.toISOString() };
   }
 
@@ -817,6 +917,12 @@ export class LogbookService {
       ? entry.flight_date.toISOString().split('T')[0]
       : String(entry.flight_date);
 
+    const effectiveDuration = f?.duration_seconds ?? entry.duration_seconds;
+    const fuel_rate_lph =
+      entry.fuel_used_litres != null && effectiveDuration != null && effectiveDuration > 0
+        ? (entry.fuel_used_litres / effectiveDuration) * 3600
+        : null;
+
     const gpx: GpxRef | null = f
       ? {
           flight_id: f.id,
@@ -848,16 +954,19 @@ export class LogbookService {
       takeoff_lon: entry.takeoff_lon != null ? Number(entry.takeoff_lon) : null,
       landing_lat: entry.landing_lat != null ? Number(entry.landing_lat) : null,
       landing_lon: entry.landing_lon != null ? Number(entry.landing_lon) : null,
-      launch_site_name: entry.launch_site_name ?? f?.launch_site_name ?? null,
+      launch_site_name: (f ? (f.launch_site_name ?? entry.launch_site_name) : entry.launch_site_name) ?? null,
       landing_site_name: entry.landing_site_name ?? f?.landing_site_name ?? null,
       title: entry.title ?? f?.title ?? null,
       notes: entry.notes ?? f?.notes ?? null,
       wing: entry.wing ?? f?.glider ?? null,
       engine: entry.engine ?? f?.harness ?? null,
       paramotor: entry.paramotor ?? null,
+      wing_id: entry.wing_id ?? null,
+      paramotor_id: entry.paramotor_id ?? null,
       equipment_refs_json: entry.equipment_refs_json,
       fuel_start_litres: entry.fuel_start_litres,
       fuel_used_litres: entry.fuel_used_litres,
+      fuel_rate_lph,
       battery_start_percent: entry.battery_start_percent,
       battery_used_percent: entry.battery_used_percent,
       category: entry.category,

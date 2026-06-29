@@ -14,7 +14,7 @@ export interface RawTrackpoint {
   gaggle_g_force?: number;
 }
 
-export interface GaggleMetadata {
+export interface AppFlightData {
   wing?: string;            // gaggle:wing → glider name
   engine?: string;          // gaggle:engine → harness/trike name
   takeoffDate?: string;     // gaggle:takeoff date → YYYY-MM-DD
@@ -36,7 +36,7 @@ export interface ParsedGpxData {
     author?: string;
     time?: Date;
   };
-  gaggle?: GaggleMetadata;
+  appData?: AppFlightData;
   trackpoints: RawTrackpoint[];
   segmentCount: number;
   /**
@@ -105,14 +105,14 @@ export class GpxParserService {
     }
 
     const metadata = this.extractMetadata(gpx);
-    const gaggle = this.extractGaggleMetadata(gpx);
+    const appData = this.extractAppFlightData(gpx);
     const { trackpoints, segmentCount, timestampsAreUtc } = this.extractTrackpoints(gpx);
 
     if (trackpoints.length === 0) {
       throw new BadRequestException('GPX file contains no trackpoints');
     }
 
-    return { metadata, gaggle, trackpoints, segmentCount, timestampsAreUtc };
+    return { metadata, appData, trackpoints, segmentCount, timestampsAreUtc };
   }
 
   // ---------------------------------------------------------------------------
@@ -206,14 +206,14 @@ export class GpxParserService {
     return { trackpoints, segmentCount, timestampsAreUtc };
   }
 
-  private extractGaggleMetadata(gpx: Record<string, unknown>): GaggleMetadata | undefined {
+  private extractAppFlightData(gpx: Record<string, unknown>): AppFlightData | undefined {
     const metadata = gpx['metadata'] as Record<string, unknown> | undefined;
     if (!metadata) return undefined;
 
     const ext = metadata['extensions'] as Record<string, unknown> | undefined;
     if (!ext) return undefined;
 
-    const result: GaggleMetadata = {};
+    const result: AppFlightData = {};
     let hasAny = false;
 
     const str = (key: string): string | undefined => {

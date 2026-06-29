@@ -50,12 +50,35 @@ function SiteCard({ siteName, forecasts, isLoading, isSelected, maxDays, onClick
     if (!forecast.hourlyData || forecast.hourlyData.length === 0) return 0;
     const sunriseHour = parseInt(forecast.sunrise.split(':')[0]);
     const sunsetHour = parseInt(forecast.sunset.split(':')[0]);
-    const flyable = forecast.hourlyData.filter(h => {
+    const GOOD_THRESHOLD = 55;
+
+    const morningHours = forecast.hourlyData.filter(h => {
+      const hour = new Date(h.timestamp).getHours();
+      return hour >= sunriseHour && hour < 12;
+    });
+    const afternoonHours = forecast.hourlyData.filter(h => {
+      const hour = new Date(h.timestamp).getHours();
+      return hour >= 12 && hour <= sunsetHour;
+    });
+
+    const isWindowGood = (hours: typeof morningHours) => {
+      if (hours.length === 0) return false;
+      const goodCount = hours.filter(h => h.overallScore >= GOOD_THRESHOLD).length;
+      return goodCount > hours.length / 2;
+    };
+
+    const morningGood = isWindowGood(morningHours);
+    const afternoonGood = isWindowGood(afternoonHours);
+
+    if (morningGood && afternoonGood) return 85;
+    if (morningGood || afternoonGood) return 65;
+
+    const allDaylight = forecast.hourlyData.filter(h => {
       const hour = new Date(h.timestamp).getHours();
       return hour >= sunriseHour && hour <= sunsetHour;
     });
-    if (flyable.length === 0) return 0;
-    return Math.max(...flyable.map(h => h.overallScore));
+    if (allDaylight.length === 0) return 0;
+    return Math.min(Math.max(...allDaylight.map(h => h.overallScore)), 54);
   }
 
   function shortDay(dateString: string): string {

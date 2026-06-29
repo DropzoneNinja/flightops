@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CreateLogbookEntryData } from '../../services/logbook.service';
 import { useSites } from '../../hooks/useSites';
+import type { EquipmentWing, EquipmentParamotor } from '../../services/equipment.service';
 
 const CATEGORIES = [
   'Recreational',
@@ -8,6 +9,7 @@ const CATEGORIES = [
   'Cross Country',
   'Competition',
   'Test Flight',
+  'Mission',
 ];
 
 interface LogbookEntryFormProps {
@@ -16,8 +18,9 @@ interface LogbookEntryFormProps {
   onCancel: () => void;
   isLoading?: boolean;
   submitLabel?: string;
-  /** When true, shows a note that a GPX track overrides the manual stats below. */
   hasGpx?: boolean;
+  wings?: EquipmentWing[];
+  paramotors?: EquipmentParamotor[];
 }
 
 const OTHER = '__other__';
@@ -75,6 +78,76 @@ function SitePicker({
   );
 }
 
+function EquipmentPicker({
+  textValue,
+  selectedId,
+  onChangeText,
+  onChangeId,
+  placeholder,
+  items,
+  emptyLabel,
+  inputClass,
+}: {
+  textValue: string;
+  selectedId: string;
+  onChangeText: (t: string) => void;
+  onChangeId: (id: string) => void;
+  placeholder: string;
+  items: { id: string; name: string }[];
+  emptyLabel: string;
+  inputClass: string;
+}) {
+  const isOther = selectedId === '' && textValue !== '';
+  const [mode, setMode] = useState<'select' | 'text'>(isOther ? 'text' : 'select');
+  const selectValue = mode === 'text' ? OTHER : (selectedId || '');
+
+  const handleSelect = (v: string) => {
+    if (v === OTHER) {
+      setMode('text');
+      onChangeId('');
+      onChangeText('');
+    } else if (v === '') {
+      setMode('select');
+      onChangeId('');
+      onChangeText('');
+    } else {
+      const found = items.find((i) => i.id === v);
+      if (found) {
+        setMode('select');
+        onChangeId(found.id);
+        onChangeText(found.name);
+      }
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <select
+        className={inputClass}
+        value={selectValue}
+        onChange={(e) => handleSelect(e.target.value)}
+      >
+        <option value="">{emptyLabel}</option>
+        {items.map((item) => (
+          <option key={item.id} value={item.id}>{item.name}</option>
+        ))}
+        <option value={OTHER}>Other…</option>
+      </select>
+      {mode === 'text' && (
+        <input
+          type="text"
+          className={inputClass}
+          value={textValue}
+          onChange={(e) => onChangeText(e.target.value)}
+          placeholder={placeholder}
+          maxLength={255}
+          autoFocus
+        />
+      )}
+    </div>
+  );
+}
+
 export default function LogbookEntryForm({
   initialValues = {},
   onSubmit,
@@ -82,6 +155,8 @@ export default function LogbookEntryForm({
   isLoading = false,
   submitLabel = 'Save',
   hasGpx = false,
+  wings = [],
+  paramotors = [],
 }: LogbookEntryFormProps) {
   const today = new Date().toISOString().split('T')[0];
   const [flight_date, setFlightDate] = useState(initialValues.flight_date ?? today);
@@ -96,21 +171,26 @@ export default function LogbookEntryForm({
 
   const handleLaunchSiteChange = (value: string) => {
     setLaunchSite(value);
-    // Auto-fill landing only if it's still in sync with (or empty relative to) the launch site
     setLandingSite((prev) => (prev === '' || prev === launch_site_name ? value : prev));
   };
 
   const { sites: sitesData } = useSites();
   const sites = sitesData.filter((s) => s.enabled).sort((a, b) => a.name.localeCompare(b.name));
   const [category, setCategory] = useState(initialValues.category ?? '');
+
+  // Wing picker state
+  const [wingId, setWingId] = useState(initialValues.wing_id ?? '');
   const [wing, setWing] = useState(initialValues.wing ?? '');
-  const [engine, setEngine] = useState(initialValues.engine ?? '');
+
+  // Paramotor picker state
+  const [paramotorId, setParamotorId] = useState(initialValues.paramotor_id ?? '');
+  const [paramotor, setParamotor] = useState(initialValues.paramotor ?? '');
+
   const [fuel_start_litres, setFuelStart] = useState(initialValues.fuel_start_litres?.toString() ?? '');
   const [fuel_used_litres, setFuelUsed] = useState(initialValues.fuel_used_litres?.toString() ?? '');
   const [rating, setRating] = useState(initialValues.rating?.toString() ?? '');
   const [notes, setNotes] = useState(initialValues.notes ?? '');
 
-  // Flight stats (manual entry; overridden by GPX for display)
   const initDurH = initialValues.duration_seconds != null
     ? String(Math.floor(initialValues.duration_seconds / 3600)) : '';
   const initDurM = initialValues.duration_seconds != null
@@ -162,7 +242,9 @@ export default function LogbookEntryForm({
       landing_site_name: landing_site_name || undefined,
       category: category || undefined,
       wing: wing || undefined,
-      engine: engine || undefined,
+      wing_id: wingId || undefined,
+      paramotor: paramotor || undefined,
+      paramotor_id: paramotorId || undefined,
       fuel_start_litres: fuel_start_litres ? Number(fuel_start_litres) : undefined,
       fuel_used_litres: fuel_used_litres ? Number(fuel_used_litres) : undefined,
       rating: rating ? Number(rating) : undefined,
@@ -215,12 +297,21 @@ export default function LogbookEntryForm({
         </div>
         <div>
           <label className={labelClass}>Launch site</label>
-          <SitePicker
-            value={launch_site_name}
-            onChange={handleLaunchSiteChange}
-            placeholder="Type launch site name"
-            sites={sites}
-          />
+          {hasGpx ? (
+            <div className="flex items-center gap-2">
+              <span className="flex-1 border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-700">
+                {launch_site_name || <span className="text-gray-400">—</span>}
+              </span>
+              <span className="text-xs text-sky-600 bg-sky-50 border border-sky-200 rounded px-2 py-1 shrink-0">From GPX</span>
+            </div>
+          ) : (
+            <SitePicker
+              value={launch_site_name}
+              onChange={handleLaunchSiteChange}
+              placeholder="Type launch site name"
+              sites={sites}
+            />
+          )}
         </div>
         <div>
           <label className={labelClass}>Landing site</label>
@@ -256,25 +347,29 @@ export default function LogbookEntryForm({
           {errors.rating && <p className={errorClass}>{errors.rating}</p>}
         </div>
         <div>
-          <label className={labelClass}>Wing / Glider</label>
-          <input
-            type="text"
-            className={inputClass}
-            value={wing}
-            onChange={(e) => setWing(e.target.value)}
-            placeholder="Wing or glider"
-            maxLength={255}
+          <label className={labelClass}>Wing</label>
+          <EquipmentPicker
+            textValue={wing}
+            selectedId={wingId}
+            onChangeText={setWing}
+            onChangeId={setWingId}
+            placeholder="Wing or glider name"
+            items={wings}
+            emptyLabel="Select wing…"
+            inputClass={inputClass}
           />
         </div>
         <div>
-          <label className={labelClass}>Engine / Harness</label>
-          <input
-            type="text"
-            className={inputClass}
-            value={engine}
-            onChange={(e) => setEngine(e.target.value)}
-            placeholder="Engine or harness"
-            maxLength={255}
+          <label className={labelClass}>Paramotor</label>
+          <EquipmentPicker
+            textValue={paramotor}
+            selectedId={paramotorId}
+            onChangeText={setParamotor}
+            onChangeId={setParamotorId}
+            placeholder="Paramotor name"
+            items={paramotors}
+            emptyLabel="Select paramotor…"
+            inputClass={inputClass}
           />
         </div>
         <div>

@@ -10,7 +10,7 @@ import DailyGallery from './pages/DailyGallery';
 import SiteGallery from './pages/SiteGallery';
 import FilteredGallery from './pages/FilteredGallery';
 import FlightAnalysis from './pages/FlightAnalysis';
-import GaggleView from './pages/GaggleView';
+import FormationView from './pages/FormationView';
 import Leaderboards from './pages/Leaderboards';
 import PilotPerformance from './pages/PilotPerformance';
 import FlightComparison from './pages/FlightComparison';
@@ -110,11 +110,11 @@ function App() {
           }
         />
         <Route
-          path="/flights/gaggle"
+          path="/flights/formation"
           element={
             <ErrorBoundary>
               <ProtectedRoute>
-                <GaggleView />
+                <FormationView />
               </ProtectedRoute>
             </ErrorBoundary>
           }

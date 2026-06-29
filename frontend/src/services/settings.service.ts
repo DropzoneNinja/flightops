@@ -33,9 +33,6 @@ export enum SettingKey {
   // Best Window Settings
   BEST_WINDOW_MIN_SCORE = 'weather.best_window_min_score',
 
-  // Debug Settings
-  HEATBAR_DEBUG_MODE = 'debug.heatbar_debug_mode',
-
   // Backup Settings
   BACKUP_ENABLED = 'backup.enabled',
   BACKUP_FREQUENCY = 'backup.frequency',

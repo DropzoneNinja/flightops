@@ -6,6 +6,7 @@ import LeftSidebar from '../components/Layout/LeftSidebar';
 import { useLogbook, useCreateLogbookEntry, useDeleteLogbookEntry, useOrphanedFlights, useImportFlightToLogbook, useLogbookBaseline, useUpsertLogbookBaseline, LOGBOOK_IMPORT_PROMPT_KEY } from '../hooks/useLogbook';
 import { logbookService, CreateLogbookEntryData } from '../services/logbook.service';
 import LogbookEntryForm from '../components/Logbook/LogbookEntryForm';
+import { useWings, useParamotors } from '../hooks/useEquipment';
 import LogbookImportPrompt from '../components/Logbook/LogbookImportPrompt';
 
 function fmtDuration(s: number | null): string {
@@ -57,6 +58,8 @@ export default function LogbookPage() {
   const importMutation = useImportFlightToLogbook();
   const { data: baseline } = useLogbookBaseline();
   const baselineMutation = useUpsertLogbookBaseline();
+  const { data: wingsData } = useWings();
+  const { data: paramotorsData } = useParamotors();
 
   const openBaselineForm = () => {
     setBaselineForm({
@@ -458,6 +461,8 @@ export default function LogbookPage() {
               onSubmit={handleCreate}
               onCancel={() => setShowForm(false)}
               isLoading={createMutation.isPending}
+              wings={wingsData ?? []}
+              paramotors={paramotorsData ?? []}
             />
           </div>
         </div>

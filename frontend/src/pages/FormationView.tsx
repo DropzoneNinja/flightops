@@ -3,12 +3,12 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQueries } from '@tanstack/react-query';
 import { useFlightsByDate } from '../hooks/useFlights';
 import { flightsService } from '../services/flights.service';
-import { PILOT_COLORS } from '../components/Flights/GaggleViewer';
+import { PILOT_COLORS } from '../components/Flights/FormationViewer';
 import { formatFlightTime } from '../utils/flight-time';
 import type { Trackpoint, Flight } from '../services/flights.service';
-import type { GagglePilot } from '../components/Flights/GaggleViewer';
+import type { FormationPilot } from '../components/Flights/FormationViewer';
 
-const GaggleViewer = lazy(() => import('../components/Flights/GaggleViewer'));
+const FormationViewer = lazy(() => import('../components/Flights/FormationViewer'));
 
 // ─── Leaderboard stat helpers ─────────────────────────────────────────────────
 
@@ -90,7 +90,7 @@ function tightestTurnRadius(trackpoints: Trackpoint[]): number | null {
   return speedAtMax > 0 ? speedAtMax / omega : null;
 }
 
-/** Maximum G-force recorded across trackpoints (Gaggle telemetry). */
+/** Maximum G-force recorded across trackpoints (app telemetry). */
 function maxGForce(trackpoints: Trackpoint[]): number | null {
   let max: number | null = null;
   for (const tp of trackpoints) {
@@ -172,7 +172,7 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
 
 // Live metrics at a given unix ms for a pilot
 function metricsAt(
-  pilot: GagglePilot,
+  pilot: FormationPilot,
   playbackTime: number,
 ): { altitude_ft: number | null; speed_kmh: number | null; vspeed_fpm: number | null } | null {
   const { trackpoints, firstTimestampMs } = pilot;
@@ -197,7 +197,7 @@ function metricsAt(
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function GaggleView() {
+export default function FormationView() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const date = searchParams.get('date') ?? undefined;
@@ -236,8 +236,8 @@ export default function GaggleView() {
   // Timezone consensus: 'local' if any flight used no-Z timestamps, else 'UTC'
   const sessionTimezone = useMemo(() => deriveSessionTimezone(loadedFlights), [loadedFlights]);
 
-  // ── Build GagglePilot list ────────────────────────────────────────────────
-  const gagglePilots = useMemo<GagglePilot[]>(() => {
+  // ── Build FormationPilot list ────────────────────────────────────────────────
+  const pilots = useMemo<FormationPilot[]>(() => {
     return loadedFlights.map((flight, i) => {
       const trackpoints = resolveTimestamps(flight.trackpoints_json!, flight);
       const color = PILOT_COLORS[i % PILOT_COLORS.length];
@@ -274,8 +274,8 @@ export default function GaggleView() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const visiblePilots = useMemo(
-    () => gagglePilots.filter((p) => selectedIds.has(p.id)),
-    [gagglePilots, selectedIds],
+    () => pilots.filter((p) => selectedIds.has(p.id)),
+    [pilots, selectedIds],
   );
 
   // ── Playback globals (based on selected flights only) ─────────────────────
@@ -311,10 +311,10 @@ export default function GaggleView() {
 
   // Initialize selectedIds when pilots load
   useEffect(() => {
-    if (gagglePilots.length > 0) {
-      setSelectedIds(new Set(gagglePilots.map((p) => p.id)));
+    if (pilots.length > 0) {
+      setSelectedIds(new Set(pilots.map((p) => p.id)));
     }
-  }, [gagglePilots.map((p) => p.id).join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pilots.map((p) => p.id).join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const playbackTime = globalStart !== null ? globalStart + playbackOffset : null;
 
@@ -380,7 +380,7 @@ export default function GaggleView() {
   // that exact moment (nearest recorded sample), ensuring both are time-synchronized.
   const minPilotDistances = useMemo<Map<string, Map<string, number>>>(() => {
     const result = new Map<string, Map<string, number>>();
-    if (gagglePilots.length < 2) return result;
+    if (pilots.length < 2) return result;
 
     // Returns the trackpoint in `tps` whose timestamp is nearest to `tsMs`
     function nearestTp(tps: Trackpoint[], times: (number | null)[], tsMs: number) {
@@ -403,10 +403,10 @@ export default function GaggleView() {
       return best;
     }
 
-    for (let i = 0; i < gagglePilots.length; i++) {
-      for (let j = i + 1; j < gagglePilots.length; j++) {
-        const a = gagglePilots[i];
-        const b = gagglePilots[j];
+    for (let i = 0; i < pilots.length; i++) {
+      for (let j = i + 1; j < pilots.length; j++) {
+        const a = pilots[i];
+        const b = pilots[j];
         if (a.trackpoints.length === 0 || b.trackpoints.length === 0) continue;
 
         const aTimes = a.trackpoints.map((tp) => tp.timestamp ? new Date(tp.timestamp).getTime() : null);
@@ -448,7 +448,7 @@ export default function GaggleView() {
       }
     }
     return result;
-  }, [gagglePilots]);
+  }, [pilots]);
 
   // ── Handle play/reset ─────────────────────────────────────────────────────
   function handlePlayPause() {
@@ -477,7 +477,7 @@ export default function GaggleView() {
   const leaderboard = useMemo<LeaderboardEntry[]>(() => {
     if (loadedFlights.length === 0) return [];
 
-    const pilotMap = new Map(gagglePilots.map((p) => [p.id, p]));
+    const pilotMap = new Map(pilots.map((p) => [p.id, p]));
 
     function best(
       category: string,
@@ -548,7 +548,7 @@ export default function GaggleView() {
     }, (v) => `${v.toFixed(2)} G`));
 
     return entries;
-  }, [loadedFlights, gagglePilots]);
+  }, [loadedFlights, pilots]);
 
   // ── VS formatting ─────────────────────────────────────────────────────────
   function formatVS(fpm: number | null): string {
@@ -572,14 +572,14 @@ export default function GaggleView() {
         </button>
         <div className="flex-1 min-w-0">
           <h1 className="font-semibold text-white text-sm truncate leading-tight">
-            Gaggle
+            Formation
             {date && (
               <span className="ml-2 text-slate-400 font-normal">{formatDate(date)}</span>
             )}
           </h1>
         </div>
         <div className="text-xs text-slate-400">
-          {gagglePilots.length} {gagglePilots.length === 1 ? 'pilot' : 'pilots'}
+          {pilots.length} {pilots.length === 1 ? 'pilot' : 'pilots'}
         </div>
       </header>
 
@@ -599,7 +599,7 @@ export default function GaggleView() {
                 </div>
               }
             >
-              <GaggleViewer
+              <FormationViewer
                 pilots={visiblePilots}
                 playbackTime={playbackOffset === 0 && !isPlaying ? null : playbackTime}
                 wallOpacity={wallOpacity}
@@ -791,12 +791,12 @@ export default function GaggleView() {
           <div className="flex-1 border-b border-slate-200 px-4 py-3">
             <p className="text-xs font-semibold text-sky-night mb-2 uppercase tracking-wide">Pilots</p>
 
-            {gagglePilots.length === 0 && !isLoading && (
+            {pilots.length === 0 && !isLoading && (
               <p className="text-xs text-sky-dusk">No analyzed flights for this date.</p>
             )}
 
             <div className="space-y-2">
-            {gagglePilots.map((pilot) => {
+            {pilots.map((pilot) => {
               const isSelected = selectedIds.has(pilot.id);
               const [r, g, b] = pilot.color;
               const metrics =
@@ -873,7 +873,7 @@ export default function GaggleView() {
                     const rows = Array.from(dists.entries())
                       .sort((a, b) => a[1] - b[1])
                       .map(([otherId, meters]) => {
-                        const other = gagglePilots.find((p) => p.id === otherId);
+                        const other = pilots.find((p) => p.id === otherId);
                         if (!other) return null;
                         const [or, og, ob] = other.color;
                         const label = meters >= 1000

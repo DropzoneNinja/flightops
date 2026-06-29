@@ -58,7 +58,6 @@ export class SettingsService {
 
         // Log critical settings
         if (setting.setting_key === 'map.show_zoom_indicator' ||
-            setting.setting_key === 'debug.heatbar_debug_mode' ||
             setting.setting_key === 'map.parking_icon_zoom_level') {
           console.log(`  ⚙️  [Settings] ${setting.setting_key}:`,
             `"${setting.setting_value}" (${setting.setting_type}) ->`, parsedValue,
@@ -74,7 +73,6 @@ export class SettingsService {
     const finalMap = { ...defaultsMap, ...settingsMap };
     console.log('✅ [Settings] Returning map with', Object.keys(finalMap).length, 'settings');
     console.log('  - map.show_zoom_indicator:', finalMap['map.show_zoom_indicator'], typeof finalMap['map.show_zoom_indicator']);
-    console.log('  - debug.heatbar_debug_mode:', finalMap['debug.heatbar_debug_mode'], typeof finalMap['debug.heatbar_debug_mode']);
 
     return finalMap;
   }

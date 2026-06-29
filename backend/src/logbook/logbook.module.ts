@@ -4,6 +4,9 @@ import { LogbookEntry } from '../database/entities/logbook-entry.entity';
 import { LogbookBaseline } from '../database/entities/logbook-baseline.entity';
 import { Flight } from '../database/entities/flight.entity';
 import { Media } from '../database/entities/media.entity';
+import { EquipmentWing } from '../database/entities/equipment-wing.entity';
+import { EquipmentParamotor } from '../database/entities/equipment-paramotor.entity';
+import { EquipmentEngine } from '../database/entities/equipment-engine.entity';
 import { LogbookController } from './logbook.controller';
 import { LogbookService } from './logbook.service';
 import { LogbookWeatherService } from './logbook-weather.service';
@@ -16,7 +19,7 @@ import { SitesModule } from '../sites/sites.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([LogbookEntry, LogbookBaseline, Flight, Media]),
+    TypeOrmModule.forFeature([LogbookEntry, LogbookBaseline, Flight, Media, EquipmentWing, EquipmentParamotor, EquipmentEngine]),
     AuthModule,
     PilotsModule,
     WeatherModule,

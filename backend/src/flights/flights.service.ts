@@ -196,44 +196,44 @@ export class FlightsService {
       const parsed = await this.gpxParser.parseGpxFile(filePath);
       const { trackpoints, summary } = this.gpxNormalizer.normalize(parsed.trackpoints);
 
-      // Build gaggle stats update from parsed metadata (if present)
-      const gaggle = parsed.gaggle;
-      const gaggleUpdate: Partial<Flight> = {};
-      if (gaggle) {
-        if (gaggle.distance_m !== undefined) gaggleUpdate.gaggle_distance_m = gaggle.distance_m;
-        if (gaggle.max_speed_mps !== undefined) gaggleUpdate.gaggle_max_speed_mps = gaggle.max_speed_mps;
-        if (gaggle.duration_seconds !== undefined) gaggleUpdate.gaggle_duration_seconds = gaggle.duration_seconds;
-        if (gaggle.avg_speed_mps !== undefined) gaggleUpdate.gaggle_avg_speed_mps = gaggle.avg_speed_mps;
-        if (gaggle.max_altitude_m !== undefined) gaggleUpdate.gaggle_max_altitude_m = gaggle.max_altitude_m;
-        if (gaggle.max_climb_mps !== undefined) gaggleUpdate.gaggle_max_climb_mps = gaggle.max_climb_mps;
-        if (gaggle.max_g_force !== undefined) gaggleUpdate.gaggle_max_g_force = gaggle.max_g_force;
-        if (gaggle.max_sink_mps !== undefined) gaggleUpdate.gaggle_max_sink_mps = gaggle.max_sink_mps;
-        if (gaggle.fuel_consumed !== undefined) gaggleUpdate.gaggle_fuel_consumed = gaggle.fuel_consumed;
+      // Build app-reported stats update from parsed metadata (if present)
+      const appData = parsed.appData;
+      const appUpdate: Partial<Flight> = {};
+      if (appData) {
+        if (appData.distance_m !== undefined) appUpdate.gaggle_distance_m = appData.distance_m;
+        if (appData.max_speed_mps !== undefined) appUpdate.gaggle_max_speed_mps = appData.max_speed_mps;
+        if (appData.duration_seconds !== undefined) appUpdate.gaggle_duration_seconds = appData.duration_seconds;
+        if (appData.avg_speed_mps !== undefined) appUpdate.gaggle_avg_speed_mps = appData.avg_speed_mps;
+        if (appData.max_altitude_m !== undefined) appUpdate.gaggle_max_altitude_m = appData.max_altitude_m;
+        if (appData.max_climb_mps !== undefined) appUpdate.gaggle_max_climb_mps = appData.max_climb_mps;
+        if (appData.max_g_force !== undefined) appUpdate.gaggle_max_g_force = appData.max_g_force;
+        if (appData.max_sink_mps !== undefined) appUpdate.gaggle_max_sink_mps = appData.max_sink_mps;
+        if (appData.fuel_consumed !== undefined) appUpdate.gaggle_fuel_consumed = appData.fuel_consumed;
 
-        // Override flight_date with the date from the GPX (Gaggle records the actual date).
+        // Override flight_date with the date from the GPX (the app records the actual local date).
         // takeoffDate is a local-time string like "2026-02-16 06:52:17.688325" — extract
         // only the YYYY-MM-DD portion and append T00:00:00Z so new Date() treats it as
         // UTC midnight, avoiding server-timezone shifts that move the date to the day before.
-        if (gaggle.takeoffDate) {
-          const datePart = gaggle.takeoffDate.trim().split(/[\sT]/)[0]; // "YYYY-MM-DD"
-          gaggleUpdate.flight_date = new Date(`${datePart}T00:00:00.000Z`);
+        if (appData.takeoffDate) {
+          const datePart = appData.takeoffDate.trim().split(/[\sT]/)[0]; // "YYYY-MM-DD"
+          appUpdate.flight_date = new Date(`${datePart}T00:00:00.000Z`);
         }
 
         // Apply glider/harness from GPX only if not already set by the user
         const flight = await this.flightsRepository.findOne({ where: { id: flightId } });
         if (flight) {
-          if (!flight.glider && gaggle.wing) gaggleUpdate.glider = gaggle.wing;
-          if (!flight.harness && gaggle.engine) gaggleUpdate.harness = gaggle.engine;
+          if (!flight.glider && appData.wing) appUpdate.glider = appData.wing;
+          if (!flight.harness && appData.engine) appUpdate.harness = appData.engine;
         }
       }
 
       // Record whether trackpoint timestamps were written as UTC (Z suffix) or as
-      // bare local time (no Z). This applies regardless of whether Gaggle metadata
+      // bare local time (no Z). This applies regardless of whether app metadata
       // is present — it depends only on how <time> elements were written in the GPX.
       //   'UTC'   → timestamps are true UTC; browser converts to local time for display.
-      //   'local' → Gaggle wrote local clock values without Z; the stored UTC digit
+      //   'local' → app wrote local clock values without Z; the stored UTC digit
       //             values equal the local display time — show with UTC getters, no conversion.
-      gaggleUpdate.timezone = parsed.timestampsAreUtc ? 'UTC' : 'local';
+      appUpdate.timezone = parsed.timestampsAreUtc ? 'UTC' : 'local';
 
       await this.flightsRepository.update(flightId, {
         parse_status: 'analyzed',
@@ -255,7 +255,7 @@ export class FlightsService {
         bbox_json: summary.bbox,
         confidence_score: summary.confidence_score,
         trackpoints_json: trackpoints as unknown[],
-        ...gaggleUpdate,
+        ...appUpdate,
       });
 
       const durationMs = Date.now() - start;

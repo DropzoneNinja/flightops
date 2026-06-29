@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useIsMobile } from '../hooks/useIsMobile';
 import LeftSidebar from '../components/Layout/LeftSidebar';
 import { useLogbookEntry, useUpdateLogbookEntry, useDeleteLogbookEntry } from '../hooks/useLogbook';
+import { useWings, useParamotors } from '../hooks/useEquipment';
 import { useFlightById, useFlightsByDate } from '../hooks/useFlights';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSettings } from '../hooks/useSettings';
@@ -62,6 +63,8 @@ export default function LogbookEntryPage() {
   const { data: entry, isLoading, error } = useLogbookEntry(id);
   const updateMutation = useUpdateLogbookEntry();
   const deleteMutation = useDeleteLogbookEntry();
+  const { data: wingsData } = useWings();
+  const { data: paramotorsData } = useParamotors();
 
   const flightId = entry?.gpx?.flight_id ?? null;
   const { data: flight } = useFlightById(flightId ?? undefined);
@@ -206,7 +209,9 @@ export default function LogbookEntryPage() {
                   landing_site_name: entry.landing_site_name ?? undefined,
                   category: entry.category ?? undefined,
                   wing: entry.wing ?? undefined,
-                  engine: entry.engine ?? undefined,
+                  wing_id: entry.wing_id ?? undefined,
+                  paramotor: entry.paramotor ?? undefined,
+                  paramotor_id: entry.paramotor_id ?? undefined,
                   fuel_start_litres: entry.fuel_start_litres ?? undefined,
                   fuel_used_litres: entry.fuel_used_litres ?? undefined,
                   rating: entry.rating ?? undefined,
@@ -221,6 +226,8 @@ export default function LogbookEntryPage() {
                 onCancel={() => setEditing(false)}
                 isLoading={updateMutation.isPending}
                 submitLabel="Save changes"
+                wings={wingsData ?? []}
+                paramotors={paramotorsData ?? []}
               />
             </div>
           )}
@@ -326,9 +333,11 @@ export default function LogbookEntryPage() {
               ['Landing site', entry.landing_site_name],
               ['Category', entry.category],
               ['Wing', entry.wing],
-              ['Engine', entry.engine],
+              ['Paramotor', entry.paramotor ?? entry.engine],
               ['Rating', entry.rating ? '★'.repeat(entry.rating) : null],
+              ['Fuel start', entry.fuel_start_litres != null ? `${entry.fuel_start_litres} L` : null],
               ['Fuel used', entry.fuel_used_litres != null ? `${entry.fuel_used_litres} L` : null],
+              ['Fuel rate', entry.fuel_rate_lph != null ? `${entry.fuel_rate_lph.toFixed(1)} L/h` : null],
               ['Source', entry.source],
             ]
               .filter(([, v]) => v)
@@ -391,7 +400,7 @@ export default function LogbookEntryPage() {
               <div className="px-5 py-3 border-b border-[#1e2a3a] flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-white">Flight track</h2>
                 <a
-                  href={`/analysis/${flightId}`}
+                  href={`/flights/${flightId}`}
                   className="text-xs text-blue-400 hover:text-blue-300"
                 >
                   Full analysis →

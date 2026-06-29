@@ -16,7 +16,7 @@ const C_DATE  = { x: ML + 28,  w: 78 };
 const C_DUR   = { x: ML + 106, w: 52 };
 const C_DIST  = { x: ML + 158, w: 56 };
 const C_ALT   = { x: ML + 214, w: 60 };
-const C_EQUIP = { x: ML + 274, w: MR - (ML + 274) }; // 231
+const C_EQUIP = { x: ML + 282, w: MR - (ML + 282) }; // 223 (8px gap after max alt)
 
 // Sub-rows start under the date column and span to the right edge
 const SUB_X = ML + 28;
