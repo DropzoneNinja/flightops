@@ -29,8 +29,8 @@ function MonthCalendar({
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(month);
     const monthEnd = endOfMonth(month);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 }); // Sunday
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 }); // Monday
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
 
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [month]);
@@ -41,7 +41,7 @@ function MonthCalendar({
     return dateCountsMap.get(dateStr) || null;
   };
 
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   return (
     <div className="calendar-month-grid">
