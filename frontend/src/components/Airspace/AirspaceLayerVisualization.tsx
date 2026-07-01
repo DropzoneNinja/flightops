@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { FlightSite } from '../../services/sites.service';
 import { AirspaceGeoJSON, AirspaceClass } from '../../services/airspace.service';
-import { computeAirspaceLayers } from '../../utils/airspaceUtils';
+import { computeAirspaceLayers, formatAltFt } from '../../utils/airspaceUtils';
 import AirspaceClassModal from './AirspaceClassModal';
 
 interface AirspaceLayerVisualizationProps {
@@ -67,9 +67,6 @@ export default function AirspaceLayerVisualization({
       return SVG_PADDING_TOP + GRAPH_HEIGHT - (proportion * GRAPH_HEIGHT);
     };
 
-    // Convert feet to Flight Level (divide by 100)
-    const feetToFL = (feet: number) => Math.round(feet / 100);
-
     // Calculate layer rectangles
     const layerRects = layers.map(layer => {
       const y1 = feetToPixels(layer.upperFeet); // Top of layer
@@ -95,7 +92,7 @@ export default function AirspaceLayerVisualization({
       .sort((a, b) => a - b)
       .map(feet => ({
         feet,
-        label: feet === 0 ? 'SFC' : `FL${feetToFL(feet)}`,
+        label: formatAltFt(feet),
         y: feetToPixels(feet),
       }));
 

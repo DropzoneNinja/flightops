@@ -5,6 +5,8 @@ import { useSites } from '../hooks/useSites';
 import { useSettings } from '../hooks/useSettings';
 import { useAuth } from '../hooks/useAuth';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { useAirspace } from '../hooks/useAirspace';
+import { AirspaceClass } from '../services/airspace.service';
 import LeftSidebar from '../components/Layout/LeftSidebar';
 import MissionMap from '../components/Mission/MissionMap';
 import WaypointSidebar, { exportGpx } from '../components/Mission/WaypointSidebar';
@@ -68,6 +70,24 @@ export default function MissionEditorPage() {
   const averageSpeed = avgSpeed ?? settingsSpeed;
 
   const isMobile = useIsMobile();
+  const { airspace } = useAirspace();
+  const [showAirspace, setShowAirspace] = useState(false);
+  const [enabledAirspaceClasses, setEnabledAirspaceClasses] = useState<Set<AirspaceClass>>(() => {
+    const stored = localStorage.getItem('enabledAirspaceClasses');
+    if (stored) {
+      try { return new Set(JSON.parse(stored) as AirspaceClass[]); } catch { /* ignore */ }
+    }
+    return new Set(['A', 'C', 'CTR', 'D', 'Q', 'R'] as AirspaceClass[]);
+  });
+
+  const handleToggleAirspaceClass = (cls: AirspaceClass) => {
+    setEnabledAirspaceClasses(prev => {
+      const next = new Set(prev);
+      if (next.has(cls)) next.delete(cls); else next.add(cls);
+      localStorage.setItem('enabledAirspaceClasses', JSON.stringify(Array.from(next)));
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -279,6 +299,11 @@ export default function MissionEditorPage() {
             fuelTankSize={fuelTankSize}
             windDirection={windDirection}
             windSpeed={windSpeed ?? 0}
+            showAirspace={showAirspace}
+            airspace={airspace}
+            enabledAirspaceClasses={enabledAirspaceClasses}
+            onToggleAirspace={() => setShowAirspace(v => !v)}
+            onToggleAirspaceClass={handleToggleAirspaceClass}
           />
         </div>
 
@@ -315,8 +340,8 @@ export default function MissionEditorPage() {
     <div className="flex flex-row h-screen overflow-hidden" style={{ background: '#0d1421' }}>
       <LeftSidebar
         user={user}
-        showAirspace={false}
-        onToggleAirspace={() => {}}
+        showAirspace={showAirspace}
+        onToggleAirspace={() => setShowAirspace(v => !v)}
         onLogout={logout}
       />
 
@@ -569,6 +594,11 @@ export default function MissionEditorPage() {
               fuelTankSize={fuelTankSize}
               windDirection={windDirection}
               windSpeed={windSpeed ?? 0}
+              showAirspace={showAirspace}
+              airspace={airspace}
+              enabledAirspaceClasses={enabledAirspaceClasses}
+              onToggleAirspace={() => setShowAirspace(v => !v)}
+              onToggleAirspaceClass={handleToggleAirspaceClass}
             />
           </div>
 

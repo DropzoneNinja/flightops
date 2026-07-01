@@ -2,11 +2,14 @@ import { useRef, useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { MissionWaypoint } from '../../services/missions.service';
+import { AirspaceGeoJSON, AirspaceClass } from '../../services/airspace.service';
 import {
   calculateDistance, calculateTime, formatDistance, formatTime,
   calculateBearing, windAdjustedSpeed,
 } from '../../utils/distanceUtils';
 import { createWindSockIcon } from '../../utils/windsockIcon';
+import AirspaceOverlay from '../Airspace/AirspaceOverlay';
+import AirspaceClassFilter from '../Airspace/AirspaceClassFilter';
 import 'leaflet/dist/leaflet.css';
 
 interface MissionMapProps {
@@ -28,6 +31,11 @@ interface MissionMapProps {
   fuelTankSize?: number | null;
   windDirection?: number | null;
   windSpeed?: number;
+  showAirspace?: boolean;
+  airspace?: AirspaceGeoJSON;
+  enabledAirspaceClasses?: Set<AirspaceClass>;
+  onToggleAirspace?: () => void;
+  onToggleAirspaceClass?: (cls: AirspaceClass) => void;
 }
 
 function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lon: number) => void }) {
@@ -245,8 +253,14 @@ export default function MissionMap({
   fuelTankSize = null,
   windDirection = null,
   windSpeed = 0,
+  showAirspace = false,
+  airspace,
+  enabledAirspaceClasses,
+  onToggleAirspace,
+  onToggleAirspaceClass,
 }: MissionMapProps) {
   const [satellite, setSatellite] = useState(false);
+  const defaultEnabledClasses = enabledAirspaceClasses ?? new Set<AirspaceClass>(['A', 'C', 'CTR', 'D', 'Q', 'R']);
 
   const polylinePositions: [number, number][] = waypoints.map((w) => [
     Number(w.latitude),
@@ -438,6 +452,11 @@ export default function MissionMap({
           zIndexOffset={500}
         />
       )}
+
+      {/* Airspace overlay */}
+      {showAirspace && airspace && (
+        <AirspaceOverlay airspace={airspace} enabledClasses={defaultEnabledClasses} />
+      )}
     </MapContainer>
 
     <button
@@ -462,6 +481,38 @@ export default function MissionMap({
     >
       {satellite ? 'Map' : 'Satellite'}
     </button>
+
+    {onToggleAirspace && (
+      <button
+        onClick={onToggleAirspace}
+        style={{
+          position: 'absolute',
+          top: '42px',
+          right: '10px',
+          zIndex: 1000,
+          background: showAirspace ? 'rgba(59,130,246,0.95)' : 'rgba(30,30,30,0.82)',
+          color: '#f9fafb',
+          border: '1px solid rgba(255,255,255,0.3)',
+          borderRadius: '6px',
+          padding: '4px 10px',
+          fontSize: '12px',
+          fontWeight: 600,
+          cursor: 'pointer',
+          backdropFilter: 'blur(4px)',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+          letterSpacing: '0.02em',
+        }}
+      >
+        Airspace
+      </button>
+    )}
+
+    {showAirspace && onToggleAirspaceClass && (
+      <AirspaceClassFilter
+        enabledClasses={defaultEnabledClasses}
+        onToggleClass={onToggleAirspaceClass}
+      />
+    )}
     </div>
   );
 }

@@ -10,7 +10,7 @@ import { useSettings } from '../../hooks/useSettings';
 import { SettingKey } from '../../services/settings.service';
 import CombinedWeatherDialog from '../Weather/CombinedWeatherDialog';
 import { useAirspace } from '../../hooks/useAirspace';
-import { computeAirspaceLayers, CLASS_COLORS } from '../../utils/airspaceUtils';
+import { computeAirspaceLayers, CLASS_COLORS, formatAltFt } from '../../utils/airspaceUtils';
 import type { AirspaceLayer } from '../../utils/airspaceUtils';
 
 export interface MapState {
@@ -252,11 +252,6 @@ const PencilIcon = () => (
 
 const AIRSPACE_CAP_FT = 15000;
 
-function fmtAltFt(feet: number): string {
-  if (feet === 0) return 'SFC';
-  if (feet % 100 === 0) return `FL${feet / 100}`;
-  return `${feet.toLocaleString()}ft`;
-}
 
 function AirspaceSvgBar({ layers }: { layers: AirspaceLayer[] }) {
   const PAD_TOP = 8, PAD_BOT = 16, H = 148, GRAPH = H - PAD_TOP - PAD_BOT;
@@ -273,11 +268,11 @@ function AirspaceSvgBar({ layers }: { layers: AirspaceLayer[] }) {
       {boundaries.map(ft => (
         <g key={ft}>
           <text x={AXIS_W - 4} y={fy(ft)} textAnchor="end" dominantBaseline="middle"
-            fontSize={7.5} fill="#4a5a74" fontWeight="600">
-            {fmtAltFt(ft)}
+            fontSize={9} fill="#8ba3c0" fontWeight="600">
+            {formatAltFt(ft)}
           </text>
           <line x1={AXIS_W - 2} y1={fy(ft)} x2={AXIS_W} y2={fy(ft)}
-            stroke="#2a3a54" strokeWidth={1} />
+            stroke="#3a4f6e" strokeWidth={1} />
         </g>
       ))}
       {layers.map((layer, i) => {
@@ -300,7 +295,7 @@ function AirspaceSvgBar({ layers }: { layers: AirspaceLayer[] }) {
         );
       })}
       <text x={AXIS_W + BAR_W / 2} y={H - 2} textAnchor="middle"
-        fontSize={7} fill="#3a4a64" fontWeight="600">
+        fontSize={9} fill="#8ba3c0" fontWeight="600">
         GND
       </text>
     </svg>
@@ -474,10 +469,10 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
                     >
                       {/* Day header */}
                       <div className="mb-2">
-                        <div className="text-[#6b7fa3] text-[10px] font-semibold uppercase tracking-wide">
+                        <div className="text-[#a0b3cc] text-xs font-semibold uppercase tracking-wide">
                           {getDayLabel(forecast.date)}
                         </div>
-                        <div className="text-[#4a5a74] text-[10px]">
+                        <div className="text-[#6b7fa3] text-xs">
                           {getDayShort(forecast.date)}
                         </div>
                       </div>
@@ -493,10 +488,10 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
                       </div>
 
                       {/* Wind info */}
-                      <div className="flex items-center gap-1 text-[#6b7fa3] text-[10px] mb-2">
+                      <div className="flex items-center gap-1 text-[#a0b3cc] text-xs mb-2">
                         <WindIcon />
                         <span>{Math.round(convertWindSpeed(wind, windUnit))} {windSpeedUnitLabel(windUnit)}</span>
-                        <span className="text-[#2a3a54] mx-0.5">gust</span>
+                        <span className="text-[#6b7fa3] mx-0.5">gust</span>
                         <span>{Math.round(convertWindSpeed(gust, windUnit))} {windSpeedUnitLabel(windUnit)}</span>
                       </div>
 
@@ -504,7 +499,7 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
                       <MiniHeatBar forecast={forecast} />
 
                       {/* Hour markers */}
-                      <div className="flex justify-between mt-1 text-[#3a4a64] text-[8px]">
+                      <div className="flex justify-between mt-1 text-[#6b7fa3] text-[10px]">
                         <span>06</span>
                         <span>12</span>
                         <span>18</span>
@@ -535,10 +530,10 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
                         {layer.class}
                       </span>
                       <div className="min-w-0">
-                        <div className="text-[#a0b3cc] text-[11px] font-medium leading-tight">
-                          {fmtAltFt(layer.lowerFeet)} – {fmtAltFt(layer.upperFeet)}
+                        <div className="text-white text-xs font-medium leading-tight">
+                          {formatAltFt(layer.lowerFeet)} – {formatAltFt(layer.upperFeet)}
                         </div>
-                        <div className="text-[#4a5a74] text-[9px] truncate leading-tight">
+                        <div className="text-[#8ba3c0] text-[10px] truncate leading-tight">
                           {layer.name}
                         </div>
                       </div>

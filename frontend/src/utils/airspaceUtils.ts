@@ -34,6 +34,12 @@ export const CLASS_PRIORITY: Record<AirspaceClass, number> = {
   RMZ: 9,
 };
 
+export function formatAltFt(feet: number): string {
+  if (feet === 0) return 'SFC';
+  if (feet >= 10000) return `FL${Math.round(feet / 100)}`;
+  return `${feet.toLocaleString()}ft`;
+}
+
 export function parseAltitude(alt: string): number {
   if (alt === 'SFC' || alt === 'GND') return 0;
   if (alt.startsWith('FL')) {
@@ -127,8 +133,8 @@ export function computeAirspaceLayers(
       resolvedLayers.push({
         class: 'G',
         name: 'Class G',
-        lower: segmentLower === 0 ? 'SFC' : `${segmentLower}FT`,
-        upper: `${segmentUpper}FT`,
+        lower: formatAltFt(segmentLower),
+        upper: formatAltFt(segmentUpper),
         lowerFeet: segmentLower,
         upperFeet: segmentUpper,
         color: CLASS_COLORS['G'],
