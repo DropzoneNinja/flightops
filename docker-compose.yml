@@ -64,7 +64,7 @@ services:
       TZ: ${TIMEZONE}
       MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-2147483648}
     ports:
-      - "5173:80"
+      - "${FRONTEND_PORT:-5173}:80"
     depends_on:
       - backend
     networks:

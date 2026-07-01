@@ -108,7 +108,7 @@ export function computeAirspaceLayers(
 
   uniqueLayers.sort((a, b) => a.lowerFeet - b.lowerFeet);
 
-  const altitudeBoundaries = new Set<number>();
+  const altitudeBoundaries = new Set<number>([0, maxFeet]);
   uniqueLayers.forEach(layer => {
     altitudeBoundaries.add(layer.lowerFeet);
     altitudeBoundaries.add(layer.upperFeet);
@@ -123,7 +123,18 @@ export function computeAirspaceLayers(
     const coveringLayers = uniqueLayers.filter(layer =>
       layer.lowerFeet <= segmentLower && layer.upperFeet >= segmentUpper
     );
-    if (coveringLayers.length === 0) continue;
+    if (coveringLayers.length === 0) {
+      resolvedLayers.push({
+        class: 'G',
+        name: 'Class G',
+        lower: segmentLower === 0 ? 'SFC' : `${segmentLower}FT`,
+        upper: `${segmentUpper}FT`,
+        lowerFeet: segmentLower,
+        upperFeet: segmentUpper,
+        color: CLASS_COLORS['G'],
+      });
+      continue;
+    }
 
     coveringLayers.sort((a, b) => CLASS_PRIORITY[a.class] - CLASS_PRIORITY[b.class]);
     const highest = coveringLayers[0];
