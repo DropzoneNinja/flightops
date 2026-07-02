@@ -73,7 +73,7 @@ function PhaseLegend({ trackpoints }: { trackpoints: Trackpoint[] }) {
             className="inline-block w-3 h-3 rounded-sm flex-shrink-0"
             style={{ backgroundColor: PHASE_COLORS[phase] }}
           />
-          <span className="text-xs text-sky-dusk">{PHASE_LABELS[phase] ?? phase}</span>
+          <span className="text-xs text-[#6b7fa3]">{PHASE_LABELS[phase] ?? phase}</span>
         </div>
       ))}
     </div>
@@ -84,9 +84,9 @@ function PhaseLegend({ trackpoints }: { trackpoints: Trackpoint[] }) {
 
 function InspectorSection({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
-    <div className="border-b border-slate-200 px-4 py-3 last:border-b-0">
+    <div className="border-b border-[#2a3a54] px-4 py-3 last:border-b-0">
       {title && (
-        <p className="text-xs font-semibold text-sky-night mb-2 uppercase tracking-wide">{title}</p>
+        <p className="text-xs font-semibold text-[#a0b3cc] mb-2 uppercase tracking-wide">{title}</p>
       )}
       {children}
     </div>
@@ -453,8 +453,8 @@ export default function FlightAnalysis() {
               width: INSPECTOR_WIDTH,
               flexShrink: 0,
               overflowY: 'auto',
-              background: '#fff',
-              borderLeft: '1px solid #e2e8f0',
+              background: '#141d2e',
+              borderLeft: '1px solid #2a3a54',
               display: 'flex',
               flexDirection: 'column',
             }}
@@ -470,24 +470,24 @@ export default function FlightAnalysis() {
                   { label: 'Max Speed',    value: formatSpeed(flight.max_speed_mps) },
                   { label: 'Avg Speed',    value: formatSpeed(flight.avg_speed_mps) },
                 ].map(({ label, value }) => (
-                  <div key={label} className="bg-slate-50 rounded-lg p-2 text-center">
-                    <p className="text-[10px] text-sky-dusk">{label}</p>
-                    <p className="text-xs font-semibold text-sky-night mt-0.5">{value}</p>
+                  <div key={label} className="bg-[#1e2a3a] rounded-lg p-2 text-center">
+                    <p className="text-[10px] text-[#6b7fa3]">{label}</p>
+                    <p className="text-xs font-semibold text-white mt-0.5">{value}</p>
                   </div>
                 ))}
               </div>
               {(flight.glider || flight.harness || flight.launch_site_name) && (
                 <div className="mt-2 space-y-0.5">
                   {(flight.glider || flight.harness) && (
-                    <p className="text-xs text-sky-dusk">
-                      {flight.glider && <>Glider: <span className="font-medium text-sky-night">{flight.glider}</span></>}
+                    <p className="text-xs text-[#6b7fa3]">
+                      {flight.glider && <>Glider: <span className="font-medium text-white">{flight.glider}</span></>}
                       {flight.glider && flight.harness && <> &nbsp;/&nbsp; </>}
-                      {flight.harness && <>Harness/Trike: <span className="font-medium text-sky-night">{flight.harness}</span></>}
+                      {flight.harness && <>Harness/Trike: <span className="font-medium text-white">{flight.harness}</span></>}
                     </p>
                   )}
                   {flight.launch_site_name && (
-                    <p className="text-xs text-sky-dusk">
-                      Launch: <span className="font-medium text-sky-night">{flight.launch_site_name}</span>
+                    <p className="text-xs text-[#6b7fa3]">
+                      Launch: <span className="font-medium text-white">{flight.launch_site_name}</span>
                     </p>
                   )}
                 </div>
@@ -506,7 +506,7 @@ export default function FlightAnalysis() {
                     onChange={(e) => setWallOpacity(Number(e.target.value) / 100)}
                     className="flex-1 cursor-pointer accent-sky-500"
                   />
-                  <span className="text-xs text-sky-dusk w-8 text-right tabular-nums">
+                  <span className="text-xs text-[#6b7fa3] w-8 text-right tabular-nums">
                     {Math.round(wallOpacity * 100)}%
                   </span>
                 </div>
@@ -525,7 +525,7 @@ export default function FlightAnalysis() {
                     onChange={(e) => setTrailPercent(Number(e.target.value))}
                     className="flex-1 cursor-pointer accent-sky-500"
                   />
-                  <span className="text-xs text-sky-dusk w-8 text-right tabular-nums">
+                  <span className="text-xs text-[#6b7fa3] w-8 text-right tabular-nums">
                     {trailPercent}%
                   </span>
                 </div>
@@ -546,8 +546,8 @@ export default function FlightAnalysis() {
                   onClick={() => setShowPilotDistances((v) => !v)}
                   className={`w-full py-1.5 px-3 text-xs font-medium rounded-lg border transition-colors ${
                     showPilotDistances
-                      ? 'bg-sky-600 border-sky-500 text-white'
-                      : 'border-slate-300 text-sky-night hover:bg-slate-50'
+                      ? 'bg-blue-600 border-blue-500 text-white'
+                      : 'border-[#2a3a54] text-[#a0b3cc] hover:bg-[#1e2a3a]'
                   }`}
                 >
                   {showPilotDistances ? 'Hide Distance Lines' : 'Show Distance Lines'}
@@ -563,21 +563,21 @@ export default function FlightAnalysis() {
                               style={{ background: `rgb(${line.fromColor.join(',')})` }}
                             />
                           )}
-                          <span className="text-[11px] text-sky-dusk truncate">
+                          <span className="text-[11px] text-[#6b7fa3] truncate">
                             {line.fromLabel}
                           </span>
-                          <span className="text-[11px] text-slate-400 flex-shrink-0">↔</span>
+                          <span className="text-[11px] text-[#4a5a74] flex-shrink-0">↔</span>
                           {line.toColor && (
                             <span
                               className="w-2 h-2 rounded-full flex-shrink-0"
                               style={{ background: `rgb(${line.toColor.join(',')})` }}
                             />
                           )}
-                          <span className="text-[11px] text-sky-dusk truncate">
+                          <span className="text-[11px] text-[#6b7fa3] truncate">
                             {line.toLabel}
                           </span>
                         </div>
-                        <span className="text-xs font-semibold text-sky-night flex-shrink-0 tabular-nums">
+                        <span className="text-xs font-semibold text-white flex-shrink-0 tabular-nums">
                           {formatDistance(line.distance_m)}
                         </span>
                       </div>
@@ -597,14 +597,14 @@ export default function FlightAnalysis() {
               </InspectorSection>
             ) : analysisFailed ? (
               <InspectorSection>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
+                <div className="bg-red-900/20 border border-red-800 rounded-lg p-3 text-xs text-red-400">
                   Analysis failed. Use Re-analyze to retry.
                 </div>
               </InspectorSection>
             ) : (analysisLoading || flight.analysis_status === 'running' || flight.analysis_status === 'pending') ? (
               <InspectorSection>
-                <div className="flex items-center gap-2 text-xs text-sky-dusk">
-                  <svg className="animate-spin h-4 w-4 text-sky-morning shrink-0" viewBox="0 0 24 24" fill="none">
+                <div className="flex items-center gap-2 text-xs text-[#a0b3cc]">
+                  <svg className="animate-spin h-4 w-4 text-blue-400 shrink-0" viewBox="0 0 24 24" fill="none">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
@@ -650,7 +650,7 @@ export default function FlightAnalysis() {
             {/* Notes */}
             {flight.notes && (
               <InspectorSection title="Notes">
-                <p className="text-xs text-sky-dusk whitespace-pre-wrap">{flight.notes}</p>
+                <p className="text-xs text-[#a0b3cc] whitespace-pre-wrap">{flight.notes}</p>
               </InspectorSection>
             )}
 

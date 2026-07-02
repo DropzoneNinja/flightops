@@ -122,9 +122,9 @@ export default function AddSitePanel({
 
   const getBorderColor = (fieldType: 'takeoff' | 'parking') => {
     if (activeLocationSelection === fieldType) {
-      return 'border-blue-500 border-2 ring-2 ring-blue-200';
+      return 'border-blue-500 border-2 ring-2 ring-blue-500/30';
     }
-    return 'border-gray-300';
+    return 'border-[#2a3a54]';
   };
 
   const handleTakeoffSelectFromMap = () => {
@@ -141,17 +141,17 @@ export default function AddSitePanel({
 
   return (
     <div
-      className={`fixed top-[72px] right-0 h-[calc(100vh-72px)] w-96 bg-white shadow-2xl z-[1000] transform transition-transform duration-300 ${
+      className={`fixed top-[72px] right-0 h-[calc(100vh-72px)] w-96 bg-[#141d2e] shadow-2xl z-[1000] transform transition-transform duration-300 ${
         isOpen ? 'translate-x-0' : 'translate-x-full'
       } overflow-y-auto`}
     >
       <div className="p-6">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Add Flight Site</h2>
+          <h2 className="text-2xl font-bold text-white">Add Flight Site</h2>
           <button
             onClick={handleCancel}
-            className="text-gray-500 hover:text-gray-700 text-2xl"
+            className="text-[#6b7fa3] hover:text-[#a0b3cc] text-2xl"
             disabled={createSiteMutation.isPending}
           >
             &times;
@@ -163,7 +163,7 @@ export default function AddSitePanel({
           <div>
             <label
               htmlFor="name"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-[#a0b3cc] mb-1"
             >
               Site Name
             </label>
@@ -174,7 +174,7 @@ export default function AddSitePanel({
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-[#1e2a3a] border border-[#2a3a54] text-white placeholder:text-[#4a5a74] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g., Sunset Ridge"
             />
           </div>
@@ -182,7 +182,7 @@ export default function AddSitePanel({
           {/* Takeoff Coordinates */}
           <div>
             <div className="flex justify-between items-center mb-1">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-[#a0b3cc]">
                 Takeoff Location *
               </label>
               <button
@@ -191,7 +191,7 @@ export default function AddSitePanel({
                 className={`text-xs px-2 py-1 rounded ${
                   activeLocationSelection === 'takeoff'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                    : 'bg-blue-900/30 text-blue-400 hover:bg-blue-900/50'
                 }`}
               >
                 {activeLocationSelection === 'takeoff' ? 'Click Map' : 'Select from Map'}
@@ -201,7 +201,7 @@ export default function AddSitePanel({
               <div>
                 <label
                   htmlFor="takeoff_lat"
-                  className="block text-xs text-gray-500 mb-1"
+                  className="block text-xs text-[#6b7fa3] mb-1"
                 >
                   Latitude
                 </label>
@@ -218,14 +218,14 @@ export default function AddSitePanel({
                       takeoff_lat: e.target.value === '' ? '' : parseFloat(e.target.value),
                     })
                   }
-                  className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-2 py-1 bg-[#1e2a3a] border border-[#2a3a54] text-white placeholder:text-[#4a5a74] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="51.5074"
                 />
               </div>
               <div>
                 <label
                   htmlFor="takeoff_lon"
-                  className="block text-xs text-gray-500 mb-1"
+                  className="block text-xs text-[#6b7fa3] mb-1"
                 >
                   Longitude
                 </label>
@@ -242,7 +242,7 @@ export default function AddSitePanel({
                       takeoff_lon: e.target.value === '' ? '' : parseFloat(e.target.value),
                     })
                   }
-                  className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-2 py-1 bg-[#1e2a3a] border border-[#2a3a54] text-white placeholder:text-[#4a5a74] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="-0.1278"
                 />
               </div>
@@ -253,7 +253,7 @@ export default function AddSitePanel({
           <div>
             <label
               htmlFor="takeoff_notes"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-[#a0b3cc] mb-1"
             >
               Takeoff Notes
             </label>
@@ -265,10 +265,10 @@ export default function AddSitePanel({
               }
               rows={3}
               maxLength={10000}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 bg-[#1e2a3a] border border-[#2a3a54] text-white placeholder:text-[#4a5a74] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               placeholder="Notes about takeoff conditions, terrain, etc."
             />
-            <div className="text-xs text-gray-500 text-right">
+            <div className="text-xs text-[#6b7fa3] text-right">
               {formData.takeoff_notes.length}/10000
             </div>
           </div>
@@ -276,7 +276,7 @@ export default function AddSitePanel({
           {/* Parking Coordinates */}
           <div>
             <div className="flex justify-between items-center mb-1">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-[#a0b3cc]">
                 Parking Location
               </label>
               <button
@@ -285,7 +285,7 @@ export default function AddSitePanel({
                 className={`text-xs px-2 py-1 rounded ${
                   activeLocationSelection === 'parking'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                    : 'bg-blue-900/30 text-blue-400 hover:bg-blue-900/50'
                 }`}
               >
                 {activeLocationSelection === 'parking' ? 'Click Map' : 'Select from Map'}
@@ -295,7 +295,7 @@ export default function AddSitePanel({
               <div>
                 <label
                   htmlFor="parking_lat"
-                  className="block text-xs text-gray-500 mb-1"
+                  className="block text-xs text-[#6b7fa3] mb-1"
                 >
                   Latitude
                 </label>
@@ -312,14 +312,14 @@ export default function AddSitePanel({
                       parking_lat: e.target.value === '' ? '' : parseFloat(e.target.value),
                     })
                   }
-                  className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-2 py-1 bg-[#1e2a3a] border border-[#2a3a54] text-white placeholder:text-[#4a5a74] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="Defaults to takeoff"
                 />
               </div>
               <div>
                 <label
                   htmlFor="parking_lon"
-                  className="block text-xs text-gray-500 mb-1"
+                  className="block text-xs text-[#6b7fa3] mb-1"
                 >
                   Longitude
                 </label>
@@ -336,7 +336,7 @@ export default function AddSitePanel({
                       parking_lon: e.target.value === '' ? '' : parseFloat(e.target.value),
                     })
                   }
-                  className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-2 py-1 bg-[#1e2a3a] border border-[#2a3a54] text-white placeholder:text-[#4a5a74] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="Defaults to takeoff"
                 />
               </div>
@@ -347,7 +347,7 @@ export default function AddSitePanel({
           <div>
             <label
               htmlFor="parking_notes"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-[#a0b3cc] mb-1"
             >
               Parking Notes
             </label>
@@ -359,10 +359,10 @@ export default function AddSitePanel({
               }
               rows={3}
               maxLength={10000}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 bg-[#1e2a3a] border border-[#2a3a54] text-white placeholder:text-[#4a5a74] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               placeholder="Notes about parking location, accessibility, etc."
             />
-            <div className="text-xs text-gray-500 text-right">
+            <div className="text-xs text-[#6b7fa3] text-right">
               {formData.parking_notes.length}/10000
             </div>
           </div>
@@ -371,7 +371,7 @@ export default function AddSitePanel({
           <div>
             <label
               htmlFor="weather_notes"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-[#a0b3cc] mb-1"
             >
               Weather Notes
             </label>
@@ -383,10 +383,10 @@ export default function AddSitePanel({
               }
               rows={3}
               maxLength={10000}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 bg-[#1e2a3a] border border-[#2a3a54] text-white placeholder:text-[#4a5a74] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               placeholder="Notes about typical weather conditions, seasonal patterns, etc."
             />
-            <div className="text-xs text-gray-500 text-right">
+            <div className="text-xs text-[#6b7fa3] text-right">
               {formData.weather_notes.length}/10000
             </div>
           </div>
@@ -401,7 +401,7 @@ export default function AddSitePanel({
               type="number"
               value={formData.elevation_m}
               onChange={(e) => setFormData({ ...formData, elevation_m: e.target.value === '' ? '' : Number(e.target.value) })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-[#1e2a3a] border border-[#2a3a54] text-white placeholder:text-[#4a5a74] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g. 1460"
               min="-500"
               max="9000"
@@ -417,7 +417,7 @@ export default function AddSitePanel({
               type="text"
               value={currentDate}
               readOnly
-              className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
+              className="w-full px-3 py-2 border border-[#2a3a54] rounded-md bg-[#0d1421] text-[#6b7fa3] cursor-not-allowed"
             />
           </div>
 
@@ -427,7 +427,7 @@ export default function AddSitePanel({
               type="button"
               onClick={handleCancel}
               disabled={createSiteMutation.isPending}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md font-medium hover:bg-gray-300 transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-[#1e2a3a] text-[#a0b3cc] rounded-md font-medium hover:bg-[#2a3a54] transition-colors disabled:opacity-50"
             >
               Cancel
             </button>

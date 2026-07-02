@@ -588,13 +588,13 @@ export default function FormationView() {
         {/* Map */}
         <div className="flex-1 min-w-0 relative">
           {isLoading ? (
-            <div className="flex items-center justify-center h-full text-sky-dusk text-sm">
+            <div className="flex items-center justify-center h-full text-[#6b7fa3] text-sm">
               Loading flights…
             </div>
           ) : (
             <Suspense
               fallback={
-                <div className="flex items-center justify-center h-full text-sky-dusk text-sm">
+                <div className="flex items-center justify-center h-full text-[#6b7fa3] text-sm">
                   Loading map…
                 </div>
               }
@@ -617,13 +617,13 @@ export default function FormationView() {
 
           {/* ── Playback bar (overlaid on map) ─────────────────────────────── */}
           <div className="absolute bottom-2 left-2 right-2 z-10">
-            <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow px-3 pt-2 pb-1">
+            <div className="bg-[#141d2e]/90 backdrop-blur-sm rounded-lg shadow px-3 pt-2 pb-1">
               {/* Controls row */}
               <div className="flex items-center gap-2 mb-1">
                 {/* Reset */}
                 <button
                   onClick={handleReset}
-                  className="w-7 h-7 rounded-full bg-sky-dusk/20 hover:bg-sky-dusk/40 text-sky-night text-xs flex items-center justify-center shrink-0 transition-colors"
+                  className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-[#a0b3cc] text-xs flex items-center justify-center shrink-0 transition-colors"
                   aria-label="Reset to start"
                   title="Reset to start"
                 >
@@ -633,7 +633,7 @@ export default function FormationView() {
                 <button
                   onClick={handlePlayPause}
                   disabled={sessionDurationMs === 0}
-                  className="w-7 h-7 rounded-full bg-sky-morning text-white text-xs flex items-center justify-center shrink-0 disabled:opacity-40 hover:bg-sky-dusk transition-colors"
+                  className="w-7 h-7 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center shrink-0 disabled:opacity-40 hover:bg-blue-700 transition-colors"
                   aria-label={isPlaying ? 'Pause' : 'Play'}
                 >
                   {isPlaying ? '⏸' : '▶'}
@@ -642,7 +642,7 @@ export default function FormationView() {
                 {sessionDurationMs > 0 && (
                   <button
                     onClick={handleStepBack}
-                    className="w-7 h-7 rounded-full bg-sky-dusk/20 hover:bg-sky-dusk/40 text-sky-night text-xs flex items-center justify-center shrink-0 transition-colors"
+                    className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-[#a0b3cc] text-xs flex items-center justify-center shrink-0 transition-colors"
                     aria-label={`Step back ${stepIncrement}s`}
                     title={`Step back ${stepIncrement}s`}
                   >
@@ -651,15 +651,15 @@ export default function FormationView() {
                 )}
                 {/* Increment selector */}
                 {sessionDurationMs > 0 && (
-                  <div className="flex items-center shrink-0 rounded overflow-hidden border border-sky-dusk/30 text-[10px] font-medium">
+                  <div className="flex items-center shrink-0 rounded overflow-hidden border border-[#2a3a54] text-[10px] font-medium">
                     {([15, 30, 60] as const).map((s) => (
                       <button
                         key={s}
                         onClick={() => setStepIncrement(s)}
                         className={`px-1.5 py-0.5 leading-none transition-colors ${
                           stepIncrement === s
-                            ? 'bg-sky-morning text-white'
-                            : 'bg-transparent text-sky-dusk hover:bg-sky-dusk/10'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-transparent text-[#6b7fa3] hover:bg-white/10'
                         }`}
                         aria-pressed={stepIncrement === s}
                       >
@@ -678,14 +678,14 @@ export default function FormationView() {
                     setIsPlaying(false);
                     setPlaybackOffset(Number(e.target.value));
                   }}
-                  className="flex-1 cursor-pointer accent-sky-500"
+                  className="flex-1 cursor-pointer accent-blue-500"
                   style={{ height: '4px' }}
                 />
                 {/* Step forward */}
                 {sessionDurationMs > 0 && (
                   <button
                     onClick={handleStepForward}
-                    className="w-7 h-7 rounded-full bg-sky-dusk/20 hover:bg-sky-dusk/40 text-sky-night text-xs flex items-center justify-center shrink-0 transition-colors"
+                    className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-[#a0b3cc] text-xs flex items-center justify-center shrink-0 transition-colors"
                     aria-label={`Step forward ${stepIncrement}s`}
                     title={`Step forward ${stepIncrement}s`}
                   >
@@ -693,14 +693,14 @@ export default function FormationView() {
                   </button>
                 )}
                 {/* Current wall-clock time */}
-                <span className="text-xs text-sky-dusk tabular-nums shrink-0 w-20 text-right">
+                <span className="text-xs text-[#a0b3cc] tabular-nums shrink-0 w-20 text-right">
                   {playbackTime !== null && playbackOffset > 0 ? formatFlightTime(playbackTime, sessionTimezone) : '—'}
                 </span>
               </div>
 
               {/* Quarter-time tick labels */}
               {globalStart !== null && sessionDurationMs > 0 && (
-                <div className="relative flex justify-between text-[10px] text-sky-dusk/70 tabular-nums" style={{ paddingLeft: '168px', paddingRight: '116px' }}>
+                <div className="relative flex justify-between text-[10px] text-[#6b7fa3]/70 tabular-nums" style={{ paddingLeft: '168px', paddingRight: '116px' }}>
                   {[0, 0.25, 0.5, 0.75, 1].map((frac) => (
                     <span
                       key={frac}
@@ -718,19 +718,19 @@ export default function FormationView() {
 
         {/* Inspector panel */}
         <aside
-          style={{ width: 320, flexShrink: 0, overflowY: 'auto', background: '#fff', borderLeft: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}
+          style={{ width: 320, flexShrink: 0, overflowY: 'auto', background: '#141d2e', borderLeft: '1px solid #2a3a54', display: 'flex', flexDirection: 'column' }}
         >
 
           {/* ── Comparison Lines toggle ──────────────────────────────────────── */}
           {visiblePilots.length >= 2 && (
-            <div className="border-b border-slate-200 px-4 py-3">
-              <p className="text-xs font-semibold text-sky-night mb-2 uppercase tracking-wide">Comparison Lines</p>
+            <div className="border-b border-[#2a3a54] px-4 py-3">
+              <p className="text-xs font-semibold text-[#a0b3cc] mb-2 uppercase tracking-wide">Comparison Lines</p>
               <button
                 onClick={() => setShowDistances((v) => !v)}
                 className={`w-full py-1.5 px-3 text-xs font-medium rounded-lg border transition-colors ${
                   showDistances
-                    ? 'bg-sky-600 border-sky-500 text-white'
-                    : 'border-slate-300 text-sky-night hover:bg-slate-50'
+                    ? 'bg-blue-600 border-blue-500 text-white'
+                    : 'border-[#2a3a54] text-[#a0b3cc] hover:bg-[#1e2a3a]'
                 }`}
               >
                 {showDistances ? 'Hide Comparison Lines' : 'Show Comparison Lines'}
@@ -741,12 +741,12 @@ export default function FormationView() {
                   { label: 'Height',   checked: showHeight,       set: setShowHeight },
                   { label: 'Distance', checked: showLineDistance, set: setShowLineDistance },
                 ] as { label: string; checked: boolean; set: (v: boolean) => void }[]).map(({ label, checked, set }) => (
-                  <label key={label} className="flex items-center gap-2 text-xs text-sky-night cursor-pointer select-none">
+                  <label key={label} className="flex items-center gap-2 text-xs text-[#a0b3cc] cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={(e) => set(e.target.checked)}
-                      className="accent-sky-500"
+                      className="accent-blue-500"
                     />
                     {label}
                   </label>
@@ -756,9 +756,9 @@ export default function FormationView() {
           )}
 
           {/* ── Sliders ─────────────────────────────────────────────────────── */}
-          <div className="border-b border-slate-200 px-4 py-3 space-y-3">
+          <div className="border-b border-[#2a3a54] px-4 py-3 space-y-3">
             <div>
-              <div className="flex justify-between text-xs text-sky-dusk mb-1.5">
+              <div className="flex justify-between text-xs text-[#6b7fa3] mb-1.5">
                 <span>Wall Transparency</span>
                 <span className="tabular-nums">{Math.round(wallOpacity * 100)}%</span>
               </div>
@@ -768,11 +768,11 @@ export default function FormationView() {
                 max={100}
                 value={Math.round(wallOpacity * 100)}
                 onChange={(e) => setWallOpacity(Number(e.target.value) / 100)}
-                className="w-full cursor-pointer accent-sky-500"
+                className="w-full cursor-pointer accent-blue-500"
               />
             </div>
             <div>
-              <div className="flex justify-between text-xs text-sky-dusk mb-1.5">
+              <div className="flex justify-between text-xs text-[#6b7fa3] mb-1.5">
                 <span>Trail Length</span>
                 <span className="tabular-nums">{trailPercent}%</span>
               </div>
@@ -782,17 +782,17 @@ export default function FormationView() {
                 max={100}
                 value={trailPercent}
                 onChange={(e) => setTrailPercent(Number(e.target.value))}
-                className="w-full cursor-pointer accent-sky-500"
+                className="w-full cursor-pointer accent-blue-500"
               />
             </div>
           </div>
 
           {/* ── Pilots list ─────────────────────────────────────────────────── */}
-          <div className="flex-1 border-b border-slate-200 px-4 py-3">
-            <p className="text-xs font-semibold text-sky-night mb-2 uppercase tracking-wide">Pilots</p>
+          <div className="flex-1 border-b border-[#2a3a54] px-4 py-3">
+            <p className="text-xs font-semibold text-[#a0b3cc] mb-2 uppercase tracking-wide">Pilots</p>
 
             {pilots.length === 0 && !isLoading && (
-              <p className="text-xs text-sky-dusk">No analyzed flights for this date.</p>
+              <p className="text-xs text-[#6b7fa3]">No analyzed flights for this date.</p>
             )}
 
             <div className="space-y-2">
@@ -809,8 +809,8 @@ export default function FormationView() {
                   key={pilot.id}
                   className={`rounded-lg border p-2.5 transition-colors cursor-pointer ${
                     isSelected
-                      ? 'border-slate-200 bg-slate-50'
-                      : 'border-slate-100 bg-white opacity-50'
+                      ? 'border-[#2a3a54] bg-[#1e2a3a]'
+                      : 'border-[#1e2a3a] bg-[#141d2e] opacity-50'
                   }`}
                   onClick={() => togglePilot(pilot.id)}
                 >
@@ -819,9 +819,9 @@ export default function FormationView() {
                       className="w-3 h-3 rounded-sm shrink-0"
                       style={{ background: `rgb(${r},${g},${b})` }}
                     />
-                    <span className="flex-1 text-sm font-medium text-sky-night truncate">{pilot.pilotName}</span>
+                    <span className="flex-1 text-sm font-medium text-white truncate">{pilot.pilotName}</span>
                     {pilot.firstTimestampMs !== null && (
-                      <span className="text-xs text-sky-dusk tabular-nums shrink-0">
+                      <span className="text-xs text-[#6b7fa3] tabular-nums shrink-0">
                         {formatFlightTime(pilot.firstTimestampMs, sessionTimezone)}
                       </span>
                     )}
@@ -830,7 +830,7 @@ export default function FormationView() {
                       checked={isSelected}
                       onChange={() => togglePilot(pilot.id)}
                       onClick={(e) => e.stopPropagation()}
-                      className="w-3.5 h-3.5 accent-sky-500 shrink-0"
+                      className="w-3.5 h-3.5 accent-blue-500 shrink-0"
                     />
                   </div>
 
@@ -838,26 +838,26 @@ export default function FormationView() {
                   {isSelected && (
                     <div className="mt-1.5 grid grid-cols-3 gap-x-1 text-xs">
                       <div>
-                        <span className="text-sky-dusk">Alt</span>
-                        <div className="font-mono tabular-nums text-sky-night">
+                        <span className="text-[#6b7fa3]">Alt</span>
+                        <div className="font-mono tabular-nums text-[#a0b3cc]">
                           {metrics?.altitude_ft != null ? `${metrics.altitude_ft.toLocaleString()} ft` : '—'}
                         </div>
                       </div>
                       <div>
-                        <span className="text-sky-dusk">Speed</span>
-                        <div className="font-mono tabular-nums text-sky-night">
+                        <span className="text-[#6b7fa3]">Speed</span>
+                        <div className="font-mono tabular-nums text-[#a0b3cc]">
                           {metrics?.speed_kmh != null ? `${metrics.speed_kmh} km/h` : '—'}
                         </div>
                       </div>
                       <div>
-                        <span className="text-sky-dusk">VS</span>
+                        <span className="text-[#6b7fa3]">VS</span>
                         <div
                           className={`font-mono tabular-nums ${
                             metrics?.vspeed_fpm != null
                               ? metrics.vspeed_fpm >= 0
-                                ? 'text-green-600'
-                                : 'text-red-500'
-                              : 'text-sky-night'
+                                ? 'text-green-400'
+                                : 'text-red-400'
+                              : 'text-[#a0b3cc]'
                           }`}
                         >
                           {metrics?.vspeed_fpm != null ? formatVS(metrics.vspeed_fpm) : '—'}
@@ -887,14 +887,14 @@ export default function FormationView() {
                                 <span className="truncate max-w-[80px]">{other.pilotName}</span>
                               </span>
                             </td>
-                            <td className="py-0.5 font-mono tabular-nums text-right text-sky-night">{label}</td>
+                            <td className="py-0.5 font-mono tabular-nums text-right text-[#a0b3cc]">{label}</td>
                           </tr>
                         );
                       });
                     return (
-                      <div className="mt-1.5 border-t border-slate-100 pt-1.5">
-                        <p className="text-[10px] text-sky-dusk uppercase tracking-wide mb-1">Closest Approach</p>
-                        <table className="w-full text-xs text-sky-dusk">
+                      <div className="mt-1.5 border-t border-[#2a3a54] pt-1.5">
+                        <p className="text-[10px] text-[#6b7fa3] uppercase tracking-wide mb-1">Closest Approach</p>
+                        <table className="w-full text-xs text-[#6b7fa3]">
                           <tbody>{rows}</tbody>
                         </table>
                       </div>
@@ -909,20 +909,20 @@ export default function FormationView() {
           {/* ── Leaderboard ─────────────────────────────────────────────────── */}
           {leaderboard.length > 0 && (
             <div className="px-4 py-3">
-              <p className="text-xs font-semibold text-sky-night mb-2 uppercase tracking-wide">Leaderboard</p>
+              <p className="text-xs font-semibold text-[#a0b3cc] mb-2 uppercase tracking-wide">Leaderboard</p>
               <div className="space-y-0.5">
                 {leaderboard.map((entry) => {
                   const [r, g, b] = entry.color;
                   return (
-                    <div key={entry.category} className="flex items-center gap-2 py-1.5 border-b border-slate-100 last:border-0">
+                    <div key={entry.category} className="flex items-center gap-2 py-1.5 border-b border-[#1e2a3a] last:border-0">
                       <span className="text-sm w-5 shrink-0 text-center leading-none">{entry.icon}</span>
-                      <span className="text-xs text-sky-dusk w-24 shrink-0">{entry.category}</span>
+                      <span className="text-xs text-[#6b7fa3] w-24 shrink-0">{entry.category}</span>
                       <span
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ background: `rgb(${r},${g},${b})` }}
                       />
-                      <span className="flex-1 text-xs font-medium text-sky-night truncate">{entry.pilotName}</span>
-                      <span className="text-xs font-mono tabular-nums font-semibold text-sky-night shrink-0">{entry.value}</span>
+                      <span className="flex-1 text-xs font-medium text-[#a0b3cc] truncate">{entry.pilotName}</span>
+                      <span className="text-xs font-mono tabular-nums font-semibold text-[#a0b3cc] shrink-0">{entry.value}</span>
                     </div>
                   );
                 })}

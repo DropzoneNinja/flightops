@@ -100,20 +100,20 @@ export default function MobilePageLayout({
 
   return (
     <div
-      className="flex flex-col bg-gray-100 overflow-hidden"
+      className="flex flex-col bg-[#141d2e] overflow-hidden"
       style={{ height: '100dvh' }}
       {...swipeHandlers}
     >
       {/* Compact sticky header — padded for iOS status bar / notch */}
       <header
-        className="bg-white border-b border-gray-200 sticky top-0 z-10 shrink-0"
+        className="bg-[#0d1421] border-b border-[#2a3a54] sticky top-0 z-10 shrink-0"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="flex items-center px-4 py-3 gap-3 min-h-[52px]">
           {showBackButton && (
             <button
               onClick={handleBack}
-              className="touch-target p-2 -ml-2 text-gray-700 flex items-center gap-1"
+              className="touch-target p-2 -ml-2 text-[#a0b3cc] flex items-center gap-1"
               aria-label={`Back to ${backLabel}`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,7 +122,7 @@ export default function MobilePageLayout({
               <span className="text-sm font-medium">{backLabel}</span>
             </button>
           )}
-          <h1 className="text-lg font-semibold text-gray-900 flex-1 truncate">
+          <h1 className="text-lg font-semibold text-white flex-1 truncate">
             Flight Memories
           </h1>
           {headerRight && (

@@ -70,7 +70,7 @@ export default function BottomSheet({
       {/* Bottom Sheet */}
       <div
         ref={sheetRef}
-        className={`fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-[1600] transform transition-transform duration-300 ${
+        className={`fixed bottom-0 left-0 right-0 bg-[#141d2e] rounded-t-2xl shadow-2xl z-[1600] transform transition-transform duration-300 ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         } ${heightClass} flex flex-col`}
         role="dialog"
@@ -79,17 +79,17 @@ export default function BottomSheet({
       >
         {/* Draggable Handle */}
         <div className="flex justify-center pt-3 pb-2">
-          <div className="w-10 h-1 bg-gray-300 rounded-full" aria-hidden="true" />
+          <div className="w-10 h-1 bg-[#2a3a54] rounded-full" aria-hidden="true" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200">
-          <h2 id="bottom-sheet-title" className="text-xl font-bold text-gray-900">
+        <div className="flex items-center justify-between px-6 py-3 border-b border-[#2a3a54]">
+          <h2 id="bottom-sheet-title" className="text-xl font-bold text-white">
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 touch-target text-gray-500 hover:text-gray-700 transition-colors rounded-full hover:bg-gray-100"
+            className="p-2 touch-target text-[#6b7fa3] hover:text-[#a0b3cc] transition-colors rounded-full hover:bg-white/10"
             aria-label="Close"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,10 +105,10 @@ export default function BottomSheet({
 
         {/* Prominent footer close button */}
         {closeLabel && (
-          <div className="px-6 pb-6 pt-3 border-t border-gray-200 shrink-0">
+          <div className="px-6 pb-6 pt-3 border-t border-[#2a3a54] shrink-0">
             <button
               onClick={onClose}
-              className="w-full py-3 bg-gray-900 text-white font-semibold rounded-xl active:bg-gray-700 transition-colors touch-target-lg flex items-center justify-center gap-2"
+              className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl active:bg-blue-700 transition-colors touch-target-lg flex items-center justify-center gap-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

@@ -39,13 +39,13 @@ export default function MobileToolsSheet({
       height="full"
     >
       {/* Sub-tabs */}
-      <div className="flex border-b border-gray-200 -mx-6 px-6 mb-4">
+      <div className="flex border-b border-[#2a3a54] -mx-6 px-6 mb-4">
         <button
           onClick={() => setActiveSubTab('airspace')}
           className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors touch-target ${
             activeSubTab === 'airspace'
               ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-600'
+              : 'border-transparent text-[#6b7fa3]'
           }`}
         >
           Airspace
@@ -55,7 +55,7 @@ export default function MobileToolsSheet({
           className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors touch-target ${
             activeSubTab === 'missions'
               ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-600'
+              : 'border-transparent text-[#6b7fa3]'
           }`}
         >
           Missions
@@ -65,7 +65,7 @@ export default function MobileToolsSheet({
           className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors touch-target ${
             activeSubTab === 'settings'
               ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-600'
+              : 'border-transparent text-[#6b7fa3]'
           }`}
         >
           Settings
@@ -97,7 +97,7 @@ export default function MobileToolsSheet({
                   {(['A', 'C', 'CTR', 'D', 'G', 'Q', 'R', 'RMZ'] as AirspaceClass[]).map((airspaceClass) => (
                     <label
                       key={airspaceClass}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg touch-target active:bg-gray-100 transition-colors"
+                      className="flex items-center justify-between p-3 bg-[#1e2a3a] rounded-lg touch-target active:bg-[#2a3a54] transition-colors"
                     >
                       <span className="text-base font-medium outdoor-text">Class {airspaceClass}</span>
                       <input
@@ -116,20 +116,18 @@ export default function MobileToolsSheet({
 
         {activeSubTab === 'missions' && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-[#a0b3cc]">
               {isMissionMode ? 'Mission pins are shown on the map.' : 'Show your missions on the map.'}
             </p>
             <button
               onClick={() => { onToggleMissionMode(); onClose(); }}
-              className={`w-full px-4 py-4 text-white rounded-lg font-semibold touch-target-lg transition-colors ${
-                isMissionMode ? 'bg-sky-600 active:bg-sky-700' : 'bg-indigo-600 active:bg-indigo-700'
-              }`}
+              className="w-full px-4 py-4 text-white bg-blue-600 rounded-lg font-semibold touch-target-lg active:bg-blue-700 transition-colors"
             >
               {isMissionMode ? 'Show Weather' : 'Show Missions'}
             </button>
             <button
               onClick={() => { navigate('/missions'); onClose(); }}
-              className="w-full px-4 py-4 bg-white border border-indigo-300 text-indigo-700 rounded-lg font-semibold touch-target-lg active:bg-indigo-50 transition-colors"
+              className="w-full px-4 py-4 bg-[#1e2a3a] border border-[#2a3a54] text-blue-400 rounded-lg font-semibold touch-target-lg active:bg-[#2a3a54] transition-colors"
             >
               Open Mission Planner
             </button>
@@ -140,7 +138,7 @@ export default function MobileToolsSheet({
           <div className="space-y-4">
             <button
               onClick={() => { navigate('/settings'); onClose(); }}
-              className="w-full px-4 py-4 bg-gray-600 text-white rounded-lg font-semibold touch-target-lg active:bg-gray-700 transition-colors"
+              className="w-full px-4 py-4 bg-[#1e2a3a] text-[#a0b3cc] rounded-lg font-semibold touch-target-lg active:bg-[#2a3a54] transition-colors"
             >
               Open Settings
             </button>

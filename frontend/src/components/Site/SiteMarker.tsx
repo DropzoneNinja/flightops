@@ -262,9 +262,7 @@ export default function SiteMarker({
         isSelected={isSelected}
         maxDays={forecastDays}
         onClick={() => {
-          if (!isMobile && onTakeoffClick) {
-            onTakeoffClick(site);
-          }
+          if (onTakeoffClick) onTakeoffClick(site);
         }}
       />,
     );

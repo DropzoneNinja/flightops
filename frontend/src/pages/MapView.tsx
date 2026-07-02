@@ -237,11 +237,8 @@ export default function MapView() {
       next.set('site', site.id);
       return next;
     });
-    if (isMobile) {
-      setSelectedMobileSite(site);
-    } else {
-      setSelectedSite(site);
-    }
+    setSelectedSite(site);
+    if (isMobile) setSelectedMobileSite(site);
   };
 
   const handleForecastSelect = (windDir: number, windSpeed: number) => {
@@ -250,6 +247,7 @@ export default function MapView() {
 
   const handleCloseInspectionPanel = () => {
     setSelectedSite(null);
+    setSelectedMobileSite(null);
     setIsEditingSite(false);
     setWindsockWind(null);
     setSearchParams(prev => {
@@ -286,11 +284,8 @@ export default function MapView() {
     if (!siteId) return;
     const site = sites.find(s => s.id === siteId);
     if (!site) return;
-    if (isMobile) {
-      setSelectedMobileSite(site);
-    } else {
-      setSelectedSite(site);
-    }
+    setSelectedSite(site);
+    if (isMobile) setSelectedMobileSite(site);
   }, [isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -318,7 +313,7 @@ export default function MapView() {
       )}
 
       {/* Mobile site name banner */}
-      {isMobile && selectedMobileSite && (
+      {isMobile && selectedMobileSite && !selectedSite && (
         <WeatherStatusBanner site={selectedMobileSite} />
       )}
 
@@ -456,8 +451,8 @@ export default function MapView() {
         )}
       </div>
 
-      {/* Desktop site inspection panel */}
-      {!isMobile && selectedSite && !isEditingSite && (
+      {/* Site inspection panel (desktop sidebar, mobile overlay) */}
+      {selectedSite && !isEditingSite && (
         <SiteInspectionPanel
           site={selectedSite}
           onClose={handleCloseInspectionPanel}

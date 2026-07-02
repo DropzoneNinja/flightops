@@ -48,23 +48,6 @@ function getDaylightHours(forecast: WeatherForecast) {
   });
 }
 
-function getThermalHours(forecast: WeatherForecast) {
-  const sunriseHour = parseInt(forecast.sunrise.split(':')[0]);
-  const sunsetHour = parseInt(forecast.sunset.split(':')[0]);
-  return forecast.hourlyData.filter(h => {
-    const hour = new Date(h.timestamp).getHours();
-    const morning = hour >= sunriseHour && hour <= sunriseHour + 2;
-    const evening = hour >= sunsetHour - 2 && hour <= sunsetHour;
-    return morning || evening;
-  });
-}
-
-function getPeakScore(forecast: WeatherForecast): number {
-  const hours = getDaylightHours(forecast);
-  if (hours.length === 0) return 0;
-  return Math.max(...hours.map(h => h.overallScore));
-}
-
 function getFlyabilityScore(forecast: WeatherForecast): number {
   const sunriseHour = parseInt(forecast.sunrise.split(':')[0]);
   const sunsetHour = parseInt(forecast.sunset.split(':')[0]);
@@ -99,29 +82,33 @@ function getFlyabilityScore(forecast: WeatherForecast): number {
   return Math.min(Math.max(...allDaylight.map(h => h.overallScore)), 54);
 }
 
-function getPeakThermalScore(forecast: WeatherForecast): number {
-  const hours = getThermalHours(forecast);
-  if (hours.length === 0) return getPeakScore(forecast);
-  return Math.max(...hours.map(h => h.overallScore));
-}
-
 interface BestWindow {
   startLabel: string;
   endLabel: string;
   peakScore: number;
 }
 
+const MIN_FLYABLE_MINUTES = 30;
+
+function getFlyableMinutes(hour: number, sunriseFrac: number, sunsetFrac: number): number {
+  const flyStart = Math.max(hour, sunriseFrac);
+  const flyEnd = Math.min(hour + 1, sunsetFrac);
+  return Math.max(0, (flyEnd - flyStart) * 60);
+}
+
 function getBestWindow(forecast: WeatherForecast, minScore: number): BestWindow | null {
-  const sunriseHour = parseInt(forecast.sunrise.split(':')[0]);
-  const sunsetHour = parseInt(forecast.sunset.split(':')[0]);
+  const [sunriseH, sunriseM] = forecast.sunrise.split(':').map(Number);
+  const [sunsetH, sunsetM] = forecast.sunset.split(':').map(Number);
+  const sunriseFrac = sunriseH + sunriseM / 60;
+  const sunsetFrac = sunsetH + sunsetM / 60;
 
   const morningHours = forecast.hourlyData.filter(h => {
     const hour = new Date(h.timestamp).getHours();
-    return hour >= sunriseHour && hour <= sunriseHour + 2;
+    return hour >= sunriseH && hour <= sunriseH + 2;
   });
   const eveningHours = forecast.hourlyData.filter(h => {
     const hour = new Date(h.timestamp).getHours();
-    return hour >= sunsetHour - 2 && hour <= sunsetHour;
+    return hour >= sunsetH - 2 && hour <= sunsetH;
   });
 
   function bestBlock(hours: typeof morningHours) {
@@ -138,7 +125,12 @@ function getBestWindow(forecast: WeatherForecast, minScore: number): BestWindow 
     if (cur.length > 0) {
       blocks.push({ hours: cur, peak: Math.max(...cur.map(x => x.overallScore)) });
     }
-    return blocks.length > 0 ? blocks.reduce((a, b) => (b.peak > a.peak ? b : a)) : null;
+    const validBlocks = blocks.filter(block => {
+      const totalMinutes = block.hours.reduce((sum, x) =>
+        sum + getFlyableMinutes(new Date(x.timestamp).getHours(), sunriseFrac, sunsetFrac), 0);
+      return totalMinutes >= MIN_FLYABLE_MINUTES;
+    });
+    return validBlocks.length > 0 ? validBlocks.reduce((a, b) => (b.peak > a.peak ? b : a)) : null;
   }
 
   const morningBest = bestBlock(morningHours);
@@ -167,10 +159,6 @@ function getAvgWind(forecast: WeatherForecast): { wind: number; gust: number } {
   const wind = hours.reduce((s, h) => s + h.windSpeed, 0) / hours.length;
   const gust = hours.reduce((s, h) => s + h.gustSpeed, 0) / hours.length;
   return { wind: Math.round(wind), gust: Math.round(gust) };
-}
-
-function formatTime(timeString: string): string {
-  return timeString.slice(0, 5);
 }
 
 function getDayLabel(dateString: string): string {
@@ -352,13 +340,15 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
       .finally(() => setMissionsLoading(false));
   }, [site.id]);
 
-  // Best day = highest peak score within thermal window (sunrise+2h → sunset-2h)
-  const bestForecast = forecasts.length
-    ? forecasts.reduce((best, f) => (getPeakThermalScore(f) > getPeakThermalScore(best) ? f : best), forecasts[0])
+  // Find the best valid window across all forecast days (sunrise/sunset boundary-aware)
+  const forecastWindows = forecasts.map(f => ({ forecast: f, window: getBestWindow(f, minScore) }));
+  const validEntries = forecastWindows.filter(x => x.window !== null);
+  const bestEntry = validEntries.length
+    ? validEntries.reduce((best, curr) => curr.window!.peakScore > best.window!.peakScore ? curr : best)
     : null;
-
-  const bestWindow = bestForecast ? getBestWindow(bestForecast, minScore) : null;
-  const bestScore = bestWindow ? bestWindow.peakScore : (bestForecast ? getPeakThermalScore(bestForecast) : 0);
+  const bestForecast = bestEntry?.forecast ?? null;
+  const bestWindow = bestEntry?.window ?? null;
+  const bestScore = bestWindow ? bestWindow.peakScore : 0;
   const bestScoreLabel = getScoreLabel(bestScore);
 
   return (
@@ -396,32 +386,39 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
 
         <div className={`flex-1 overflow-y-auto px-5 space-y-4 ${canEdit ? 'pb-4' : 'pb-5'}`}>
           {/* Best Window card */}
-          {bestForecast && !isLoading && (
-            <div className="bg-[#1a2e4a] border border-[#2a4a6a] rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+          {!isLoading && forecasts.length > 0 && (
+            bestWindow ? (
+              <div className="bg-[#1a2e4a] border border-[#2a4a6a] rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ClockIcon />
+                    <span className="text-[#6b9fd4] text-xs font-semibold tracking-widest uppercase">Best Window</span>
+                  </div>
+                  <div
+                    className="text-white text-xl font-bold w-12 h-12 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: scoreToHeatColor(bestScore) }}
+                  >
+                    {Math.round(bestScore)}
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <span className="text-white font-semibold text-sm">
+                    {getDayLabel(bestForecast!.date)} {bestWindow.startLabel}–{bestWindow.endLabel}
+                  </span>
+                  <div className="mt-0.5 text-xs" style={{ color: bestScoreLabel.color }}>
+                    {bestScoreLabel.label}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-[#1a2234] border border-[#2a3a54] rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
                   <ClockIcon />
-                  <span className="text-[#6b9fd4] text-xs font-semibold tracking-widest uppercase">Best Window</span>
+                  <span className="text-[#6b9fd4] text-xs font-semibold tracking-widest uppercase">No Suitable Weather</span>
                 </div>
-                <div
-                  className="text-white text-xl font-bold w-12 h-12 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: scoreToHeatColor(bestScore) }}
-                >
-                  {Math.round(bestScore)}
-                </div>
+                <p className="text-[#6b7fa3] text-sm">No suitable flying conditions in the next 4 days.</p>
               </div>
-              <div className="mt-2">
-                <span className="text-white font-semibold text-sm">
-                  {getDayLabel(bestForecast.date)}
-                  {bestWindow
-                    ? ` ${bestWindow.startLabel}–${bestWindow.endLabel}`
-                    : ` ${formatTime(bestForecast.sunrise)}–${formatTime(bestForecast.sunset)}`}
-                </span>
-                <div className="mt-0.5 text-xs" style={{ color: bestScoreLabel.color }}>
-                  {bestWindow ? bestScoreLabel.label : 'No qualifying window'}
-                </div>
-              </div>
-            </div>
+            )
           )}
 
           {/* 4-Day Forecast */}

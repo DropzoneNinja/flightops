@@ -50,20 +50,20 @@ export default function Leaderboards() {
   const { data: entries = [], isLoading, error } = useLeaderboard(category, period);
 
   return (
-    <div className="min-h-screen bg-sky-cloud">
+    <div className="min-h-screen bg-[#0d1421]">
       {/* Header */}
-      <header className="bg-white border-b border-sky-midday/20 shadow-sm sticky top-0 z-10">
+      <header className="bg-[#0d1421] border-b border-[#2a3a54] sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
-            className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-1 rounded-lg hover:bg-white/10 transition-colors"
             aria-label="Back"
           >
-            <svg className="w-5 h-5 text-sky-night" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="text-lg font-bold text-sky-night">Leaderboards</h1>
+          <h1 className="text-lg font-bold text-white">Leaderboards</h1>
         </div>
       </header>
 
@@ -77,7 +77,7 @@ export default function Leaderboards() {
               className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 period === p.id
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-sky-dusk border border-sky-midday/30 hover:bg-sky-50'
+                  : 'bg-[#141d2e] text-[#6b7fa3] border border-[#2a3a54] hover:bg-[#1e2a3a]'
               }`}
             >
               {p.label}
@@ -93,8 +93,8 @@ export default function Leaderboards() {
               onClick={() => setCategory(c.id)}
               className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 category === c.id
-                  ? 'bg-sky-night text-white'
-                  : 'bg-white text-sky-dusk border border-sky-midday/30 hover:bg-sky-50'
+                  ? 'bg-[#1e2a3a] text-white'
+                  : 'bg-[#141d2e] text-[#6b7fa3] border border-[#2a3a54] hover:bg-[#1e2a3a]'
               }`}
             >
               {c.label}
@@ -103,21 +103,21 @@ export default function Leaderboards() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl shadow-elevation border border-sky-midday/30 overflow-hidden">
+        <div className="bg-[#141d2e] rounded-xl border border-[#1e2a3a] overflow-hidden">
           {isLoading && (
-            <div className="p-8 text-center text-sky-dusk animate-pulse">Loading…</div>
+            <div className="p-8 text-center text-[#6b7fa3] animate-pulse">Loading…</div>
           )}
 
           {error && (
-            <div className="p-8 text-center text-red-500">Failed to load leaderboard.</div>
+            <div className="p-8 text-center text-red-400">Failed to load leaderboard.</div>
           )}
 
           {!isLoading && !error && entries.length === 0 && (
-            <div className="p-8 text-center text-sky-dusk">
-              <svg className="w-12 h-12 mx-auto mb-3 text-sky-midday" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-8 text-center text-[#6b7fa3]">
+              <svg className="w-12 h-12 mx-auto mb-3 text-[#2a3a54]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
-              <p className="font-medium text-sky-night">No data yet</p>
+              <p className="font-medium text-white">No data yet</p>
               <p className="text-sm mt-1">Upload and analyze flights to appear on the leaderboard.</p>
             </div>
           )}
@@ -125,27 +125,27 @@ export default function Leaderboards() {
           {!isLoading && !error && entries.length > 0 && (
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-sky-50 border-b border-sky-midday/20">
-                  <th className="py-2.5 px-3 text-left font-semibold text-sky-night w-12">Rank</th>
-                  <th className="py-2.5 px-3 text-left font-semibold text-sky-night">Pilot</th>
-                  <th className="py-2.5 px-3 text-right font-semibold text-sky-night">Score</th>
+                <tr className="bg-[#1e2a3a] border-b border-[#2a3a54]">
+                  <th className="py-2.5 px-3 text-left font-semibold text-[#a0b3cc] w-12">Rank</th>
+                  <th className="py-2.5 px-3 text-left font-semibold text-[#a0b3cc]">Pilot</th>
+                  <th className="py-2.5 px-3 text-right font-semibold text-[#a0b3cc]">Score</th>
                   {category === 'most_improved' && (
-                    <th className="py-2.5 px-3 text-right font-semibold text-sky-night">+Pts</th>
+                    <th className="py-2.5 px-3 text-right font-semibold text-[#a0b3cc]">+Pts</th>
                   )}
-                  <th className="py-2.5 px-3 text-right font-semibold text-sky-night hidden sm:table-cell">Date</th>
-                  <th className="py-2.5 px-3 text-right font-semibold text-sky-night hidden sm:table-cell">Glider</th>
+                  <th className="py-2.5 px-3 text-right font-semibold text-[#a0b3cc] hidden sm:table-cell">Date</th>
+                  <th className="py-2.5 px-3 text-right font-semibold text-[#a0b3cc] hidden sm:table-cell">Glider</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-[#1e2a3a]">
                 {entries.map((entry) => (
-                  <tr key={entry.flight_id} className="hover:bg-sky-50/50 transition-colors">
-                    <td className="py-3 px-3 text-center font-bold text-sky-night">
+                  <tr key={entry.flight_id} className="hover:bg-[#1e2a3a] transition-colors">
+                    <td className="py-3 px-3 text-center font-bold text-white">
                       {rankMedal(entry.rank)}
                     </td>
                     <td className="py-3 px-3">
                       <button
                         onClick={() => navigate(`/pilots/${entry.pilot.id}`)}
-                        className="font-semibold text-blue-600 hover:underline text-left"
+                        className="font-semibold text-blue-400 hover:underline text-left"
                       >
                         {entry.pilot.display_name}
                       </button>
@@ -160,15 +160,15 @@ export default function Leaderboards() {
                     </td>
                     {category === 'most_improved' && (
                       <td className="py-3 px-3 text-right">
-                        <span className="text-green-600 font-semibold">
+                        <span className="text-green-400 font-semibold">
                           +{entry.improvement?.toFixed(1) ?? '—'}
                         </span>
                       </td>
                     )}
-                    <td className="py-3 px-3 text-right text-sky-dusk hidden sm:table-cell">
+                    <td className="py-3 px-3 text-right text-[#6b7fa3] hidden sm:table-cell">
                       {formatDate(entry.flight_date)}
                     </td>
-                    <td className="py-3 px-3 text-right text-sky-dusk hidden sm:table-cell truncate max-w-[8rem]">
+                    <td className="py-3 px-3 text-right text-[#6b7fa3] hidden sm:table-cell truncate max-w-[8rem]">
                       {entry.glider ?? '—'}
                     </td>
                   </tr>

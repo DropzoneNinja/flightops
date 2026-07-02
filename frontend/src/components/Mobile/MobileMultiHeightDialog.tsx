@@ -91,7 +91,7 @@ export default function MobileMultiHeightDialog({
           overflow-x: auto !important;
           overflow-y: hidden;
           scrollbar-width: thin;
-          scrollbar-color: #888 #f1f1f1;
+          scrollbar-color: #6b7fa3 #1e2a3a;
           -webkit-overflow-scrolling: touch;
         }
         .scroll-container-horizontal::-webkit-scrollbar {
@@ -99,7 +99,7 @@ export default function MobileMultiHeightDialog({
           -webkit-appearance: none;
         }
         .scroll-container-horizontal::-webkit-scrollbar-track {
-          background-color: #f1f1f1;
+          background-color: #1e2a3a;
           border-radius: 6px;
         }
         .scroll-container-horizontal::-webkit-scrollbar-thumb {
@@ -114,10 +114,10 @@ export default function MobileMultiHeightDialog({
 
       {/* Info Row */}
       <div className="mb-4 space-y-1">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-[#a0b3cc]">
           Sunrise: {forecast.sunrise} | Sunset: {forecast.sunset}
         </p>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-[#a0b3cc]">
           Temp: {formatTemperature(minTemp, temperatureUnit)} - {formatTemperature(maxTemp, temperatureUnit)} | Rain: {totalRain.toFixed(1)} mm
         </p>
       </div>
@@ -126,7 +126,7 @@ export default function MobileMultiHeightDialog({
       {(isLoading || isLoadingMap) && (
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading multi-height data...</p>
+          <p className="mt-4 text-[#a0b3cc]">Loading multi-height data...</p>
         </div>
       )}
 
@@ -148,8 +148,8 @@ export default function MobileMultiHeightDialog({
               />
             </svg>
           </div>
-          <p className="text-gray-900 font-semibold">Failed to load multi-height data</p>
-          <p className="text-gray-600 mt-2">
+          <p className="text-white font-semibold">Failed to load multi-height data</p>
+          <p className="text-[#a0b3cc] mt-2">
             {error instanceof Error ? error.message : 'Unknown error occurred'}
           </p>
         </div>
@@ -162,19 +162,19 @@ export default function MobileMultiHeightDialog({
             <thead>
               <tr>
                 {/* Time column header */}
-                <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 outdoor-text text-left sticky top-0 z-10 w-20">
+                <th className="border border-[#2a3a54] bg-[#1e2a3a] px-3 py-2 text-sm font-semibold text-[#a0b3cc] outdoor-text text-left sticky top-0 z-10 w-20">
                   Time
                 </th>
                 {/* 33 ft column — with heat bar colour indicator */}
-                <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 outdoor-text text-center sticky top-0 z-10">
+                <th className="border border-[#2a3a54] bg-[#1e2a3a] px-3 py-2 text-sm font-semibold text-[#a0b3cc] outdoor-text text-center sticky top-0 z-10">
                   33 ft
                 </th>
                 {/* 262 ft column */}
-                <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 outdoor-text text-center sticky top-0 z-10">
+                <th className="border border-[#2a3a54] bg-[#1e2a3a] px-3 py-2 text-sm font-semibold text-[#a0b3cc] outdoor-text text-center sticky top-0 z-10">
                   262 ft
                 </th>
                 {/* 394 ft column */}
-                <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 outdoor-text text-center sticky top-0 z-10">
+                <th className="border border-[#2a3a54] bg-[#1e2a3a] px-3 py-2 text-sm font-semibold text-[#a0b3cc] outdoor-text text-center sticky top-0 z-10">
                   394 ft
                 </th>
               </tr>
@@ -195,7 +195,7 @@ export default function MobileMultiHeightDialog({
                 return (
                   <tr key={index}>
                     {/* Time label */}
-                    <td className="border border-gray-300 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-900 whitespace-nowrap">
+                    <td className="border border-[#2a3a54] bg-[#1e2a3a] px-3 py-2 text-sm font-semibold text-white whitespace-nowrap">
                       {time}
                     </td>
 
@@ -241,12 +241,12 @@ export default function MobileMultiHeightDialog({
                     </td>
 
                     {/* 262 ft cell */}
-                    <td className="border border-gray-300 px-3 py-2 text-center text-sm">
+                    <td className="border border-[#2a3a54] px-3 py-2 text-center text-sm">
                       <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-black font-bold text-xs">
+                        <span className="text-white font-bold text-xs">
                           {formatTemperature(hourData.wind_80m.temperature, temperatureUnit)}
                         </span>
-                        <span className="font-medium text-gray-900 text-xs">
+                        <span className="font-medium text-[#a0b3cc] text-xs">
                           {Math.round(hourData.wind_80m.speed)} km/h
                         </span>
                         <div className="flex items-center gap-1">
@@ -259,12 +259,12 @@ export default function MobileMultiHeightDialog({
                     </td>
 
                     {/* 394 ft cell */}
-                    <td className="border border-gray-300 px-3 py-2 text-center text-sm">
+                    <td className="border border-[#2a3a54] px-3 py-2 text-center text-sm">
                       <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-black font-bold text-xs">
+                        <span className="text-white font-bold text-xs">
                           {formatTemperature(hourData.wind_120m.temperature, temperatureUnit)}
                         </span>
-                        <span className="font-medium text-gray-900 text-xs">
+                        <span className="font-medium text-[#a0b3cc] text-xs">
                           {Math.round(hourData.wind_120m.speed)} km/h
                         </span>
                         <div className="flex items-center gap-1">

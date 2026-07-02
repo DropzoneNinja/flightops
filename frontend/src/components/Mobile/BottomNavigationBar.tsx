@@ -29,8 +29,8 @@ export default function BottomNavigationBar({
   type TabId = 'map' | 'sites' | 'media' | 'missions' | 'logout' | 'tools' | 'logbook';
   const navBgClass =
     variant === 'ios'
-      ? 'bg-white/80 backdrop-blur-md border-t border-gray-200'
-      : 'bg-white border-t-2 border-gray-300';
+      ? 'bg-[#0d1421]/80 backdrop-blur-md border-t border-[#2a3a54]'
+      : 'bg-[#0d1421] border-t-2 border-[#2a3a54]';
   const tabRippleClass = variant === 'android' ? 'ripple' : '';
   const tabs: { id: TabId; label: string; icon: JSX.Element; disabled: boolean }[] = [
     {
@@ -136,10 +136,10 @@ export default function BottomNavigationBar({
             aria-current={activeTab === tab.id ? 'page' : undefined}
             className={`flex-1 flex flex-col items-center justify-center gap-1 touch-target transition-colors ${tabRippleClass} ${
               activeTab === tab.id || (tab.id === 'missions' && isMissionMode)
-                ? 'text-blue-600 bg-blue-50'
+                ? 'text-blue-400 bg-blue-900/30'
                 : tab.disabled
-                ? 'text-gray-400 cursor-not-allowed'
-                : 'text-gray-600 active:bg-gray-100'
+                ? 'text-[#4a5a74] cursor-not-allowed'
+                : 'text-[#6b7fa3] active:bg-white/10'
             }`}
           >
             {tab.icon}

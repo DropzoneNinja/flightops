@@ -65,31 +65,31 @@ export default function SwipeableForecastCards({
     <div className="fixed inset-0 bg-black/50 z-[2000] flex items-end">
       <div
         {...handlers}
-        className="bg-white w-full h-[90vh] rounded-t-2xl overflow-hidden flex flex-col no-select"
+        className="bg-[#141d2e] w-full h-[90vh] rounded-t-2xl overflow-hidden flex flex-col no-select"
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center z-10">
+        <div className="sticky top-0 bg-[#0d1421] border-b border-[#2a3a54] px-4 py-3 flex justify-between items-center z-10">
           <div>
             <h2 className="text-xl font-bold outdoor-text">
               {formatForecastDate(forecast.date)}
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-[#a0b3cc] mt-1">
               {minTemp.toFixed(1)}°C - {maxTemp.toFixed(1)}°C | Rain: {totalRain.toFixed(1)}mm
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 touch-target-lg rounded-full hover:bg-gray-100 transition-colors"
+            className="p-2 touch-target-lg rounded-full hover:bg-white/10 transition-colors"
             aria-label="Close"
           >
-            <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 text-[#6b7fa3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Swipe Indicators */}
-        <div className="flex justify-center gap-2 py-3 bg-white">
+        <div className="flex justify-center gap-2 py-3 bg-[#141d2e]">
           {forecasts.map((_, i) => (
             <button
               key={i}
@@ -99,7 +99,7 @@ export default function SwipeableForecastCards({
             >
               <div
                 className={`w-2 h-2 rounded-full transition-colors ${
-                  i === currentIndex ? 'bg-blue-600' : 'bg-gray-300'
+                  i === currentIndex ? 'bg-blue-500' : 'bg-[#2a3a54]'
                 }`}
               />
             </button>
@@ -118,7 +118,7 @@ export default function SwipeableForecastCards({
             // Cloud ceiling display
             const cloudBase = data.cloudBase;
             let ceilingDisplay = '-';
-            let ceilingClass = 'text-gray-700';
+            let ceilingClass = 'text-[#a0b3cc]';
 
             if (cloudBase !== null && cloudBase !== undefined) {
               ceilingDisplay = `${Math.round(cloudBase)}ft`;
@@ -136,7 +136,7 @@ export default function SwipeableForecastCards({
             return (
               <div
                 key={index}
-                className="border-b border-gray-100 px-4 py-4 flex items-center justify-between min-h-[60px] active:bg-gray-50 transition-colors"
+                className="border-b border-[#1e2a3a] px-4 py-4 flex items-center justify-between min-h-[60px] active:bg-[#1e2a3a] transition-colors"
               >
                 {/* Time */}
                 <div className="w-20">
@@ -153,7 +153,7 @@ export default function SwipeableForecastCards({
                   <div className="text-base outdoor-text">
                     {Number(data.temperature).toFixed(1)}°C
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-[#a0b3cc]">
                     {convertWindSpeed(Number(data.windSpeed), windUnit).toFixed(1)} {windSpeedUnitLabel(windUnit)} {getWindDirection(Number(data.windDirection))}
                   </div>
                   <div className={`text-sm ${ceilingClass}`}>
@@ -166,8 +166,8 @@ export default function SwipeableForecastCards({
         </div>
 
         {/* Sunrise/Sunset Footer */}
-        <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-4 py-3 text-center">
-          <p className="text-sm text-gray-600">
+        <div className="sticky bottom-0 bg-[#0d1421] border-t border-[#2a3a54] px-4 py-3 text-center">
+          <p className="text-sm text-[#a0b3cc]">
             Sunrise: {forecast.sunrise} | Sunset: {forecast.sunset}
           </p>
         </div>

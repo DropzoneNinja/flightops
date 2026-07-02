@@ -34,9 +34,9 @@ function formatDate(dateStr: string): string {
 }
 
 function scoreColor(score: number): string {
-  if (score >= 80) return 'text-green-600';
-  if (score >= 60) return 'text-yellow-600';
-  return 'text-red-500';
+  if (score >= 80) return 'text-green-400';
+  if (score >= 60) return 'text-yellow-400';
+  return 'text-red-400';
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -66,16 +66,16 @@ export default function PilotPerformance() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-sky-cloud flex items-center justify-center">
-        <div className="animate-pulse text-sky-dusk">Loading pilot data…</div>
+      <div className="min-h-screen bg-[#0d1421] flex items-center justify-center">
+        <div className="animate-pulse text-[#6b7fa3]">Loading pilot data…</div>
       </div>
     );
   }
 
   if (error || !perf) {
     return (
-      <div className="min-h-screen bg-sky-cloud flex items-center justify-center">
-        <div className="text-red-500">Failed to load pilot data.</div>
+      <div className="min-h-screen bg-[#0d1421] flex items-center justify-center">
+        <div className="text-red-400">Failed to load pilot data.</div>
       </div>
     );
   }
@@ -83,22 +83,22 @@ export default function PilotPerformance() {
   const { pilot, total_flights, recent_flights, score_trend, personal_bests, rolling_30d_avg } = perf;
 
   return (
-    <div className="min-h-screen bg-sky-cloud">
+    <div className="min-h-screen bg-[#0d1421]">
       {/* Header */}
-      <header className="bg-white border-b border-sky-midday/20 shadow-sm sticky top-0 z-10">
+      <header className="bg-[#0d1421] border-b border-[#2a3a54] sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
-            className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-1 rounded-lg hover:bg-white/10 transition-colors"
             aria-label="Back"
           >
-            <svg className="w-5 h-5 text-sky-night" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <div>
-            <h1 className="text-lg font-bold text-sky-night">{pilot.display_name}</h1>
-            <p className="text-xs text-sky-dusk">{total_flights} analyzed flight{total_flights !== 1 ? 's' : ''}</p>
+            <h1 className="text-lg font-bold text-white">{pilot.display_name}</h1>
+            <p className="text-xs text-[#6b7fa3]">{total_flights} analyzed flight{total_flights !== 1 ? 's' : ''}</p>
           </div>
         </div>
       </header>
@@ -123,17 +123,17 @@ export default function PilotPerformance() {
 
         {/* Score trend chart */}
         {score_trend.length >= 2 && (
-          <div className="bg-white rounded-xl shadow-elevation border border-sky-midday/30 p-4">
-            <h2 className="text-sm font-semibold text-sky-night mb-3">Score Trend</h2>
+          <div className="bg-[#141d2e] rounded-xl border border-[#1e2a3a] p-4">
+            <h2 className="text-sm font-semibold text-white mb-3">Score Trend</h2>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={score_trend} margin={{ top: 4, right: 8, bottom: 4, left: -10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" />
                 <XAxis
                   dataKey="flight_date"
-                  tick={{ fontSize: 10, fill: '#6b7280' }}
+                  tick={{ fontSize: 10, fill: '#6b7fa3' }}
                   tickFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#6b7280' }} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#6b7fa3' }} />
                 <Tooltip
                   formatter={(val, name) => [typeof val === 'number' ? val.toFixed(1) : '—', name as string]}
                   labelFormatter={(label) => formatDate(label as string)}
@@ -158,20 +158,20 @@ export default function PilotPerformance() {
 
         {/* Personal bests */}
         {personal_bests.length > 0 && (
-          <div className="bg-white rounded-xl shadow-elevation border border-sky-midday/30 p-4">
-            <h2 className="text-sm font-semibold text-sky-night mb-3">Personal Bests</h2>
+          <div className="bg-[#141d2e] rounded-xl border border-[#1e2a3a] p-4">
+            <h2 className="text-sm font-semibold text-white mb-3">Personal Bests</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {personal_bests.map((pb) => (
                 <button
                   key={pb.category}
                   onClick={() => navigate(`/flights/${pb.flight_id}`)}
-                  className="text-left p-2.5 rounded-lg border border-sky-midday/20 hover:bg-sky-50 transition-colors"
+                  className="text-left p-2.5 rounded-lg border border-[#2a3a54] hover:bg-[#1e2a3a] transition-colors"
                 >
-                  <p className="text-xs text-sky-dusk">{CATEGORY_LABELS[pb.category] ?? pb.category}</p>
+                  <p className="text-xs text-[#6b7fa3]">{CATEGORY_LABELS[pb.category] ?? pb.category}</p>
                   <p className={`text-lg font-bold mt-0.5 ${scoreColor(pb.value)}`}>
                     {pb.value.toFixed(1)}
                   </p>
-                  <p className="text-xs text-gray-400 mt-0.5">{formatDate(pb.flight_date)}</p>
+                  <p className="text-xs text-[#4a5a74] mt-0.5">{formatDate(pb.flight_date)}</p>
                 </button>
               ))}
             </div>
@@ -180,27 +180,27 @@ export default function PilotPerformance() {
 
         {/* Recent flights */}
         {recent_flights.length > 0 && (
-          <div className="bg-white rounded-xl shadow-elevation border border-sky-midday/30 p-4">
-            <h2 className="text-sm font-semibold text-sky-night mb-3">Recent Flights</h2>
-            <ul className="divide-y divide-gray-50">
+          <div className="bg-[#141d2e] rounded-xl border border-[#1e2a3a] p-4">
+            <h2 className="text-sm font-semibold text-white mb-3">Recent Flights</h2>
+            <ul className="divide-y divide-[#1e2a3a]">
               {recent_flights.map((f) => (
                 <li key={f.id}>
                   <button
                     onClick={() => navigate(`/flights/${f.id}`)}
-                    className="w-full text-left py-3 hover:bg-sky-50/50 transition-colors px-1 rounded-lg flex items-center justify-between gap-3"
+                    className="w-full text-left py-3 hover:bg-[#1e2a3a] transition-colors px-1 rounded-lg flex items-center justify-between gap-3"
                   >
                     <div className="min-w-0">
-                      <p className="font-medium text-sky-night text-sm truncate">
+                      <p className="font-medium text-white text-sm truncate">
                         {f.title ?? f.original_filename}
                       </p>
-                      <p className="text-xs text-sky-dusk mt-0.5">
+                      <p className="text-xs text-[#6b7fa3] mt-0.5">
                         {typeof f.flight_date === 'string'
                           ? formatDate(f.flight_date)
                           : formatDate(new Date(f.flight_date).toISOString().split('T')[0])}
                         {f.glider ? ` · ${f.glider}` : ''}
                       </p>
                     </div>
-                    <div className="text-right text-xs text-sky-dusk shrink-0 space-y-0.5">
+                    <div className="text-right text-xs text-[#6b7fa3] shrink-0 space-y-0.5">
                       <p>{formatDuration(f.duration_seconds)}</p>
                       <p>{formatDistance(f.total_distance_m)}</p>
                     </div>
@@ -212,8 +212,8 @@ export default function PilotPerformance() {
         )}
 
         {total_flights === 0 && (
-          <div className="bg-white rounded-xl shadow-elevation border border-sky-midday/30 p-8 text-center">
-            <p className="text-sky-dusk">No analyzed flights yet for this pilot.</p>
+          <div className="bg-[#141d2e] rounded-xl border border-[#1e2a3a] p-8 text-center">
+            <p className="text-[#6b7fa3]">No analyzed flights yet for this pilot.</p>
           </div>
         )}
       </div>
@@ -231,9 +231,9 @@ function StatCard({
   highlight?: string;
 }) {
   return (
-    <div className="bg-white rounded-xl shadow-elevation border border-sky-midday/30 p-4">
-      <p className="text-xs text-sky-dusk">{label}</p>
-      <p className={`text-2xl font-bold mt-1 ${highlight ?? 'text-sky-night'}`}>{value}</p>
+    <div className="bg-[#141d2e] rounded-xl border border-[#1e2a3a] p-4">
+      <p className="text-xs text-[#6b7fa3]">{label}</p>
+      <p className={`text-2xl font-bold mt-1 ${highlight ?? 'text-white'}`}>{value}</p>
     </div>
   );
 }
