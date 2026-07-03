@@ -138,9 +138,12 @@ Authorization: Bearer <token>
 Content-Type: application/json
 
 {
+  "current_password": "OldPassword123",
   "new_password": "NewSecurePassword456"
 }
 ```
+
+`current_password` is required. Returns `401` if it does not match the stored password.
 
 ---
 
@@ -151,6 +154,202 @@ Add an email to the whitelist via psql:
 docker compose exec postgres psql -U flightops -d flightops -c \
   "INSERT INTO pre_authorized_emails (email, role) VALUES ('your@email.com', 'admin');"
 ```
+
+---
+
+## Backup (Admin)
+
+All backup endpoints require `Authorization: Bearer <token>` and an admin account.
+
+### Trigger Manual Backup
+```http
+POST /backup/manual
+Authorization: Bearer <token>
+```
+
+Runs `pg_dump` immediately and records the result in backup history.
+
+Response: `{ "message": "Backup completed successfully" }`
+
+---
+
+### Get Last Backup Status
+```http
+GET /backup/status
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+{
+  "lastBackup": {
+    "filename": "flightops_manual_2026-07-03T10-00-00-000Z.sql",
+    "status": "success",
+    "type": "manual",
+    "timestamp": "2026-07-03T10:00:00.000Z",
+    "fileSize": 1048576,
+    "duration": 3200,
+    "error": null
+  }
+}
+```
+
+`type` is one of `manual`, `scheduled`, `pre-restore`, or `uploaded`.
+
+---
+
+### Get Backup History
+```http
+GET /backup/history
+Authorization: Bearer <token>
+```
+
+Returns the 20 most recent backup history entries.
+
+---
+
+### List Backup Files
+```http
+GET /backup/files
+Authorization: Bearer <token>
+```
+
+Returns metadata for all `.sql` files present in the backup directory.
+
+---
+
+### Restore from Backup
+```http
+POST /backup/restore
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "filename": "flightops_manual_2026-07-03T10-00-00-000Z.sql" }
+```
+
+Restores the database from a backup file. Before restoring, the current database is snapshotted as a `pre-restore` backup. Only files that were created or uploaded through this system (i.e. tracked in backup history) can be restored.
+
+Response:
+```json
+{
+  "message": "Database restored successfully",
+  "preRestoreBackup": "flightops_pre-restore_2026-07-03T10-05-00-000Z.sql"
+}
+```
+
+---
+
+### Upload Backup File
+```http
+POST /backup/upload
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+file:                <.sql file>
+restoreImmediately:  true  (optional)
+```
+
+Uploads an external backup file into the backup directory. The file **must** be a genuine `pg_dump` plain-SQL dump — the server verifies the standard pg_dump header markers (`-- PostgreSQL database dump` and `-- Dumped by pg_dump version`) and rejects anything that does not match.
+
+If `restoreImmediately=true`, the database is restored immediately after upload (equivalent to calling `/backup/restore` with the uploaded filename).
+
+Response (upload only):
+```json
+{ "message": "File uploaded successfully", "filename": "uploaded_2026-07-03T10-00-00-000Z_mybackup.sql" }
+```
+
+Response (upload + restore):
+```json
+{
+  "message": "File uploaded and database restored successfully",
+  "filename": "uploaded_2026-07-03T10-00-00-000Z_mybackup.sql",
+  "preRestoreBackup": "flightops_pre-restore_2026-07-03T10-05-00-000Z.sql"
+}
+```
+
+---
+
+### Update Backup Schedule
+```http
+POST /backup/update-schedule
+Authorization: Bearer <token>
+```
+
+Reloads the backup cron schedule from current settings. Call this after changing backup-related settings.
+
+---
+
+## User Management (Admin)
+
+All endpoints in this section require `Authorization: Bearer <token>` and an admin account.
+
+### Lock User Account
+```http
+PATCH /users/:id/lock
+Authorization: Bearer <token>
+```
+
+Administratively locks the account. Unlike an auto-lock (triggered by too many failed login attempts), an admin lock is **not** cleared automatically after 1 hour — it persists until explicitly unlocked by an admin.
+
+Response:
+```json
+{
+  "message": "User account locked successfully",
+  "user": {
+    "id": "uuid",
+    "email": "pilot@example.com",
+    "username": "alice",
+    "is_admin_locked": true
+  }
+}
+```
+
+Returns `403` if the caller attempts to lock their own account.
+
+---
+
+### Unlock User Account
+```http
+PATCH /users/:id/unlock
+Authorization: Bearer <token>
+```
+
+Clears both the auto-lock (`is_locked`) and admin-lock (`is_admin_locked`) and resets the failed-login counter.
+
+Response:
+```json
+{
+  "message": "User account unlocked successfully",
+  "user": {
+    "id": "uuid",
+    "email": "pilot@example.com",
+    "username": "alice",
+    "is_locked": false,
+    "is_admin_locked": false,
+    "failed_login_attempts": 0
+  }
+}
+```
+
+---
+
+### Flag User for Password Reset
+```http
+PATCH /users/:id/reset-password
+Authorization: Bearer <token>
+```
+
+Forces the user to set a new password on next login (`needs_password_reset` flag).
+
+---
+
+### Delete User
+```http
+DELETE /users/:id
+Authorization: Bearer <token>
+```
+
+Permanently deletes the user account. Returns `403` if the caller is deleting themselves or the last admin.
 
 ---
 
@@ -554,6 +753,8 @@ GET /missions
 Authorization: Bearer <token>
 ```
 
+Returns only the authenticated user's missions.
+
 Optional query params:
 | Param | Description |
 |-------|-------------|
@@ -589,6 +790,8 @@ Content-Type: application/json
 GET /missions/:id
 Authorization: Bearer <token>
 ```
+
+> Owner only — returns `403` if the mission does not belong to the authenticated user.
 
 ---
 
@@ -749,6 +952,8 @@ Content-Type: application/json
 }
 ```
 
+> Admin only — returns `403` if the requesting user is not an administrator.
+
 `slug` is auto-generated from `display_name` if omitted.
 
 ---
@@ -765,6 +970,8 @@ Content-Type: application/json
 }
 ```
 
+> Own pilot or admin only — returns `403` if the requesting user does not own this pilot profile and is not an administrator.
+
 ---
 
 ### Delete Pilot
@@ -772,6 +979,8 @@ Content-Type: application/json
 DELETE /pilots/:id
 Authorization: Bearer <token>
 ```
+
+> Own pilot or admin only — returns `403` if the requesting user does not own this pilot profile and is not an administrator.
 
 ---
 
@@ -885,6 +1094,8 @@ GET /flights?date=2026-01-15
 Authorization: Bearer <token>
 ```
 
+Returns only the authenticated user's flights for that date.
+
 ---
 
 ### Upload Flight (GPX)
@@ -918,7 +1129,7 @@ Content-Type: application/json
 }
 ```
 
-Returns normalized trackpoints and stats for side-by-side comparison.
+Returns normalized trackpoints and stats for side-by-side comparison. All flight IDs must belong to the authenticated user — returns `403` if any ID does not. Minimum 2, maximum 6 flights.
 
 ---
 
@@ -988,6 +1199,8 @@ GET /flights/:id/analysis
 Authorization: Bearer <token>
 ```
 
+> Owner only — returns `403` if the requesting user did not upload the flight.
+
 Returns per-phase scores, events (takeoff, landing, thermals), and coaching notes.
 
 ---
@@ -997,6 +1210,8 @@ Returns per-phase scores, events (takeoff, landing, thermals), and coaching note
 POST /flights/:id/reanalyze
 Authorization: Bearer <token>
 ```
+
+> Owner only — returns `403` if the requesting user did not upload the flight.
 
 Re-runs the flight analysis pipeline. Fire-and-forget — poll `GET /flights/:id/analysis` for results.
 
@@ -1020,6 +1235,8 @@ Content-Type: application/json
 }
 ```
 
+> Owner only — returns `403` if the requesting user did not upload the flight.
+
 ---
 
 ### Delete Flight
@@ -1027,6 +1244,8 @@ Content-Type: application/json
 DELETE /flights/:id
 Authorization: Bearer <token>
 ```
+
+> Owner only — returns `403` if the requesting user did not upload the flight.
 
 Deletes the flight record and the GPX file from disk.
 

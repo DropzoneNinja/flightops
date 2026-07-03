@@ -8,11 +8,11 @@ import { randomUUID } from 'crypto';
 import { CreateMediaDto, UpdateMediaDto } from './dto';
 import { FileValidationUtil } from './utils/file-validation.util';
 import { ThumbnailUtil } from './utils/thumbnail.util';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { UsersService } from '../users/users.service';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 @Injectable()
 export class MediaService {
@@ -285,6 +285,7 @@ export class MediaService {
   async uploadMedia(
     file: Express.Multer.File,
     createMediaDto: CreateMediaDto,
+    uploadedBy: string,
   ): Promise<Media> {
     // Validate file
     const validationResult = await FileValidationUtil.validateOrThrow(
@@ -360,7 +361,7 @@ export class MediaService {
       media_type: validationResult.mediaType,
       file_path: relativeFilePath,
       original_filename: sanitizedFilename,
-      uploaded_by: createMediaDto.uploaded_by,
+      uploaded_by: uploadedBy,
       pilots: createMediaDto.pilots || [],
       notes: createMediaDto.notes,
       mime_type: validationResult.mimeType,
@@ -373,7 +374,7 @@ export class MediaService {
     const savedMedia = await this.mediaRepository.save(media);
 
     // Track storage used by uploader
-    await this.usersService.adjustStorageUsed(createMediaDto.uploaded_by, file.size);
+    await this.usersService.adjustStorageUsed(uploadedBy, file.size);
 
     return savedMedia;
   }
@@ -564,12 +565,13 @@ export class MediaService {
     const tempPath = `${filePath}.tmp`;
 
     try {
-      // Use ffmpeg to rewrite the video with faststart flag
-      // -movflags faststart moves the moov atom to the beginning of the file
-      // -c copy means we're just copying streams, not re-encoding (fast!)
-      await execAsync(
-        `ffmpeg -i "${filePath}" -c copy -movflags faststart "${tempPath}" -y`,
-      );
+      await execFileAsync('ffmpeg', [
+        '-i', filePath,
+        '-c', 'copy',
+        '-movflags', 'faststart',
+        tempPath,
+        '-y',
+      ]);
 
       // Replace original with optimized version
       await fs.rename(tempPath, filePath);

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { randomBytes } from 'crypto';
 
 /**
  * Service for generating and validating short-lived, file-specific media access tokens
@@ -52,6 +53,7 @@ export class MediaTokenService {
     try {
       const payload = this.jwtService.verify(token, {
         secret: this.getMediaTokenSecret(),
+        algorithms: ['HS256'],
       });
 
       // Verify token type
@@ -79,7 +81,6 @@ export class MediaTokenService {
    * Generate a random nonce to prevent token reuse
    */
   private generateNonce(): string {
-    return Math.random().toString(36).substring(2, 15) +
-           Math.random().toString(36).substring(2, 15);
+    return randomBytes(16).toString('hex');
   }
 }

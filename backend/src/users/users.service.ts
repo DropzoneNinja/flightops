@@ -129,6 +129,17 @@ export class UsersService {
   }
 
   /**
+   * Find user by ID with password hash included (for password change verification)
+   */
+  async findByIdWithPassword(id: string): Promise<User | null> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .where('user.id = :id', { id })
+      .addSelect('user.password_hash')
+      .getOne();
+  }
+
+  /**
    * Get user profile by ID
    */
   async getProfile(id: string): Promise<User> {
@@ -276,7 +287,22 @@ export class UsersService {
   }
 
   /**
-   * Unlock a user account
+   * Lock a user account (admin action — sets is_admin_locked so it survives auto-unlock)
+   */
+  async lockAccount(userId: string): Promise<User> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.is_admin_locked = true;
+    user.locked_at = new Date();
+
+    return this.userRepository.save(user);
+  }
+
+  /**
+   * Unlock a user account — clears both auto-lock and admin-lock
    */
   async unlockAccount(userId: string): Promise<User> {
     const user = await this.findById(userId);
@@ -285,6 +311,7 @@ export class UsersService {
     }
 
     user.is_locked = false;
+    user.is_admin_locked = false;
     user.locked_at = null;
     user.failed_login_attempts = 0;
     user.last_failed_login = null;
@@ -300,7 +327,8 @@ export class UsersService {
     await this.userRepository
       .createQueryBuilder()
       .update(User)
-      .set({ storage_used: () => `storage_used + ${delta}` })
+      .set({ storage_used: () => 'storage_used + :delta' })
+      .setParameter('delta', delta)
       .where('username = :username', { username })
       .execute();
   }
@@ -310,13 +338,15 @@ export class UsersService {
    */
   async incrementViewedCount(username: string, mediaType: 'image' | 'video'): Promise<void> {
     if (!username) return;
-    const column = mediaType === 'image' ? 'images_viewed_count' : 'videos_viewed_count';
-    await this.userRepository
+    const qb = this.userRepository
       .createQueryBuilder()
       .update(User)
-      .set({ [column]: () => `${column} + 1` })
-      .where('username = :username', { username })
-      .execute();
+      .where('username = :username', { username });
+    if (mediaType === 'image') {
+      await qb.set({ images_viewed_count: () => 'images_viewed_count + 1' }).execute();
+    } else {
+      await qb.set({ videos_viewed_count: () => 'videos_viewed_count + 1' }).execute();
+    }
   }
 
   /**

@@ -102,6 +102,6 @@ export class AuthController {
     @CurrentUser() user: User,
     @Body() resetDto: ResetPasswordDto,
   ) {
-    return this.authService.resetPassword(user.id, resetDto.new_password);
+    return this.authService.resetPassword(user.id, resetDto.current_password, resetDto.new_password);
   }
 }

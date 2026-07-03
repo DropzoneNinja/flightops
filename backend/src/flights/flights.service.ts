@@ -280,9 +280,9 @@ export class FlightsService {
   // CRUD
   // ---------------------------------------------------------------------------
 
-  async findByDate(date: string): Promise<Flight[]> {
+  async findByDate(date: string, userId: string): Promise<Flight[]> {
     return this.flightsRepository.find({
-      where: { flight_date: new Date(date) },
+      where: { flight_date: new Date(date), uploaded_by: userId },
       relations: ['pilot', 'site'],
       order: { created_at: 'ASC' },
     });
@@ -297,14 +297,14 @@ export class FlightsService {
     return flight;
   }
 
-  async update(id: string, dto: UpdateFlightDto): Promise<Flight> {
-    const flight = await this.findById(id);
+  async update(id: string, dto: UpdateFlightDto, userId: string): Promise<Flight> {
+    const flight = await this.findByIdForUser(id, userId);
     Object.assign(flight, dto);
     return this.flightsRepository.save(flight);
   }
 
-  async delete(id: string): Promise<void> {
-    const flight = await this.findById(id);
+  async delete(id: string, userId: string): Promise<void> {
+    const flight = await this.findByIdForUser(id, userId);
 
     // Delete file from disk (best-effort)
     try {
@@ -364,7 +364,7 @@ export class FlightsService {
   }
 
   /** POST /flights/compare — return normalized comparison data for selected flights */
-  async compareFlights(flightIds: string[]): Promise<ComparisonResult> {
+  async compareFlights(flightIds: string[], userId: string): Promise<ComparisonResult> {
     if (!flightIds || flightIds.length < 2) {
       throw new BadRequestException('At least 2 flight IDs are required for comparison');
     }
@@ -372,7 +372,7 @@ export class FlightsService {
       throw new BadRequestException('Cannot compare more than 6 flights at once');
     }
 
-    const flights = await Promise.all(flightIds.map((id) => this.findById(id)));
+    const flights = await Promise.all(flightIds.map((id) => this.findByIdForUser(id, userId)));
 
     // Build normalized comparison entries
     const entries = flights.map((f) => {

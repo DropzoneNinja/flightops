@@ -136,18 +136,20 @@ export class LogbookService {
    * After any logbook mutation that may affect equipment hours, call this with
    * the set of wing IDs and paramotor IDs touched. Each piece of equipment's
    * total_hours is recomputed as the sum of duration_seconds across all
-   * non-deleted entries that reference it. Engine hours are the aggregate of
-   * all paramotors that use that engine.
+   * non-deleted entries for this pilot that reference it. Engine hours are the
+   * aggregate of all paramotors that use that engine.
    */
   private async recalculateEquipmentHours(
     wingIds: Set<string>,
     paramotorIds: Set<string>,
+    pilotId: string,
   ): Promise<void> {
     for (const wingId of wingIds) {
       const row = await this.logbookRepository
         .createQueryBuilder('e')
         .select('COALESCE(SUM(e.duration_seconds), 0)', 'total')
         .where('e.wing_id = :wingId', { wingId })
+        .andWhere('e.pilot_id = :pilotId', { pilotId })
         .andWhere('e.deleted_at IS NULL')
         .getRawOne<{ total: string }>();
       const hours = Number(row?.total ?? 0) / 3600;
@@ -161,6 +163,7 @@ export class LogbookService {
         .createQueryBuilder('e')
         .select('COALESCE(SUM(e.duration_seconds), 0)', 'total')
         .where('e.paramotor_id = :paramotorId', { paramotorId })
+        .andWhere('e.pilot_id = :pilotId', { pilotId })
         .andWhere('e.deleted_at IS NULL')
         .getRawOne<{ total: string }>();
       const hours = Number(row?.total ?? 0) / 3600;
@@ -178,11 +181,31 @@ export class LogbookService {
           .createQueryBuilder('e')
           .select('COALESCE(SUM(e.duration_seconds), 0)', 'total')
           .where('e.paramotor_id = :pid', { pid: pm.id })
+          .andWhere('e.pilot_id = :pilotId', { pilotId })
           .andWhere('e.deleted_at IS NULL')
           .getRawOne<{ total: string }>();
         engineHours += Number(row?.total ?? 0) / 3600;
       }
       await this.engineRepository.update(engineId, { total_hours: engineHours });
+    }
+  }
+
+  private async validateEquipmentOwnership(
+    userId: string,
+    wingId?: string | null,
+    paramotorId?: string | null,
+  ): Promise<void> {
+    if (wingId) {
+      const wing = await this.wingRepository.findOne({ where: { id: wingId } });
+      if (!wing || wing.user_id !== userId) {
+        throw new ForbiddenException('Wing does not belong to your account');
+      }
+    }
+    if (paramotorId) {
+      const paramotor = await this.paramotorRepository.findOne({ where: { id: paramotorId } });
+      if (!paramotor || paramotor.user_id !== userId) {
+        throw new ForbiddenException('Paramotor does not belong to your account');
+      }
     }
   }
 
@@ -389,12 +412,14 @@ export class LogbookService {
       client_updated_at: null,
     });
 
+    await this.validateEquipmentOwnership(userId, dto.wing_id, dto.paramotor_id);
+
     const saved = await this.logbookRepository.save(entry);
 
     const wingIds = new Set(saved.wing_id ? [saved.wing_id] : []);
     const paramotorIds = new Set(saved.paramotor_id ? [saved.paramotor_id] : []);
     if (wingIds.size || paramotorIds.size) {
-      await this.recalculateEquipmentHours(wingIds, paramotorIds);
+      await this.recalculateEquipmentHours(wingIds, paramotorIds, pilot.id);
     }
 
     const names = this.pilotNames(pilot);
@@ -462,13 +487,17 @@ export class LogbookService {
       }
     }
 
+    const newWingId = dto.wing_id !== undefined ? (dto.wing_id ?? null) : oldWingId;
+    const newParamotorId = dto.paramotor_id !== undefined ? (dto.paramotor_id ?? null) : oldParamotorId;
+    await this.validateEquipmentOwnership(userId, newWingId, newParamotorId);
+
     entry.revision += 1;
     const saved = await this.logbookRepository.save(entry);
 
     const wingIds = new Set([oldWingId, saved.wing_id].filter(Boolean) as string[]);
     const paramotorIds = new Set([oldParamotorId, saved.paramotor_id].filter(Boolean) as string[]);
     if (wingIds.size || paramotorIds.size) {
-      await this.recalculateEquipmentHours(wingIds, paramotorIds);
+      await this.recalculateEquipmentHours(wingIds, paramotorIds, pilot.id);
     }
 
     const names = this.pilotNames(pilot);
@@ -496,7 +525,7 @@ export class LogbookService {
     const wingIds = new Set(wingId ? [wingId] : []);
     const paramotorIds = new Set(paramotorId ? [paramotorId] : []);
     if (wingIds.size || paramotorIds.size) {
-      await this.recalculateEquipmentHours(wingIds, paramotorIds);
+      await this.recalculateEquipmentHours(wingIds, paramotorIds, pilot.id);
     }
 
     return { id: entry.id, deleted_at: entry.deleted_at.toISOString() };

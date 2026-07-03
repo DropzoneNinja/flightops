@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -62,6 +62,12 @@ export class BackupService {
     this.dbUser = this.configService.get<string>('DATABASE_USER', 'flightops');
     this.dbPassword = this.configService.get<string>('DATABASE_PASSWORD', '');
     this.dbName = this.configService.get<string>('DATABASE_NAME', 'flightops');
+
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(this.dbName)) {
+      throw new Error(
+        `Invalid DATABASE_NAME "${this.dbName}": must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`,
+      );
+    }
   }
 
   /**
@@ -242,47 +248,52 @@ export class BackupService {
   async validateBackupFile(filename: string): Promise<ValidationResult> {
     // Check file extension
     if (!filename.endsWith('.sql')) {
-      return {
-        isValid: false,
-        error: 'File must have .sql extension',
-      };
+      return { isValid: false, error: 'File must have .sql extension' };
     }
 
-    // Sanitize filename to prevent path traversal
+    // Prevent path traversal
     const sanitizedFilename = path.basename(filename);
     if (sanitizedFilename !== filename) {
+      return { isValid: false, error: 'Invalid filename' };
+    }
+
+    // Cross-reference: only files tracked in backup_history (server-generated or
+    // uploaded via the API) can be restored — blocks arbitrary files placed on disk.
+    const historyEntry = await this.backupHistoryRepository.findOne({ where: { filename } });
+    if (!historyEntry) {
       return {
         isValid: false,
-        error: 'Invalid filename',
+        error: 'File not found in backup history — only files created or uploaded through this system can be restored',
       };
     }
 
     const filepath = path.join(this.backupDir, filename);
 
     try {
-      // Check if file exists
       await fs.access(filepath);
 
-      // Read first 1KB of file to check if it's a PostgreSQL dump
+      // Read first 2KB and verify genuine pg_dump plain-SQL header markers.
+      // A crafted file with just "-- PostgreSQL" passes the old single-string check;
+      // these two markers appear together only in real pg_dump output.
       const fileHandle = await fs.open(filepath, 'r');
-      const buffer = Buffer.alloc(1024);
-      await fileHandle.read(buffer, 0, 1024, 0);
+      const buffer = Buffer.alloc(2048);
+      await fileHandle.read(buffer, 0, 2048, 0);
       await fileHandle.close();
 
       const content = buffer.toString('utf-8');
-      if (!content.includes('PostgreSQL')) {
+      if (
+        !content.includes('-- PostgreSQL database dump') ||
+        !content.includes('-- Dumped by pg_dump version')
+      ) {
         return {
           isValid: false,
-          error: 'File does not appear to be a PostgreSQL dump',
+          error: 'File does not appear to be a valid pg_dump SQL file',
         };
       }
 
       return { isValid: true };
     } catch (error) {
-      return {
-        isValid: false,
-        error: error.message || 'Failed to validate file',
-      };
+      return { isValid: false, error: error.message || 'Failed to validate file' };
     }
   }
 
@@ -329,7 +340,7 @@ export class BackupService {
           '-p', this.dbPort,
           '-U', this.dbUser,
           '-d', 'postgres',
-          '-c', `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${this.dbName}' AND pid <> pg_backend_pid();`,
+          '-c', `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${this.dbName.replace(/'/g, "''")}' AND pid <> pg_backend_pid();`,
         ], {
           env: { ...process.env, PGPASSWORD: this.dbPassword },
           maxBuffer: 10 * 1024 * 1024,
@@ -344,7 +355,7 @@ export class BackupService {
         '-p', this.dbPort,
         '-U', this.dbUser,
         '-d', 'postgres',
-        '-c', `DROP DATABASE IF EXISTS ${this.dbName};`,
+        '-c', `DROP DATABASE IF EXISTS "${this.dbName.replace(/"/g, '""')}";`,
       ], {
         env: { ...process.env, PGPASSWORD: this.dbPassword },
         maxBuffer: 10 * 1024 * 1024,
@@ -355,7 +366,7 @@ export class BackupService {
         '-p', this.dbPort,
         '-U', this.dbUser,
         '-d', 'postgres',
-        '-c', `CREATE DATABASE ${this.dbName};`,
+        '-c', `CREATE DATABASE "${this.dbName.replace(/"/g, '""')}";`,
       ], {
         env: { ...process.env, PGPASSWORD: this.dbPassword },
         maxBuffer: 10 * 1024 * 1024,
@@ -409,6 +420,20 @@ export class BackupService {
    * Save uploaded backup file to BACKUP_DIR
    */
   async saveUploadedBackup(file: Express.Multer.File): Promise<string> {
+    // Validate pg_dump header at the multer temp path before persisting.
+    const fileHandle = await fs.open(file.path, 'r');
+    const buffer = Buffer.alloc(2048);
+    await fileHandle.read(buffer, 0, 2048, 0);
+    await fileHandle.close();
+    const content = buffer.toString('utf-8');
+
+    if (
+      !content.includes('-- PostgreSQL database dump') ||
+      !content.includes('-- Dumped by pg_dump version')
+    ) {
+      throw new BadRequestException('File does not appear to be a valid pg_dump SQL file');
+    }
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const sanitizedOriginalName = path.basename(file.originalname);
     const filename = `uploaded_${timestamp}_${sanitizedOriginalName}`;
@@ -417,11 +442,18 @@ export class BackupService {
     this.logger.log(`Saving uploaded backup file: ${filename}`);
 
     try {
-      // Ensure backup directory exists
       await fs.mkdir(this.backupDir, { recursive: true });
-
-      // Move file from temp location to backup directory
       await fs.rename(file.path, filepath);
+
+      // Record in backup_history so the cross-reference check in validateBackupFile
+      // allows this file to be restored.
+      const stats = await fs.stat(filepath);
+      await this.backupHistoryRepository.save({
+        filename,
+        status: BackupStatus.SUCCESS,
+        type: BackupType.UPLOADED,
+        file_size_bytes: stats.size,
+      });
 
       this.logger.log(`Uploaded backup saved: ${filename}`);
       return filename;

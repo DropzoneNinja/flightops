@@ -33,12 +33,13 @@ export class MissionsController {
    */
   @Get()
   findAll(
+    @CurrentUser() user: User,
     @Query('search') search?: string,
     @Query('launchSiteId') launchSiteId?: string,
     @Query('sort') sort?: 'updated_at' | 'name' | 'created_at',
     @Query('order') order?: 'ASC' | 'DESC',
   ) {
-    return this.missionsService.findAll({ search, launchSiteId, sort, order });
+    return this.missionsService.findAll({ search, launchSiteId, sort, order }, user);
   }
 
   /**
@@ -53,8 +54,8 @@ export class MissionsController {
    * GET /missions/:id
    */
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.missionsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.missionsService.findOne(id, user);
   }
 
   /**
@@ -83,15 +84,15 @@ export class MissionsController {
    */
   @Post(':id/duplicate')
   duplicate(@Param('id') id: string, @CurrentUser() user: User) {
-    return this.missionsService.duplicate(id, user.id);
+    return this.missionsService.duplicate(id, user);
   }
 
   /**
    * GET /missions/:id/waypoints
    */
   @Get(':id/waypoints')
-  getWaypoints(@Param('id') id: string) {
-    return this.missionsService.getWaypoints(id);
+  getWaypoints(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.missionsService.getWaypoints(id, user);
   }
 
   /**

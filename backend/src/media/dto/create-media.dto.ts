@@ -13,10 +13,6 @@ export class CreateMediaDto {
   @IsNotEmpty()
   flight_date: string;
 
-  @IsString()
-  @IsNotEmpty()
-  uploaded_by: string;
-
   @IsUUID()
   @IsOptional()
   site_id?: string;

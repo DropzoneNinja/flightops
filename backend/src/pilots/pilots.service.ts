@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, IsNull } from 'typeorm';
 import { Pilot } from '../database/entities/pilot.entity';
@@ -7,6 +7,7 @@ import { FlightScore } from '../database/entities/flight-score.entity';
 import { CreatePilotDto } from './dto/create-pilot.dto';
 import { UpdatePilotDto } from './dto/update-pilot.dto';
 import { UpdatePositionDto } from './dto/update-position.dto';
+import { User } from '../database/entities/user.entity';
 import { OpenSkyService } from '../opensky/opensky.service';
 import { AircraftPosition } from '../opensky/interfaces/aircraft-position.interface';
 
@@ -98,7 +99,10 @@ export class PilotsService {
     return this.pilotsRepository.findOne({ where: { slug } });
   }
 
-  async create(dto: CreatePilotDto): Promise<Pilot> {
+  async create(dto: CreatePilotDto, user: User): Promise<Pilot> {
+    if (!user.is_admin) {
+      throw new ForbiddenException('Only administrators can create pilot profiles');
+    }
     const slug = dto.slug ?? this.generateSlug(dto.display_name);
     const existing = await this.findBySlug(slug);
     if (existing) throw new ConflictException(`Pilot with slug "${slug}" already exists`);
@@ -107,14 +111,20 @@ export class PilotsService {
     return this.pilotsRepository.save(pilot);
   }
 
-  async update(id: string, dto: UpdatePilotDto): Promise<Pilot> {
+  async update(id: string, dto: UpdatePilotDto, user: User): Promise<Pilot> {
     const pilot = await this.findById(id);
+    if (!user.is_admin && pilot.user_id !== user.id) {
+      throw new ForbiddenException('You do not have permission to update this pilot');
+    }
     Object.assign(pilot, dto);
     return this.pilotsRepository.save(pilot);
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, user: User): Promise<void> {
     const pilot = await this.findById(id);
+    if (!user.is_admin && pilot.user_id !== user.id) {
+      throw new ForbiddenException('You do not have permission to delete this pilot');
+    }
     await this.pilotsRepository.remove(pilot);
   }
 

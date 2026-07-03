@@ -37,6 +37,14 @@ const mockWaypoint = (overrides: Partial<MissionWaypoint> = {}): MissionWaypoint
   ...overrides,
 } as MissionWaypoint);
 
+const makeQb = (results: Mission[] = []) => ({
+  leftJoinAndSelect: jest.fn().mockReturnThis(),
+  orderBy: jest.fn().mockReturnThis(),
+  where: jest.fn().mockReturnThis(),
+  andWhere: jest.fn().mockReturnThis(),
+  getMany: jest.fn().mockResolvedValue(results),
+});
+
 const makeMissionRepo = () => ({
   find: jest.fn(),
   findOne: jest.fn(),
@@ -44,6 +52,7 @@ const makeMissionRepo = () => ({
   save: jest.fn(),
   remove: jest.fn(),
   update: jest.fn(),
+  createQueryBuilder: jest.fn().mockReturnValue(makeQb()),
 });
 
 const makeWaypointRepo = () => ({
@@ -76,26 +85,44 @@ describe('MissionsService', () => {
   });
 
   describe('findAll', () => {
-    it('returns all missions', async () => {
+    it('returns all missions for admin', async () => {
       const missions = [mockMission()];
-      missionRepo.find.mockResolvedValue(missions);
-      const result = await service.findAll();
+      const qb = makeQb(missions);
+      missionRepo.createQueryBuilder.mockReturnValue(qb);
+      const result = await service.findAll({}, adminUser);
       expect(result).toEqual(missions);
-      expect(missionRepo.find).toHaveBeenCalled();
+      expect(missionRepo.createQueryBuilder).toHaveBeenCalled();
     });
 
-    it('passes search filter as ILike', async () => {
-      missionRepo.find.mockResolvedValue([]);
-      await service.findAll({ search: 'foo' });
-      const call = missionRepo.find.mock.calls[0][0];
-      expect(call.where.name).toBeDefined();
+    it('scopes results to user when not admin', async () => {
+      const regularUser = { id: 'user-1', is_admin: false } as User;
+      const qb = makeQb([]);
+      missionRepo.createQueryBuilder.mockReturnValue(qb);
+      await service.findAll({}, regularUser);
+      expect(qb.where).toHaveBeenCalledWith(
+        expect.stringContaining('created_by'),
+        expect.objectContaining({ userId: 'user-1' }),
+      );
     });
 
-    it('passes launchSiteId filter', async () => {
-      missionRepo.find.mockResolvedValue([]);
-      await service.findAll({ launchSiteId: 'site-1' });
-      const call = missionRepo.find.mock.calls[0][0];
-      expect(call.where.launch_site_id).toBe('site-1');
+    it('applies search filter', async () => {
+      const qb = makeQb([]);
+      missionRepo.createQueryBuilder.mockReturnValue(qb);
+      await service.findAll({ search: 'foo' }, adminUser);
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('ILIKE'),
+        expect.objectContaining({ search: '%foo%' }),
+      );
+    });
+
+    it('applies launchSiteId filter', async () => {
+      const qb = makeQb([]);
+      missionRepo.createQueryBuilder.mockReturnValue(qb);
+      await service.findAll({ launchSiteId: 'site-1' }, adminUser);
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('launch_site_id'),
+        expect.objectContaining({ launchSiteId: 'site-1' }),
+      );
     });
   });
 

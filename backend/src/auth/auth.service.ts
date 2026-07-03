@@ -112,21 +112,21 @@ export class AuthService {
       );
     }
 
-    // Check if failed attempts should be reset (older than 1 hour)
+    // Check if auto-lock should be reset (no failed attempts in over 1 hour)
+    // Only clears the auto-lock (is_locked); never touches is_admin_locked.
     if (user.last_failed_login) {
       const oneHourAgo = new Date();
       oneHourAgo.setHours(oneHourAgo.getHours() - 1);
 
       if (user.last_failed_login < oneHourAgo) {
-        // Reset failed attempts if last failure was more than 1 hour ago
         await this.usersService.resetFailedAttempts(user.id);
         user.failed_login_attempts = 0;
         user.is_locked = false;
       }
     }
 
-    // Check if account is locked
-    if (user.is_locked) {
+    // Check if account is locked (auto-lock OR admin-set lock)
+    if (user.is_locked || user.is_admin_locked) {
       await this.loginAttemptService.logAttempt(
         email,
         false,
@@ -212,16 +212,20 @@ export class AuthService {
   }
 
   /**
-   * Reset user password
+   * Reset user password — requires the current password as proof of identity
    */
-  async resetPassword(userId: string, newPassword: string) {
-    const user = await this.usersService.findById(userId);
+  async resetPassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.usersService.findByIdWithPassword(userId);
 
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    // Update password and clear reset flag
+    const isCurrentPasswordValid = await user.validatePassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
     await this.usersService.update(userId, {
       password: newPassword,
       needs_password_reset: false,

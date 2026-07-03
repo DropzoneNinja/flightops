@@ -97,6 +97,28 @@ export class UsersController {
   }
 
   /**
+   * PATCH /users/:id/lock
+   * Administratively lock a user account (admin only)
+   */
+  @Patch(':id/lock')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async lockAccount(@Param('id') id: string, @CurrentUser() currentUser: User) {
+    if (id === currentUser.id) {
+      throw new ForbiddenException('Cannot lock your own account');
+    }
+    const user = await this.usersService.lockAccount(id);
+    return {
+      message: 'User account locked successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        is_admin_locked: user.is_admin_locked,
+      },
+    };
+  }
+
+  /**
    * PATCH /users/:id/unlock
    * Unlock a locked user account (admin only)
    */
@@ -111,6 +133,7 @@ export class UsersController {
         email: user.email,
         username: user.username,
         is_locked: user.is_locked,
+        is_admin_locked: user.is_admin_locked,
         failed_login_attempts: user.failed_login_attempts,
       },
     };

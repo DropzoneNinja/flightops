@@ -16,6 +16,7 @@ export enum BackupType {
   MANUAL = 'manual',
   SCHEDULED = 'scheduled',
   PRE_RESTORE = 'pre-restore',
+  UPLOADED = 'uploaded',
 }
 
 @Entity('backup_history')

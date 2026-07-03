@@ -37,6 +37,9 @@ export class User {
   @Column({ default: false })
   is_locked: boolean;
 
+  @Column({ default: false })
+  is_admin_locked: boolean;
+
   @Column({ default: 0 })
   failed_login_attempts: number;
 

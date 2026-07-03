@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Mission } from '../database/entities/mission.entity';
 import { MissionWaypoint } from '../database/entities/mission-waypoint.entity';
 import { User } from '../database/entities/user.entity';
@@ -36,25 +36,38 @@ export class MissionsService {
     return user.is_admin || mission.created_by === null || mission.created_by === user.id;
   }
 
-  async findAll(query: MissionListQuery = {}): Promise<Mission[]> {
-    const { search, launchSiteId, sort = 'updated_at', order = 'DESC' } = query;
-
-    const where: Record<string, unknown> = {};
-    if (search) {
-      where.name = ILike(`%${search}%`);
-    }
-    if (launchSiteId) {
-      where.launch_site_id = launchSiteId;
-    }
-
-    return this.missionRepository.find({
-      where,
-      relations: ['launch_site', 'waypoints', 'creator'],
-      order: { [sort]: order },
-    });
+  private canUserView(mission: Mission, user: User): boolean {
+    return user.is_admin || mission.created_by === null || mission.created_by === user.id;
   }
 
-  async findOne(id: string): Promise<Mission> {
+  async findAll(query: MissionListQuery = {}, user: User): Promise<Mission[]> {
+    const { search, launchSiteId, sort = 'updated_at', order = 'DESC' } = query;
+
+    const VALID_SORTS = new Set(['updated_at', 'name', 'created_at']);
+    const safeSort = VALID_SORTS.has(sort) ? sort : 'updated_at';
+    const safeOrder = order === 'ASC' ? 'ASC' : 'DESC';
+
+    const qb = this.missionRepository
+      .createQueryBuilder('m')
+      .leftJoinAndSelect('m.launch_site', 'launch_site')
+      .leftJoinAndSelect('m.waypoints', 'waypoints')
+      .leftJoinAndSelect('m.creator', 'creator')
+      .orderBy(`m.${safeSort}`, safeOrder);
+
+    if (!user.is_admin) {
+      qb.where('m.created_by = :userId OR m.created_by IS NULL', { userId: user.id });
+    }
+    if (search) {
+      qb.andWhere('m.name ILIKE :search', { search: `%${search}%` });
+    }
+    if (launchSiteId) {
+      qb.andWhere('m.launch_site_id = :launchSiteId', { launchSiteId });
+    }
+
+    return qb.getMany();
+  }
+
+  async findOne(id: string, user?: User): Promise<Mission> {
     const mission = await this.missionRepository.findOne({
       where: { id },
       relations: ['launch_site', 'waypoints', 'creator'],
@@ -63,6 +76,10 @@ export class MissionsService {
 
     if (!mission) {
       throw new NotFoundException('Mission not found');
+    }
+
+    if (user && !this.canUserView(mission, user)) {
+      throw new ForbiddenException('You do not have permission to view this mission');
     }
 
     return mission;
@@ -126,8 +143,8 @@ export class MissionsService {
     await this.missionRepository.remove(mission);
   }
 
-  async duplicate(id: string, userId: string): Promise<Mission> {
-    const source = await this.findOne(id);
+  async duplicate(id: string, user: User): Promise<Mission> {
+    const source = await this.findOne(id, user);
 
     const newMission = this.missionRepository.create({
       name: `${source.name} (copy)`,
@@ -137,7 +154,7 @@ export class MissionsService {
       fuel_tank_size: source.fuel_tank_size,
       wind_direction: source.wind_direction,
       wind_speed: source.wind_speed,
-      created_by: userId,
+      created_by: user.id,
     });
 
     const saved = await this.missionRepository.save(newMission);
@@ -284,8 +301,8 @@ export class MissionsService {
     return updates.sort((a, b) => a.sort_order - b.sort_order);
   }
 
-  async getWaypoints(missionId: string): Promise<MissionWaypoint[]> {
-    await this.findOne(missionId);
+  async getWaypoints(missionId: string, user: User): Promise<MissionWaypoint[]> {
+    await this.findOne(missionId, user);
 
     return this.waypointRepository.find({
       where: { mission_id: missionId },

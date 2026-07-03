@@ -369,7 +369,7 @@ export class MediaController {
     }
 
     // The pilots array is now automatically transformed by the DTO's @Transform decorator
-    return this.mediaService.uploadMedia(file, createMediaDto);
+    return this.mediaService.uploadMedia(file, createMediaDto, user.username);
   }
 
   /**

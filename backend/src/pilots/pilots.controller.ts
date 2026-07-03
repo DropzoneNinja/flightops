@@ -52,21 +52,21 @@ export class PilotsController {
     return this.pilotsService.getPerformance(id);
   }
 
-  /** POST /pilots — create pilot */
+  /** POST /pilots — create pilot (admin only) */
   @Post()
-  create(@Body() dto: CreatePilotDto) {
-    return this.pilotsService.create(dto);
+  create(@Body() dto: CreatePilotDto, @CurrentUser() user: User) {
+    return this.pilotsService.create(dto, user);
   }
 
-  /** PATCH /pilots/:id — update pilot */
+  /** PATCH /pilots/:id — update pilot (own profile or admin) */
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdatePilotDto) {
-    return this.pilotsService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdatePilotDto, @CurrentUser() user: User) {
+    return this.pilotsService.update(id, dto, user);
   }
 
-  /** DELETE /pilots/:id — delete pilot */
+  /** DELETE /pilots/:id — delete pilot (own profile or admin) */
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.pilotsService.delete(id);
+  remove(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.pilotsService.delete(id, user);
   }
 }

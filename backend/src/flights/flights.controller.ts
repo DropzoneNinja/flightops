@@ -38,8 +38,8 @@ export class FlightsController {
    * Body: { flight_ids: string[] }
    */
   @Post('compare')
-  compareFlights(@Body('flight_ids') flightIds: string[]) {
-    return this.flightsService.compareFlights(flightIds);
+  compareFlights(@Body('flight_ids') flightIds: string[], @CurrentUser() user: User) {
+    return this.flightsService.compareFlights(flightIds, user.id);
   }
 
   /**
@@ -66,8 +66,8 @@ export class FlightsController {
    * GET /flights?date=YYYY-MM-DD — list all flights for a flight day
    */
   @Get()
-  findByDate(@Query('date') date: string) {
-    return this.flightsService.findByDate(date);
+  findByDate(@Query('date') date: string, @CurrentUser() user: User) {
+    return this.flightsService.findByDate(date, user.id);
   }
 
   /**
@@ -114,7 +114,8 @@ export class FlightsController {
    * GET /flights/:id/analysis — return score + events + coaching notes
    */
   @Get(':id/analysis')
-  getAnalysis(@Param('id') id: string) {
+  async getAnalysis(@Param('id') id: string, @CurrentUser() user: User) {
+    await this.flightsService.findByIdForUser(id, user.id);
     return this.flightAnalysisService.getAnalysis(id);
   }
 
@@ -122,8 +123,8 @@ export class FlightsController {
    * POST /flights/:id/reanalyze — re-run analysis on an existing parsed flight
    */
   @Post(':id/reanalyze')
-  async reanalyze(@Param('id') id: string) {
-    const flight = await this.flightsService.findById(id);
+  async reanalyze(@Param('id') id: string, @CurrentUser() user: User) {
+    const flight = await this.flightsService.findByIdForUser(id, user.id);
     // Fire-and-forget; client polls via GET /flights/:id/analysis or GET /flights/:id
     this.flightAnalysisService.analyzeFlightAsync(flight.id).catch(() => {/* logged internally */});
     return { message: 'Analysis started', flightId: flight.id };
@@ -133,15 +134,15 @@ export class FlightsController {
    * PATCH /flights/:id — update flight metadata
    */
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateFlightDto) {
-    return this.flightsService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateFlightDto, @CurrentUser() user: User) {
+    return this.flightsService.update(id, dto, user.id);
   }
 
   /**
    * DELETE /flights/:id — delete flight + file
    */
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.flightsService.delete(id);
+  remove(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.flightsService.delete(id, user.id);
   }
 }
