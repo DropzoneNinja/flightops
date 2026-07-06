@@ -102,11 +102,14 @@ function getBestWindow(forecast: WeatherForecast, minScore: number): BestWindow 
   const sunriseFrac = sunriseH + sunriseM / 60;
   const sunsetFrac = sunsetH + sunsetM / 60;
 
-  const morningHours = forecast.hourlyData.filter(h => {
+  const now = Date.now();
+  const futureHourlyData = forecast.hourlyData.filter(h => new Date(h.timestamp).getTime() + 60 * 60 * 1000 > now);
+
+  const morningHours = futureHourlyData.filter(h => {
     const hour = new Date(h.timestamp).getHours();
     return hour >= sunriseH && hour <= sunriseH + 2;
   });
-  const eveningHours = forecast.hourlyData.filter(h => {
+  const eveningHours = futureHourlyData.filter(h => {
     const hour = new Date(h.timestamp).getHours();
     return hour >= sunsetH - 2 && hour <= sunsetH;
   });

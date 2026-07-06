@@ -401,7 +401,7 @@ export default function MapView() {
               </Marker>
             )}
 
-            {windsockWind && selectedSite && (
+            {windsockWind && selectedSite && currentZoom >= parkingIconZoomLevel && (
               <Marker
                 position={[
                   parseFloat(selectedSite.takeoff_lat.toString()),
