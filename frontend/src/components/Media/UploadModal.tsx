@@ -190,7 +190,6 @@ export default function UploadModal({ defaultDate, missionId, defaultSiteId }: U
         file: selectedFile,
         data: {
           flight_date: flightDate,
-          uploaded_by: uploadedBy.trim(),
           pilots: allPilots.length > 0 ? allPilots : undefined,
           notes: notes.trim() || undefined,
           site_id: selectedSiteId || undefined,

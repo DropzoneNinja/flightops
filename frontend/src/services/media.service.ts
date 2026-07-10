@@ -30,7 +30,6 @@ export interface Media {
 
 export interface CreateMediaData {
   flight_date: string; // ISO date string
-  uploaded_by: string;
   pilots?: string[];
   notes?: string;
   site_id?: string;
@@ -197,7 +196,6 @@ export const mediaService = {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('flight_date', data.flight_date);
-    formData.append('uploaded_by', data.uploaded_by);
 
     if (data.pilots && data.pilots.length > 0) {
       formData.append('pilots', JSON.stringify(data.pilots));
