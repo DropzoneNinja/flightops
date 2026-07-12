@@ -21,4 +21,33 @@ export class UpdateMediaDto {
   @IsUUID()
   @IsOptional()
   mission_id?: string;
+
+  @IsUUID()
+  @IsOptional()
+  flight_id?: string;
+
+  @IsString()
+  @IsOptional()
+  title?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
+
+  @IsString()
+  @IsOptional()
+  aircraft?: string;
+
+  @IsString()
+  @IsOptional()
+  wing?: string;
+
+  @IsString()
+  @IsOptional()
+  engine?: string;
 }

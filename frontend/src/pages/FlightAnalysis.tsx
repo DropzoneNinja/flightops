@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueries } from '@tanstack/react-query';
 import { useFlightById, useFlightAnalysis, useFlightReanalyze, useFlightsByDate } from '../hooks/useFlights';
+import { useAuth } from '../hooks/useAuth';
 import FlightScoreCard from '../components/Flights/FlightScoreCard';
 import FlightMap2D from '../components/Flights/FlightMap2D';
 import FlightCharts from '../components/Flights/FlightCharts';
@@ -99,9 +100,11 @@ export default function FlightAnalysis() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+  const { user } = useAuth();
   const { data: flight, isLoading: flightLoading, error: flightError } = useFlightById(id);
   const { data: analysis, isLoading: analysisLoading } = useFlightAnalysis(id);
   const reanalyzeMutation = useFlightReanalyze();
+  const isOwner = flight?.uploaded_by === user?.id;
 
   // Hover highlight (ephemeral, follows mouse/scrubber)
   const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
@@ -377,14 +380,16 @@ export default function FlightAnalysis() {
           </div>
         )}
 
-        <button
-          onClick={() => reanalyzeMutation.mutate(flight.id)}
-          disabled={reanalyzeMutation.isPending || flight.analysis_status === 'running'}
-          className="px-2.5 py-1 text-xs border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white transition-colors disabled:opacity-40"
-          title="Re-run analysis"
-        >
-          {reanalyzeMutation.isPending ? '…' : 'Re-analyze'}
-        </button>
+        {isOwner && (
+          <button
+            onClick={() => reanalyzeMutation.mutate(flight.id)}
+            disabled={reanalyzeMutation.isPending || flight.analysis_status === 'running'}
+            className="px-2.5 py-1 text-xs border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white transition-colors disabled:opacity-40"
+            title="Re-run analysis"
+          >
+            {reanalyzeMutation.isPending ? '…' : 'Re-analyze'}
+          </button>
+        )}
         {/* Inspector toggle */}
         <button
           onClick={() => setInspectorOpen((o) => !o)}

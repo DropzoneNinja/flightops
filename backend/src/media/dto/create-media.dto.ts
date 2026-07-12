@@ -8,6 +8,21 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
+const toStringArray = ({ value }: { value: unknown }) => {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [value];
+    } catch {
+      return value.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0);
+    }
+  }
+  return undefined;
+};
+
 export class CreateMediaDto {
   @IsDateString()
   @IsNotEmpty()
@@ -21,24 +36,11 @@ export class CreateMediaDto {
   @IsOptional()
   mission_id?: string;
 
-  @Transform(({ value }) => {
-    // If it's already an array, return it
-    if (Array.isArray(value)) {
-      return value;
-    }
-    // If it's a string, try to parse it as JSON
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed : [value];
-      } catch {
-        // If JSON parse fails, treat as comma-separated string
-        return value.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0);
-      }
-    }
-    // If it's undefined or null, return undefined
-    return undefined;
-  })
+  @IsUUID()
+  @IsOptional()
+  flight_id?: string;
+
+  @Transform(toStringArray)
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
@@ -47,4 +49,30 @@ export class CreateMediaDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsString()
+  @IsOptional()
+  title?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @Transform(toStringArray)
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
+
+  @IsString()
+  @IsOptional()
+  aircraft?: string;
+
+  @IsString()
+  @IsOptional()
+  wing?: string;
+
+  @IsString()
+  @IsOptional()
+  engine?: string;
 }

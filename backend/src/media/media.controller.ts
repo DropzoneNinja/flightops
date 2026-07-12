@@ -25,7 +25,8 @@ import { AdminGuard } from '../auth/guards/admin.guard';
 import { MediaTokenService } from '../auth/media-token.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../database/entities/user.entity';
-import { CreateMediaDto, UpdateMediaDto } from './dto';
+import { CreateMediaDto, UpdateMediaDto, BrowseMediaDto, FavoriteMediaDto, RateMediaDto } from './dto';
+import { FlightsService } from '../flights/flights.service';
 import * as fs from 'fs';
 import { createReadStream, statSync } from 'fs';
 
@@ -34,7 +35,61 @@ export class MediaController {
   constructor(
     private readonly mediaService: MediaService,
     private readonly mediaTokenService: MediaTokenService,
+    private readonly flightsService: FlightsService,
   ) {}
+
+  /**
+   * GET /media/browse
+   * Paginated, filterable, sortable media library browse (page, pageSize, q, pilots,
+   * site_id, country, year, month, flight_date_from/to, uploaded_from/to, aircraft,
+   * wings, engines, tags, type, favorite, gps_track_available, min_rating, sort).
+   * This is the general-purpose endpoint for library/search/filter UIs (e.g. FlightTV).
+   * IMPORTANT: This route must be defined BEFORE the generic :id route
+   */
+  @Get('browse')
+  @UseGuards(JwtAuthGuard)
+  async browseMedia(@Query() query: BrowseMediaDto, @CurrentUser() user: User) {
+    return this.mediaService.browseMedia(query);
+  }
+
+  /**
+   * GET /media/filters
+   * Consolidated filter option lists (pilots, aircraft, wings, engines, tags, countries, sites)
+   * for building a filter panel in one round trip.
+   * IMPORTANT: This route must be defined BEFORE the generic :id route
+   */
+  @Get('filters')
+  @UseGuards(JwtAuthGuard)
+  async getFilterOptions(@CurrentUser() user: User) {
+    return this.mediaService.getFilterOptions();
+  }
+
+  /**
+   * GET /media/home?limit=20
+   * Pre-computed home-screen sections (recently uploaded/flown, newest videos/photos,
+   * favorite flights/pilots, popular sites). "Continue Watching" is intentionally omitted —
+   * playback progress is persisted client-side; hydrate it via GET /media/batch.
+   * IMPORTANT: This route must be defined BEFORE the generic :id route
+   */
+  @Get('home')
+  @UseGuards(JwtAuthGuard)
+  async getHomeSections(@Query('limit') limitParam: string, @CurrentUser() user: User) {
+    const limit = limitParam ? parseInt(limitParam, 10) : 20;
+    return this.mediaService.getHomeSections(limit);
+  }
+
+  /**
+   * GET /media/batch?ids=uuid,uuid,uuid
+   * Batch-fetch media items by ID (capped at 100), e.g. to hydrate a client-side
+   * "Continue Watching" row from locally-persisted playback progress.
+   * IMPORTANT: This route must be defined BEFORE the generic :id route
+   */
+  @Get('batch')
+  @UseGuards(JwtAuthGuard)
+  async getMediaBatch(@Query('ids') idsParam: string, @CurrentUser() user: User) {
+    const ids = idsParam ? idsParam.split(',').map((id) => id.trim()).filter(Boolean) : [];
+    return this.mediaService.getMediaBatch(ids);
+  }
 
   /**
    * GET /media/search
@@ -318,6 +373,71 @@ export class MediaController {
       message: 'Download count incremented',
       download_count: media.download_count,
     };
+  }
+
+  /**
+   * GET /media/:id/related?limit=24
+   * Media related to this item by flight, pilot, site, day, or shared tags — deduped and
+   * capped, each item tagged with which relation matched it.
+   * IMPORTANT: This route must be defined BEFORE the generic :id route
+   */
+  @Get(':id/related')
+  @UseGuards(JwtAuthGuard)
+  async getRelatedMedia(
+    @Param('id') id: string,
+    @Query('limit') limitParam: string,
+    @CurrentUser() user: User,
+  ) {
+    const limit = limitParam ? parseInt(limitParam, 10) : 24;
+    return this.mediaService.getRelatedMedia(id, limit);
+  }
+
+  /**
+   * GET /media/:id/flight
+   * Read-only flight summary (duration, sites, altitude, speed, distance, pilot) for the
+   * flight this media item is linked to, regardless of who owns that flight — media
+   * browsing is shared/read-only. Returns null if the media has no linked flight.
+   * IMPORTANT: This route must be defined BEFORE the generic :id route
+   */
+  @Get(':id/flight')
+  @UseGuards(JwtAuthGuard)
+  async getMediaFlightSummary(@Param('id') id: string, @CurrentUser() user: User) {
+    const media = await this.mediaService.getMediaById(id);
+    if (!media.flight_id) {
+      return null;
+    }
+    return this.flightsService.getDisplaySummary(media.flight_id);
+  }
+
+  /**
+   * PATCH /media/:id/favorite
+   * Set the shared favorite flag on a media item. Any authenticated user may toggle this
+   * (favorite/rating are shared values, like view_count, not per-viewer).
+   * IMPORTANT: This route must be defined BEFORE the generic :id route
+   */
+  @Patch(':id/favorite')
+  @UseGuards(JwtAuthGuard)
+  async setFavorite(
+    @Param('id') id: string,
+    @Body() dto: FavoriteMediaDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.mediaService.setFavorite(id, dto.favorite);
+  }
+
+  /**
+   * PATCH /media/:id/rating
+   * Set the shared 0-5 rating on a media item.
+   * IMPORTANT: This route must be defined BEFORE the generic :id route
+   */
+  @Patch(':id/rating')
+  @UseGuards(JwtAuthGuard)
+  async setRating(
+    @Param('id') id: string,
+    @Body() dto: RateMediaDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.mediaService.setRating(id, dto.rating);
   }
 
   /**

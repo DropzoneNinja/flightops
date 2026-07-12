@@ -10,11 +10,14 @@ import {
 } from 'typeorm';
 import { FlightSite } from './flight-site.entity';
 import { Mission } from './mission.entity';
+import { Flight } from './flight.entity';
 
 @Entity('media')
 @Index(['flight_date'])
 @Index(['site_id'])
 @Index(['mission_id'])
+@Index(['flight_id'])
+@Index(['favorite'])
 export class Media {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -27,6 +30,9 @@ export class Media {
 
   @Column({ type: 'uuid', nullable: true })
   mission_id: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  flight_id: string | null;
 
   @Column({
     type: 'enum',
@@ -48,6 +54,45 @@ export class Media {
 
   @Column({ type: 'text', nullable: true })
   notes: string;
+
+  @Column({ type: 'text', nullable: true })
+  title: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
+  @Column({ type: 'text', array: true, default: '{}' })
+  tags: string[];
+
+  @Column({ type: 'text', nullable: true })
+  aircraft: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  wing: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  engine: string | null;
+
+  @Column({ type: 'boolean', default: false })
+  favorite: boolean;
+
+  @Column({ type: 'smallint', nullable: true })
+  rating: number | null;
+
+  @Column({ type: 'real', nullable: true })
+  duration_seconds: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  image_width: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  image_height: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  video_width: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  video_height: number | null;
 
   @Column({ type: 'text' })
   mime_type: string;
@@ -78,4 +123,8 @@ export class Media {
   @ManyToOne(() => Mission, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'mission_id' })
   mission: Mission;
+
+  @ManyToOne(() => Flight, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'flight_id' })
+  flight: Flight;
 }

@@ -25,6 +25,9 @@ export class FlightSite {
   @Column({ length: 255 })
   name: string;
 
+  @Column({ type: 'text', nullable: true })
+  country: string | null;
+
   @Column({ type: 'decimal', precision: 10, scale: 8 })
   takeoff_lat: number;
 

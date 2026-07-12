@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFlightsByDate } from '../../hooks/useFlights';
+import { useAuth } from '../../hooks/useAuth';
 import FlightCard from './FlightCard';
 import FlightUploadModal from './FlightUploadModal';
 
@@ -11,6 +12,7 @@ interface FlightsSectionProps {
 export default function FlightsSection({ date }: FlightsSectionProps) {
   const [uploadOpen, setUploadOpen] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: flights, isLoading, error } = useFlightsByDate(date);
 
   if (isLoading) {
@@ -88,7 +90,12 @@ export default function FlightsSection({ date }: FlightsSectionProps) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {flights.map((flight) => (
-            <FlightCard key={flight.id} flight={flight} date={date} />
+            <FlightCard
+              key={flight.id}
+              flight={flight}
+              date={date}
+              canDelete={flight.uploaded_by === user?.id}
+            />
           ))}
         </div>
       )}

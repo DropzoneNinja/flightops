@@ -585,7 +585,7 @@ GET /sites
 Authorization: Bearer <token>
 ```
 
-Returns all flight sites for the current user.
+Returns all flight sites (visible to all authenticated users — site/weather data is shared, not private per pilot).
 
 ---
 
@@ -602,7 +602,8 @@ Content-Type: application/json
   "parkingLat": 52.3550,
   "parkingLon": -1.1750,
   "takeoffNotes": "Launch from the grassy shelf, avoid the trees on the left",
-  "parkingNotes": "Park in the layby, not the farmer's field"
+  "parkingNotes": "Park in the layby, not the farmer's field",
+  "country": "United Kingdom"
 }
 ```
 
@@ -1550,6 +1551,8 @@ Query params:
 
 ## Media
 
+> The FlightTV tvOS app (a read-only media browser) consumes this module. `GET /media/browse`, `GET /media/filters`, `GET /media/home`, `GET /media/:id/related`, `GET /media/:id/flight`, `GET /media/batch`, `PATCH /media/:id/favorite` and `PATCH /media/:id/rating` were added for it, but are general-purpose and usable by any client. The older `GET /media` (date/site) and `GET /media/search` (filter-only) endpoints are unchanged for backward compatibility with the existing web frontend.
+
 ### Upload Media
 ```http
 POST /media
@@ -1560,9 +1563,128 @@ file:         <File>
 flight_date:  2026-01-15
 pilots:       ["Alice", "Bob"]
 notes:        Optional notes
+title:        Optional title (optional)
+description:  Optional description (optional)
+tags:         ["sunset", "coastal"] (optional)
+aircraft:     Optional aircraft name (optional)
+wing:         Optional wing name (optional)
+engine:       Optional engine name (optional)
 site_id:      uuid (optional)
 mission_id:   uuid (optional)
+flight_id:    uuid (optional) — links this media to a parsed GPX flight
 ```
+
+Image dimensions (`image_width`/`image_height`) and video dimensions/duration (`video_width`/`video_height`/`duration_seconds`) are extracted automatically on upload via `sharp`/`ffprobe` — no need to send them.
+
+---
+
+### Browse Media (paginated, filterable, sortable)
+```http
+GET /media/browse
+Authorization: Bearer <token>
+```
+
+The general-purpose media library endpoint. Combines free-text search, every filter, and sorting, with real pagination — this is what FlightTV's Library, Search, and Filters screens call.
+
+Query params (all optional):
+
+| Param | Type | Notes |
+|---|---|---|
+| `page` | number | Default `1` |
+| `pageSize` | number | Default `50`, max `200` |
+| `q` | string | Free-text match across title, description, notes, filename, pilots, tags, aircraft, wing, engine, site name |
+| `pilots` | comma-separated | Matches any of the given pilot names |
+| `site_id` | uuid | |
+| `country` | string | Matches the linked site's country |
+| `year` / `month` | number | Filters on `flight_date` |
+| `flight_date_from` / `flight_date_to` | date | Inclusive range on `flight_date` |
+| `uploaded_from` / `uploaded_to` | date | Inclusive range on `created_at` |
+| `aircraft` / `wings` / `engines` | comma-separated | Matches any of the given values |
+| `tags` | comma-separated | Matches any of the given tags |
+| `type` | `image` \| `video` | |
+| `favorite` | `true` \| `false` | |
+| `gps_track_available` | `true` \| `false` | Whether the item is linked to a parsed flight (`flight_id`) |
+| `min_rating` | number `0`-`5` | |
+| `sort` | see below | Default `newest` |
+
+Sort options: `newest`, `oldest`, `recently_uploaded`, `highest_rated`, `longest`, `shortest`, `pilot`, `location`, `alphabetical`.
+
+Example:
+```http
+GET /media/browse?pilots=Mike&year=2026&type=video&sort=highest_rated&page=1&pageSize=50
+GET /media/browse?q=belgrave
+```
+
+Response:
+```json
+{
+  "items": [ { "id": "uuid", "title": "...", "media_type": "video", "...": "..." } ],
+  "page": 1,
+  "pageSize": 50,
+  "total": 4213,
+  "hasMore": true
+}
+```
+
+---
+
+### Get Media Filter Options
+```http
+GET /media/filters
+Authorization: Bearer <token>
+```
+
+Consolidated lists for building a filter panel in a single round trip — avoids six separate calls on a 10-foot UI.
+
+Response:
+```json
+{
+  "pilots": ["Alice", "Bob"],
+  "aircraft": ["Paramotor A"],
+  "wings": ["Wing X"],
+  "engines": ["Engine Y"],
+  "tags": ["sunset", "coastal"],
+  "countries": ["United Kingdom", "France"],
+  "sites": [
+    { "site_id": "uuid", "site_name": "Mountain Ridge", "takeoff_lat": 52.35, "takeoff_lon": -1.17, "image_count": 12, "video_count": 4 }
+  ]
+}
+```
+
+---
+
+### Home Screen Sections
+```http
+GET /media/home?limit=20
+Authorization: Bearer <token>
+```
+
+Pre-computed, capped rows for a Netflix/Photos-style home screen — each row is server-side limited so clients never page through the full library just to render a shelf.
+
+Response:
+```json
+{
+  "recentlyUploaded": [ /* Media[], ordered by created_at desc */ ],
+  "recentlyFlown": [ /* Media[], ordered by flight_date desc */ ],
+  "newestVideos": [ /* Media[], type=video, ordered by flight_date desc */ ],
+  "newestPhotos": [ /* Media[], type=image, ordered by flight_date desc */ ],
+  "favoriteFlights": [ /* Media[], one per flight_id, favorite=true */ ],
+  "favoritePilots": [ { "pilot": "Alice", "favoriteCount": 12 } ],
+  "popularSites": [ /* same shape as GET /media/filters "sites", sorted by media count desc */ ]
+}
+```
+
+> "Continue Watching" is intentionally not included — per-user playback progress is persisted client-side (see FlightTV's local progress store), not on the server. Hydrate that row with `GET /media/batch`.
+
+---
+
+### Batch Get Media
+```http
+GET /media/batch?ids=uuid1,uuid2,uuid3
+Authorization: Bearer <token>
+```
+
+Fetches multiple media items by ID in one call (capped at 100 ids) — e.g. to hydrate a "Continue Watching" row from locally-stored playback progress without N round trips.
 
 ---
 
@@ -1574,6 +1696,8 @@ Authorization: Bearer <token>
 
 Query params: `uploaded_by`, `pilots` (comma-separated), `year`, `month`
 
+> Legacy filter-only endpoint kept for the existing web frontend. New clients should use `GET /media/browse`, which adds free-text search (`q`), pagination, more filters, and sorting.
+
 ---
 
 ### List Media by Date or Site
@@ -1583,12 +1707,60 @@ GET /media?site=uuid
 Authorization: Bearer <token>
 ```
 
+> Legacy endpoint kept for the existing web frontend. New clients should use `GET /media/browse?flight_date_from=...&flight_date_to=...` or `?site_id=...`.
+
 ---
 
 ### Get Media Item
 ```http
 GET /media/:id
 Authorization: Bearer <token>
+```
+
+---
+
+### Get Related Media
+```http
+GET /media/:id/related?limit=24
+Authorization: Bearer <token>
+```
+
+Media related to this item by flight, pilot, site, day, or shared tags — deduped and capped server-side. Each item is annotated with which relation matched it first.
+
+Response:
+```json
+[
+  { "id": "uuid", "relation": "same_flight", "...": "..." },
+  { "id": "uuid", "relation": "same_pilot", "...": "..." }
+]
+```
+
+`relation` is one of `same_flight`, `same_pilot`, `same_site`, `same_day`, `similar_tags`.
+
+---
+
+### Get Media Flight Summary
+```http
+GET /media/:id/flight
+Authorization: Bearer <token>
+```
+
+Read-only flight stats for the flight this media item is linked to (via `flight_id`), for a "Flight Information" panel. Unlike `GET /flights/:id`, this is **not** ownership-scoped — media browsing is shared/read-only across pilots, so viewing someone else's video still surfaces the flight's stats. Only display fields are returned (never trackpoints/GPX). Returns `null` if the media has no linked flight.
+
+Response:
+```json
+{
+  "id": "uuid",
+  "flight_date": "2026-01-15",
+  "title": "Evening ridge run",
+  "duration_seconds": 5423,
+  "launch_site_name": "Mountain Ridge",
+  "landing_site_name": "Valley LZ",
+  "max_altitude_m": 1240,
+  "max_speed_mps": 18.4,
+  "total_distance_m": 32400,
+  "pilot": { "id": "uuid", "display_name": "Alice" }
+}
 ```
 
 ---
@@ -1665,7 +1837,7 @@ Response:
 GET /media/:id/file?token=<media-token>
 ```
 
-Streams the raw media file. Supports `Range` requests for video scrubbing. Requires a token from `GET /media/:id/token`.
+Streams the raw media file. Supports `Range` requests for video scrubbing. Requires a token from `GET /media/:id/token`. This is FlightTV's `mediaURL`.
 
 ---
 
@@ -1674,7 +1846,7 @@ Streams the raw media file. Supports `Range` requests for video scrubbing. Requi
 GET /media/:id/thumbnail?token=<media-token>
 ```
 
-Returns the JPEG thumbnail. Requires a token from `GET /media/:id/token`.
+Returns the JPEG thumbnail. Requires a token from `GET /media/:id/token`. This is FlightTV's `thumbnailURL` and `previewURL` — there is a single generated image, no separate higher-res preview asset.
 
 ---
 
@@ -1708,6 +1880,32 @@ Response:
 
 ---
 
+### Set Favorite
+```http
+PATCH /media/:id/favorite
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "favorite": true }
+```
+
+Favorite is a single shared value on the media item (like `view_count`), not per-viewer — any authenticated user can toggle it.
+
+---
+
+### Set Rating
+```http
+PATCH /media/:id/rating
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "rating": 4 }
+```
+
+`rating` is an integer `0`-`5`. Like favorite, this is a single shared value on the item, not per-viewer.
+
+---
+
 ### Update Media Metadata
 ```http
 PATCH /media/:id
@@ -1717,11 +1915,19 @@ Content-Type: application/json
 {
   "notes": "Updated notes",
   "pilots": ["Alice", "Charlie"],
-  "site_id": "uuid"
+  "site_id": "uuid",
+  "mission_id": "uuid",
+  "flight_id": "uuid",
+  "title": "Evening ridge run",
+  "description": "Golden hour flight over the ridge",
+  "tags": ["sunset", "coastal"],
+  "aircraft": "Paramotor A",
+  "wing": "Wing X",
+  "engine": "Engine Y"
 }
 ```
 
-> Uploader or admin only.
+> Uploader or admin only. All fields are optional; only the fields present are updated.
 
 ---
 

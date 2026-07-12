@@ -280,9 +280,10 @@ export class FlightsService {
   // CRUD
   // ---------------------------------------------------------------------------
 
-  async findByDate(date: string, userId: string): Promise<Flight[]> {
+  /** Flights are shared/read-only across pilots on a given day, like media browsing. */
+  async findByDate(date: string): Promise<Flight[]> {
     return this.flightsRepository.find({
-      where: { flight_date: new Date(date), uploaded_by: userId },
+      where: { flight_date: new Date(date) },
       relations: ['pilot', 'site'],
       order: { created_at: 'ASC' },
     });
@@ -343,6 +344,40 @@ export class FlightsService {
     return path.join(this.mediaStoragePath, flight.storage_key);
   }
 
+  /**
+   * Limited, read-only flight summary for display alongside media that references this
+   * flight (e.g. FlightTV's "Flight Information" panel). Unlike findByIdForUser, this is
+   * NOT ownership-scoped — media browsing is shared/read-only across pilots, so a viewer
+   * looking at someone else's video still needs the flight stats. Only display fields are
+   * returned; trackpoints/GPX/storage details are never exposed here.
+   */
+  async getDisplaySummary(id: string): Promise<{
+    id: string;
+    flight_date: Date;
+    title: string | null;
+    duration_seconds: number | null;
+    launch_site_name: string | null;
+    landing_site_name: string | null;
+    max_altitude_m: number | null;
+    max_speed_mps: number | null;
+    total_distance_m: number | null;
+    pilot: { id: string; display_name: string } | null;
+  }> {
+    const flight = await this.findById(id);
+    return {
+      id: flight.id,
+      flight_date: flight.flight_date,
+      title: flight.title,
+      duration_seconds: flight.duration_seconds,
+      launch_site_name: flight.launch_site_name,
+      landing_site_name: flight.landing_site_name,
+      max_altitude_m: flight.max_altitude_m,
+      max_speed_mps: flight.max_speed_mps,
+      total_distance_m: flight.total_distance_m,
+      pilot: flight.pilot ? { id: flight.pilot.id, display_name: flight.pilot.display_name } : null,
+    };
+  }
+
   async getTrackpoints(
     id: string,
     userId: string,
@@ -363,8 +398,8 @@ export class FlightsService {
     };
   }
 
-  /** POST /flights/compare — return normalized comparison data for selected flights */
-  async compareFlights(flightIds: string[], userId: string): Promise<ComparisonResult> {
+  /** POST /flights/compare — return normalized comparison data for selected flights (shared across pilots) */
+  async compareFlights(flightIds: string[]): Promise<ComparisonResult> {
     if (!flightIds || flightIds.length < 2) {
       throw new BadRequestException('At least 2 flight IDs are required for comparison');
     }
@@ -372,7 +407,7 @@ export class FlightsService {
       throw new BadRequestException('Cannot compare more than 6 flights at once');
     }
 
-    const flights = await Promise.all(flightIds.map((id) => this.findByIdForUser(id, userId)));
+    const flights = await Promise.all(flightIds.map((id) => this.findById(id)));
 
     // Build normalized comparison entries
     const entries = flights.map((f) => {

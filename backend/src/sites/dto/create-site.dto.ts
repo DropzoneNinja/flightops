@@ -46,4 +46,9 @@ export class CreateSiteDto {
   @Max(9000)
   elevation_m?: number;
 
+  @IsOptional()
+  @IsString()
+  @Length(0, 100, { message: 'Country must not exceed 100 characters' })
+  country?: string;
+
 }

@@ -1,13 +1,14 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Media } from '../database/entities/media.entity';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
-import { CreateMediaDto, UpdateMediaDto } from './dto';
+import { CreateMediaDto, UpdateMediaDto, BrowseMediaDto, MediaSortOption } from './dto';
 import { FileValidationUtil } from './utils/file-validation.util';
 import { ThumbnailUtil } from './utils/thumbnail.util';
+import { MediaProbeUtil } from './utils/media-probe.util';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { UsersService } from '../users/users.service';
@@ -38,6 +39,397 @@ export class MediaService {
       .getRawMany();
 
     return result.map((row) => row.pilot).filter(Boolean);
+  }
+
+  /**
+   * Get all distinct, non-empty values of a plain-text media column (aircraft/wing/engine)
+   */
+  private async getUniqueTextColumn(column: 'aircraft' | 'wing' | 'engine'): Promise<string[]> {
+    const result = await this.mediaRepository
+      .createQueryBuilder('media')
+      .select(`DISTINCT media.${column}`, 'value')
+      .where(`media.${column} IS NOT NULL AND media.${column} != ''`)
+      .orderBy('value', 'ASC')
+      .getRawMany();
+
+    return result.map((row) => row.value).filter(Boolean);
+  }
+
+  async getUniqueAircraft(): Promise<string[]> {
+    return this.getUniqueTextColumn('aircraft');
+  }
+
+  async getUniqueWings(): Promise<string[]> {
+    return this.getUniqueTextColumn('wing');
+  }
+
+  async getUniqueEngines(): Promise<string[]> {
+    return this.getUniqueTextColumn('engine');
+  }
+
+  /**
+   * Get all distinct tags across all media entries
+   */
+  async getUniqueTags(): Promise<string[]> {
+    const result = await this.mediaRepository
+      .createQueryBuilder('media')
+      .select('DISTINCT unnest(media.tags)', 'tag')
+      .where("media.tags != '{}'")
+      .orderBy('tag', 'ASC')
+      .getRawMany();
+
+    return result.map((row) => row.tag).filter(Boolean);
+  }
+
+  /**
+   * Get all distinct site countries referenced by media
+   */
+  async getUniqueCountries(): Promise<string[]> {
+    const result = await this.mediaRepository
+      .createQueryBuilder('media')
+      .leftJoin('media.site', 'site')
+      .select('DISTINCT site.country', 'country')
+      .where('site.country IS NOT NULL')
+      .orderBy('country', 'ASC')
+      .getRawMany();
+
+    return result.map((row) => row.country).filter(Boolean);
+  }
+
+  /**
+   * Consolidated filter option lists for building a browse/search filter panel in one round trip
+   */
+  async getFilterOptions(): Promise<{
+    pilots: string[];
+    aircraft: string[];
+    wings: string[];
+    engines: string[];
+    tags: string[];
+    countries: string[];
+    sites: Array<{
+      site_id: string;
+      site_name: string;
+      takeoff_lat: number;
+      takeoff_lon: number;
+      image_count: number;
+      video_count: number;
+    }>;
+  }> {
+    const [pilots, aircraft, wings, engines, tags, countries, sites] = await Promise.all([
+      this.getUniquePilots(),
+      this.getUniqueAircraft(),
+      this.getUniqueWings(),
+      this.getUniqueEngines(),
+      this.getUniqueTags(),
+      this.getUniqueCountries(),
+      this.getSitesWithMediaCounts(),
+    ]);
+
+    return { pilots, aircraft, wings, engines, tags, countries, sites };
+  }
+
+  /**
+   * Paginated, filterable, sortable media library browse — backs FlightTV's Library/Search/Filters
+   * screens and any other client that needs to page through the full media set.
+   */
+  async browseMedia(query: BrowseMediaDto): Promise<{
+    items: Media[];
+    page: number;
+    pageSize: number;
+    total: number;
+    hasMore: boolean;
+  }> {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 50;
+
+    const qb = this.mediaRepository
+      .createQueryBuilder('media')
+      .leftJoinAndSelect('media.site', 'site');
+
+    if (query.q) {
+      qb.andWhere(
+        `(
+          media.title ILIKE :q OR
+          media.description ILIKE :q OR
+          media.notes ILIKE :q OR
+          media.original_filename ILIKE :q OR
+          media.aircraft ILIKE :q OR
+          media.wing ILIKE :q OR
+          media.engine ILIKE :q OR
+          site.name ILIKE :q OR
+          EXISTS (SELECT 1 FROM unnest(media.pilots) p WHERE p ILIKE :q) OR
+          EXISTS (SELECT 1 FROM unnest(media.tags) t WHERE t ILIKE :q)
+        )`,
+        { q: `%${query.q}%` },
+      );
+    }
+
+    if (query.pilots?.length) {
+      qb.andWhere('media.pilots && :pilots', { pilots: query.pilots });
+    }
+    if (query.site_id) {
+      qb.andWhere('media.site_id = :siteId', { siteId: query.site_id });
+    }
+    if (query.country) {
+      qb.andWhere('site.country ILIKE :country', { country: query.country });
+    }
+    if (query.year) {
+      qb.andWhere('EXTRACT(YEAR FROM media.flight_date) = :year', { year: query.year });
+    }
+    if (query.month) {
+      qb.andWhere('EXTRACT(MONTH FROM media.flight_date) = :month', { month: query.month });
+    }
+    if (query.flight_date_from) {
+      qb.andWhere('media.flight_date >= :flightDateFrom', { flightDateFrom: query.flight_date_from });
+    }
+    if (query.flight_date_to) {
+      qb.andWhere('media.flight_date <= :flightDateTo', { flightDateTo: query.flight_date_to });
+    }
+    if (query.uploaded_from) {
+      qb.andWhere('media.created_at >= :uploadedFrom', { uploadedFrom: query.uploaded_from });
+    }
+    if (query.uploaded_to) {
+      qb.andWhere('media.created_at <= :uploadedTo', { uploadedTo: query.uploaded_to });
+    }
+    if (query.aircraft?.length) {
+      qb.andWhere('media.aircraft ILIKE ANY(:aircraft)', { aircraft: query.aircraft });
+    }
+    if (query.wings?.length) {
+      qb.andWhere('media.wing ILIKE ANY(:wings)', { wings: query.wings });
+    }
+    if (query.engines?.length) {
+      qb.andWhere('media.engine ILIKE ANY(:engines)', { engines: query.engines });
+    }
+    if (query.tags?.length) {
+      qb.andWhere('media.tags && :tags', { tags: query.tags });
+    }
+    if (query.type) {
+      qb.andWhere('media.media_type = :type', { type: query.type });
+    }
+    if (query.favorite !== undefined) {
+      qb.andWhere('media.favorite = :favorite', { favorite: query.favorite === 'true' });
+    }
+    if (query.gps_track_available !== undefined) {
+      const wantsGps = query.gps_track_available === 'true';
+      qb.andWhere(wantsGps ? 'media.flight_id IS NOT NULL' : 'media.flight_id IS NULL');
+    }
+    if (query.min_rating !== undefined) {
+      qb.andWhere('media.rating >= :minRating', { minRating: query.min_rating });
+    }
+
+    this.applySort(qb, query.sort ?? 'newest');
+
+    qb.skip((page - 1) * pageSize).take(pageSize);
+
+    const [items, total] = await qb.getManyAndCount();
+
+    return {
+      items,
+      page,
+      pageSize,
+      total,
+      hasMore: page * pageSize < total,
+    };
+  }
+
+  private applySort(qb: SelectQueryBuilder<Media>, sort: MediaSortOption): void {
+    switch (sort) {
+      case 'oldest':
+        qb.orderBy('media.flight_date', 'ASC').addOrderBy('media.created_at', 'ASC');
+        break;
+      case 'recently_uploaded':
+        qb.orderBy('media.created_at', 'DESC');
+        break;
+      case 'highest_rated':
+        qb.orderBy('media.rating', 'DESC', 'NULLS LAST').addOrderBy('media.flight_date', 'DESC');
+        break;
+      case 'longest':
+        qb.orderBy('media.duration_seconds', 'DESC', 'NULLS LAST');
+        break;
+      case 'shortest':
+        qb.orderBy('media.duration_seconds', 'ASC', 'NULLS LAST');
+        break;
+      case 'pilot':
+        qb.orderBy('media.pilots[1]', 'ASC', 'NULLS LAST');
+        break;
+      case 'location':
+        qb.orderBy('site.name', 'ASC', 'NULLS LAST').addOrderBy('media.flight_date', 'DESC');
+        break;
+      case 'alphabetical':
+        qb.orderBy('media.title', 'ASC', 'NULLS LAST').addOrderBy('media.original_filename', 'ASC');
+        break;
+      case 'newest':
+      default:
+        qb.orderBy('media.flight_date', 'DESC').addOrderBy('media.created_at', 'DESC');
+        break;
+    }
+  }
+
+  /**
+   * Media related to the given item by flight, pilot, site, day, or shared tags.
+   * Deduped and capped; each item is tagged with the first relation that matched it.
+   */
+  async getRelatedMedia(id: string, limit = 24): Promise<Array<Media & { relation: string }>> {
+    const media = await this.getMediaById(id);
+    const seen = new Set<string>([media.id]);
+    const related: Array<Media & { relation: string }> = [];
+
+    const addGroup = (items: Media[], relation: string) => {
+      for (const item of items) {
+        if (seen.has(item.id) || related.length >= limit) continue;
+        seen.add(item.id);
+        related.push(Object.assign(item, { relation }));
+      }
+    };
+
+    if (media.flight_id) {
+      const sameFlight = await this.mediaRepository.find({
+        where: { flight_id: media.flight_id },
+        relations: ['site'],
+        take: limit,
+      });
+      addGroup(sameFlight.filter((m) => m.id !== media.id), 'same_flight');
+    }
+
+    if (related.length < limit && media.pilots?.length) {
+      const samePilot = await this.mediaRepository
+        .createQueryBuilder('media')
+        .leftJoinAndSelect('media.site', 'site')
+        .where('media.id != :id', { id: media.id })
+        .andWhere('media.pilots && :pilots', { pilots: media.pilots })
+        .orderBy('media.flight_date', 'DESC')
+        .take(limit)
+        .getMany();
+      addGroup(samePilot, 'same_pilot');
+    }
+
+    if (related.length < limit && media.site_id) {
+      const sameSite = await this.mediaRepository.find({
+        where: { site_id: media.site_id },
+        relations: ['site'],
+        order: { flight_date: 'DESC' },
+        take: limit,
+      });
+      addGroup(sameSite.filter((m) => m.id !== media.id), 'same_site');
+    }
+
+    if (related.length < limit) {
+      const sameDay = await this.mediaRepository.find({
+        where: { flight_date: media.flight_date },
+        relations: ['site'],
+        take: limit,
+      });
+      addGroup(sameDay.filter((m) => m.id !== media.id), 'same_day');
+    }
+
+    if (related.length < limit && media.tags?.length) {
+      const similarTags = await this.mediaRepository
+        .createQueryBuilder('media')
+        .leftJoinAndSelect('media.site', 'site')
+        .where('media.id != :id', { id: media.id })
+        .andWhere('media.tags && :tags', { tags: media.tags })
+        .orderBy('media.flight_date', 'DESC')
+        .take(limit)
+        .getMany();
+      addGroup(similarTags, 'similar_tags');
+    }
+
+    return related.slice(0, limit);
+  }
+
+  /**
+   * Batch-fetch media items by ID, e.g. to hydrate a client-side "Continue Watching" row
+   * from locally-persisted playback progress without N round trips.
+   */
+  async getMediaBatch(ids: string[]): Promise<Media[]> {
+    if (!ids.length) return [];
+    const capped = ids.slice(0, 100);
+    return this.mediaRepository.find({
+      where: capped.map((id) => ({ id })),
+      relations: ['site'],
+    });
+  }
+
+  /**
+   * Pre-computed sections for a TV-style home screen. Each row is capped server-side
+   * so clients never need to page through the full library just to render a shelf.
+   */
+  async getHomeSections(limit = 20): Promise<{
+    recentlyUploaded: Media[];
+    recentlyFlown: Media[];
+    newestVideos: Media[];
+    newestPhotos: Media[];
+    favoriteFlights: Media[];
+    favoritePilots: Array<{ pilot: string; favoriteCount: number }>;
+    popularSites: Array<{
+      site_id: string;
+      site_name: string;
+      takeoff_lat: number;
+      takeoff_lon: number;
+      image_count: number;
+      video_count: number;
+    }>;
+  }> {
+    const [recentlyUploaded, recentlyFlown, newestVideos, newestPhotos, favoriteFlightsRaw, favoritePilots, sites] =
+      await Promise.all([
+        this.mediaRepository.find({ relations: ['site'], order: { created_at: 'DESC' }, take: limit }),
+        this.mediaRepository.find({ relations: ['site'], order: { flight_date: 'DESC' }, take: limit }),
+        this.mediaRepository.find({
+          where: { media_type: 'video' },
+          relations: ['site'],
+          order: { flight_date: 'DESC' },
+          take: limit,
+        }),
+        this.mediaRepository.find({
+          where: { media_type: 'image' },
+          relations: ['site'],
+          order: { flight_date: 'DESC' },
+          take: limit,
+        }),
+        this.mediaRepository.find({
+          where: { favorite: true },
+          relations: ['site'],
+          order: { flight_date: 'DESC' },
+          take: limit * 4, // over-fetch so we have enough after de-duping by flight below
+        }),
+        this.mediaRepository
+          .createQueryBuilder('media')
+          .select('unnest(media.pilots)', 'pilot')
+          .addSelect('COUNT(*)', 'favoriteCount')
+          .where('media.favorite = true')
+          .andWhere("media.pilots != '{}'")
+          .groupBy('pilot')
+          .orderBy('"favoriteCount"', 'DESC')
+          .limit(limit)
+          .getRawMany(),
+        this.getSitesWithMediaCounts(),
+      ]);
+
+    const favoriteFlights: Media[] = [];
+    const seenFlights = new Set<string>();
+    for (const item of favoriteFlightsRaw) {
+      if (!item.flight_id || seenFlights.has(item.flight_id)) continue;
+      seenFlights.add(item.flight_id);
+      favoriteFlights.push(item);
+      if (favoriteFlights.length >= limit) break;
+    }
+
+    const popularSites = sites
+      .sort((a, b) => b.image_count + b.video_count - (a.image_count + a.video_count))
+      .slice(0, limit);
+
+    return {
+      recentlyUploaded,
+      recentlyFlown,
+      newestVideos,
+      newestPhotos,
+      favoriteFlights,
+      favoritePilots: favoritePilots.map((row) => ({
+        pilot: row.pilot,
+        favoriteCount: parseInt(row.favoriteCount, 10) || 0,
+      })),
+      popularSites,
+    };
   }
 
   /**
@@ -355,6 +747,25 @@ export class MediaService {
       // Continue without thumbnail - not critical
     }
 
+    // Probe intrinsic dimensions/duration so FlightTV-style clients can lay out
+    // grids without downloading the full asset first
+    let imageWidth: number | null = null;
+    let imageHeight: number | null = null;
+    let videoWidth: number | null = null;
+    let videoHeight: number | null = null;
+    let durationSeconds: number | null = null;
+
+    if (validationResult.mediaType === 'image') {
+      const dims = await MediaProbeUtil.probeImage(absoluteFilePath);
+      imageWidth = dims.width;
+      imageHeight = dims.height;
+    } else if (validationResult.mediaType === 'video') {
+      const probe = await MediaProbeUtil.probeVideo(absoluteFilePath);
+      videoWidth = probe.width;
+      videoHeight = probe.height;
+      durationSeconds = probe.durationSeconds;
+    }
+
     // Create database record
     const media = this.mediaRepository.create({
       flight_date: flightDate,
@@ -364,11 +775,23 @@ export class MediaService {
       uploaded_by: uploadedBy,
       pilots: createMediaDto.pilots || [],
       notes: createMediaDto.notes,
+      title: createMediaDto.title ?? null,
+      description: createMediaDto.description ?? null,
+      tags: createMediaDto.tags || [],
+      aircraft: createMediaDto.aircraft ?? null,
+      wing: createMediaDto.wing ?? null,
+      engine: createMediaDto.engine ?? null,
       mime_type: validationResult.mimeType,
       file_size: file.size,
       thumbnail_path: thumbnailPath,
       site_id: createMediaDto.site_id,
       mission_id: createMediaDto.mission_id ?? null,
+      flight_id: createMediaDto.flight_id ?? null,
+      image_width: imageWidth,
+      image_height: imageHeight,
+      video_width: videoWidth,
+      video_height: videoHeight,
+      duration_seconds: durationSeconds,
     });
 
     const savedMedia = await this.mediaRepository.save(media);
@@ -397,7 +820,49 @@ export class MediaService {
     if (dto.site_id !== undefined) {
       media.site_id = dto.site_id || null;
     }
+    if (dto.mission_id !== undefined) {
+      media.mission_id = dto.mission_id || null;
+    }
+    if (dto.flight_id !== undefined) {
+      media.flight_id = dto.flight_id || null;
+    }
+    if (dto.title !== undefined) {
+      media.title = dto.title || null;
+    }
+    if (dto.description !== undefined) {
+      media.description = dto.description || null;
+    }
+    if (dto.tags !== undefined) {
+      media.tags = dto.tags;
+    }
+    if (dto.aircraft !== undefined) {
+      media.aircraft = dto.aircraft || null;
+    }
+    if (dto.wing !== undefined) {
+      media.wing = dto.wing || null;
+    }
+    if (dto.engine !== undefined) {
+      media.engine = dto.engine || null;
+    }
 
+    return this.mediaRepository.save(media);
+  }
+
+  /**
+   * Set the shared favorite flag on a media item (visible/settable by any authenticated viewer)
+   */
+  async setFavorite(id: string, favorite: boolean): Promise<Media> {
+    const media = await this.getMediaById(id);
+    media.favorite = favorite;
+    return this.mediaRepository.save(media);
+  }
+
+  /**
+   * Set the shared rating (0-5) on a media item
+   */
+  async setRating(id: string, rating: number): Promise<Media> {
+    const media = await this.getMediaById(id);
+    media.rating = rating;
     return this.mediaRepository.save(media);
   }
 

@@ -38,8 +38,8 @@ export class FlightsController {
    * Body: { flight_ids: string[] }
    */
   @Post('compare')
-  compareFlights(@Body('flight_ids') flightIds: string[], @CurrentUser() user: User) {
-    return this.flightsService.compareFlights(flightIds, user.id);
+  compareFlights(@Body('flight_ids') flightIds: string[]) {
+    return this.flightsService.compareFlights(flightIds);
   }
 
   /**
@@ -63,19 +63,19 @@ export class FlightsController {
   }
 
   /**
-   * GET /flights?date=YYYY-MM-DD — list all flights for a flight day
+   * GET /flights?date=YYYY-MM-DD — list all flights for a flight day (shared across pilots)
    */
   @Get()
-  findByDate(@Query('date') date: string, @CurrentUser() user: User) {
-    return this.flightsService.findByDate(date, user.id);
+  findByDate(@Query('date') date: string) {
+    return this.flightsService.findByDate(date);
   }
 
   /**
-   * GET /flights/:id — flight detail (owner only)
+   * GET /flights/:id — flight detail (shared across pilots, like media browsing)
    */
   @Get(':id')
-  findOne(@Param('id') id: string, @CurrentUser() user: User) {
-    return this.flightsService.findByIdForUser(id, user.id);
+  findOne(@Param('id') id: string) {
+    return this.flightsService.findById(id);
   }
 
   /**
@@ -111,11 +111,11 @@ export class FlightsController {
   }
 
   /**
-   * GET /flights/:id/analysis — return score + events + coaching notes
+   * GET /flights/:id/analysis — return score + events + coaching notes (shared across pilots)
    */
   @Get(':id/analysis')
-  async getAnalysis(@Param('id') id: string, @CurrentUser() user: User) {
-    await this.flightsService.findByIdForUser(id, user.id);
+  async getAnalysis(@Param('id') id: string) {
+    await this.flightsService.findById(id); // 404s if the flight doesn't exist
     return this.flightAnalysisService.getAnalysis(id);
   }
 

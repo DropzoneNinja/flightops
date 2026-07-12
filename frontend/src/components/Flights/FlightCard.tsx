@@ -5,6 +5,7 @@ import { useFlightDelete, useFlightAnalysis } from '../../hooks/useFlights';
 interface FlightCardProps {
   flight: Flight;
   date: string;
+  canDelete: boolean;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -48,7 +49,7 @@ function scoreColor(score: number): { bg: string; text: string } {
   return { bg: 'bg-red-400', text: 'text-white' };
 }
 
-export default function FlightCard({ flight, date }: FlightCardProps) {
+export default function FlightCard({ flight, date, canDelete }: FlightCardProps) {
   const navigate = useNavigate();
   const deleteMutation = useFlightDelete(date);
 
@@ -150,14 +151,16 @@ export default function FlightCard({ flight, date }: FlightCardProps) {
         >
           View Analysis
         </button>
-        <button
-          onClick={handleDelete}
-          disabled={deleteMutation.isPending}
-          className="px-3 py-1.5 border border-[#2a3a54] text-red-400 text-sm rounded-lg hover:bg-red-900/20 hover:border-red-700/40 transition-colors disabled:opacity-40"
-          title="Delete flight"
-        >
-          {deleteMutation.isPending ? '…' : 'Delete'}
-        </button>
+        {canDelete && (
+          <button
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
+            className="px-3 py-1.5 border border-[#2a3a54] text-red-400 text-sm rounded-lg hover:bg-red-900/20 hover:border-red-700/40 transition-colors disabled:opacity-40"
+            title="Delete flight"
+          >
+            {deleteMutation.isPending ? '…' : 'Delete'}
+          </button>
+        )}
       </div>
     </div>
   );
