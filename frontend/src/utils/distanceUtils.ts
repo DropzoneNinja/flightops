@@ -126,6 +126,31 @@ export function calculatePlotDistance(
 }
 
 /**
+ * Find the closest site to a given point, compared against each site's
+ * takeoff coordinates (sites have no separate landing coordinate, so this
+ * is also used for matching a landing point — same convention the backend's
+ * weather-snapshot site matching uses).
+ * @returns The closest site, or null if the list is empty
+ */
+export function findNearestSite<T extends { takeoff_lat: number; takeoff_lon: number }>(
+  lat: number,
+  lon: number,
+  sites: T[],
+): T | null {
+  if (sites.length === 0) return null;
+  let closest = sites[0];
+  let closestDistance = calculateDistance(lat, lon, closest.takeoff_lat, closest.takeoff_lon);
+  for (let i = 1; i < sites.length; i++) {
+    const distance = calculateDistance(lat, lon, sites[i].takeoff_lat, sites[i].takeoff_lon);
+    if (distance < closestDistance) {
+      closest = sites[i];
+      closestDistance = distance;
+    }
+  }
+  return closest;
+}
+
+/**
  * Calculate compass bearing from point A to point B
  * @returns Bearing in degrees (0–360, clockwise from North)
  */

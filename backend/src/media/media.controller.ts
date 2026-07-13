@@ -410,6 +410,23 @@ export class MediaController {
   }
 
   /**
+   * GET /media/:id/flight/trackpoints
+   * Parsed GPX trackpoint array for the flight this media item is linked to, regardless
+   * of who owns that flight — same public/shared basis as getMediaFlightSummary above.
+   * Returns null if the media has no linked flight.
+   * IMPORTANT: This route must be defined BEFORE the generic :id route
+   */
+  @Get(':id/flight/trackpoints')
+  @UseGuards(JwtAuthGuard)
+  async getMediaFlightTrackpoints(@Param('id') id: string, @CurrentUser() user: User) {
+    const media = await this.mediaService.getMediaById(id);
+    if (!media.flight_id) {
+      return null;
+    }
+    return this.flightsService.getPublicTrackpoints(media.flight_id);
+  }
+
+  /**
    * PATCH /media/:id/favorite
    * Set the shared favorite flag on a media item. Any authenticated user may toggle this
    * (favorite/rating are shared values, like view_count, not per-viewer).

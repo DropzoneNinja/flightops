@@ -618,4 +618,4 @@ Network failures: use `needsSync = true` to ensure the push is retried on the ne
 
 ## 11. Versioning
 
-This contract is versioned by the `X-Logbook-Sync-Version: 1` response header. If the iOS app sees a version number higher than it supports, it should fall back to read-only pull mode and prompt the user to update.
+Sync compatibility is covered by the global API versioning scheme — see [`docs/API.md` § Versioning](./API.md#versioning). Send `X-API-Version: <major>` and treat a `426 Upgrade Required` response the same as any other endpoint: stop syncing and prompt the user to update. There is no logbook-specific version header.

@@ -6,6 +6,76 @@ All endpoints require a `Bearer` token in the `Authorization` header unless othe
 
 ---
 
+## Versioning
+
+The API contract is versioned independently of the app release version (the
+`4.x.x` in package.json / release notes). The contract version changes only
+when the wire protocol itself changes, and follows `MAJOR.MINOR`:
+
+- **MAJOR** bumps on breaking changes — removed/renamed endpoints or
+  fields, changed request/response shapes, changed auth mechanics. A client
+  built against a different MAJOR cannot reliably talk to the server and
+  will be rejected.
+- **MINOR** bumps on additive, backward-compatible changes — new endpoints,
+  new optional fields/params. Existing clients keep working unmodified.
+
+Current version: **1.1** (source of truth: `backend/src/common/api-version.ts`).
+
+### Response header
+
+Every response includes `X-API-Version: 1.1`. `GET /health` and `GET /` also
+include an `apiVersion` field in their JSON body for clients that prefer
+checking the body over headers at startup.
+
+### Optional request header
+
+Clients MAY declare the version they were built against:
+
+```http
+X-API-Version: 1
+```
+
+(`1` or `1.0` are both accepted — only MAJOR is checked.) This is currently
+**optional** — if omitted, the server assumes compatibility. This lets
+already-deployed clients (the flightnow iOS app, the FlightTV tvOS app)
+keep working before they've adopted the header.
+
+If the header is sent and its MAJOR doesn't match the server's, the request
+is rejected before reaching any route handler:
+
+```http
+HTTP/1.1 426 Upgrade Required
+Content-Type: application/json
+
+{
+  "statusCode": 426,
+  "error": "Upgrade Required",
+  "message": "This client was built for API v2.x, but the server is running v1.1. Please update the app to continue.",
+  "serverApiVersion": "1.1",
+  "clientApiVersion": "2.0"
+}
+```
+
+MINOR mismatches are never rejected — an older client simply doesn't call
+newer endpoints/fields, and a client expecting an unreleased MINOR gets an
+ordinary `404` on the route that doesn't exist yet.
+
+**flightnow / FlightTV:** send `X-API-Version: <major>` once your build
+knows its target, and treat `426` as "must upgrade," the same way you
+already treat `401`/`403`/`5xx`.
+
+### Shipping a breaking (MAJOR) change
+
+Don't version the whole API. When a specific endpoint needs an incompatible
+change, use Nest's built-in per-route versioning
+(`app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })`
+in `main.ts` + `@Version('2')` on the new handler) to run the old and new
+implementation of just that endpoint side by side during the client
+migration window, then bump `API_VERSION.major` once old clients are no
+longer expected in the field.
+
+---
+
 ## Authentication
 
 ### Get CSRF Token
@@ -1551,7 +1621,7 @@ Query params:
 
 ## Media
 
-> The FlightTV tvOS app (a read-only media browser) consumes this module. `GET /media/browse`, `GET /media/filters`, `GET /media/home`, `GET /media/:id/related`, `GET /media/:id/flight`, `GET /media/batch`, `PATCH /media/:id/favorite` and `PATCH /media/:id/rating` were added for it, but are general-purpose and usable by any client. The older `GET /media` (date/site) and `GET /media/search` (filter-only) endpoints are unchanged for backward compatibility with the existing web frontend.
+> The FlightTV tvOS app (a read-only media browser) consumes this module. `GET /media/browse`, `GET /media/filters`, `GET /media/home`, `GET /media/:id/related`, `GET /media/:id/flight`, `GET /media/:id/flight/trackpoints`, `GET /media/batch`, `PATCH /media/:id/favorite` and `PATCH /media/:id/rating` were added for it, but are general-purpose and usable by any client. The older `GET /media` (date/site) and `GET /media/search` (filter-only) endpoints are unchanged for backward compatibility with the existing web frontend.
 
 ### Upload Media
 ```http
@@ -1762,6 +1832,18 @@ Response:
   "pilot": { "id": "uuid", "display_name": "Alice" }
 }
 ```
+
+---
+
+### Get Media Flight Trackpoints
+```http
+GET /media/:id/flight/trackpoints
+Authorization: Bearer <token>
+```
+
+Parsed GPX trackpoint array for the flight this media item is linked to, for rendering a flight path alongside the media (e.g. FlightTV). Same basis as [Get Media Flight Summary](#get-media-flight-summary) above — **not** ownership-scoped, since a flight only becomes reachable through this endpoint once it's linked to a browsable media item; flights with no linked media stay fully private and are never exposed here. Returns `null` if the media has no linked flight.
+
+Response shape is identical to [Get Flight Trackpoints](#get-flight-trackpoints).
 
 ---
 

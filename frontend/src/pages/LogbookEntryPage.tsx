@@ -6,10 +6,12 @@ import LeftSidebar from '../components/Layout/LeftSidebar';
 import { useLogbookEntry, useUpdateLogbookEntry, useDeleteLogbookEntry } from '../hooks/useLogbook';
 import { useWings, useParamotors } from '../hooks/useEquipment';
 import { useFlightById, useFlightsByDate } from '../hooks/useFlights';
+import { useSites } from '../hooks/useSites';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSettings } from '../hooks/useSettings';
 import { SettingKey } from '../services/settings.service';
 import { convertWindSpeed, windSpeedUnitLabel } from '../utils/windSpeed';
+import { findNearestSite } from '../utils/distanceUtils';
 import LogbookEntryForm from '../components/Logbook/LogbookEntryForm';
 import LogbookMediaGrid from '../components/Logbook/LogbookMediaGrid';
 import { flightsService } from '../services/flights.service';
@@ -65,11 +67,24 @@ export default function LogbookEntryPage() {
   const deleteMutation = useDeleteLogbookEntry();
   const { data: wingsData } = useWings();
   const { data: paramotorsData } = useParamotors();
+  const { sites: sitesData } = useSites();
 
   const flightId = entry?.gpx?.flight_id ?? null;
   const { data: flight } = useFlightById(flightId ?? undefined);
   const trackpoints = flight?.trackpoints_json ?? [];
   const bbox = flight?.bbox_json ?? null;
+
+  // If launch/landing site is blank but a GPX track is linked, suggest the
+  // nearest known site to the recorded takeoff/landing point — the user can
+  // still override on save (or clear it) since these are prefilled defaults,
+  // not authoritative values.
+  const enabledSites = sitesData.filter((s) => s.enabled);
+  const suggestedLaunchSite = !entry?.launch_site_name && trackpoints.length > 0
+    ? findNearestSite(trackpoints[0].lat, trackpoints[0].lon, enabledSites)?.name
+    : undefined;
+  const suggestedLandingSite = !entry?.landing_site_name && trackpoints.length > 0
+    ? findNearestSite(trackpoints[trackpoints.length - 1].lat, trackpoints[trackpoints.length - 1].lon, enabledSites)?.name
+    : undefined;
 
   const { data: flightsOnDay } = useFlightsByDate(!flightId ? entry?.flight_date : undefined);
 
@@ -205,8 +220,8 @@ export default function LogbookEntryPage() {
                 initialValues={{
                   flight_date: entry.flight_date,
                   title: entry.title ?? undefined,
-                  launch_site_name: entry.launch_site_name ?? undefined,
-                  landing_site_name: entry.landing_site_name ?? undefined,
+                  launch_site_name: entry.launch_site_name || suggestedLaunchSite || undefined,
+                  landing_site_name: entry.landing_site_name || suggestedLandingSite || undefined,
                   category: entry.category ?? undefined,
                   wing: entry.wing ?? undefined,
                   wing_id: entry.wing_id ?? undefined,

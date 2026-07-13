@@ -35,11 +35,11 @@ export class FlightsController {
 
   /**
    * POST /flights/compare — compare multiple flights (normalized trackpoints + stats)
-   * Body: { flight_ids: string[] }
+   * Body: { flight_ids: string[] } — all IDs must belong to the authenticated user (owner only)
    */
   @Post('compare')
-  compareFlights(@Body('flight_ids') flightIds: string[]) {
-    return this.flightsService.compareFlights(flightIds);
+  compareFlights(@Body('flight_ids') flightIds: string[], @CurrentUser() user: User) {
+    return this.flightsService.compareFlights(flightIds, user.id);
   }
 
   /**
@@ -63,19 +63,19 @@ export class FlightsController {
   }
 
   /**
-   * GET /flights?date=YYYY-MM-DD — list all flights for a flight day (shared across pilots)
+   * GET /flights?date=YYYY-MM-DD — list the authenticated user's flights for a flight day (owner only)
    */
   @Get()
-  findByDate(@Query('date') date: string) {
-    return this.flightsService.findByDate(date);
+  findByDate(@Query('date') date: string, @CurrentUser() user: User) {
+    return this.flightsService.findByDate(date, user.id);
   }
 
   /**
-   * GET /flights/:id — flight detail (shared across pilots, like media browsing)
+   * GET /flights/:id — flight detail (owner only)
    */
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.flightsService.findById(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.flightsService.findByIdForUser(id, user.id);
   }
 
   /**
@@ -111,11 +111,11 @@ export class FlightsController {
   }
 
   /**
-   * GET /flights/:id/analysis — return score + events + coaching notes (shared across pilots)
+   * GET /flights/:id/analysis — return score + events + coaching notes (owner only)
    */
   @Get(':id/analysis')
-  async getAnalysis(@Param('id') id: string) {
-    await this.flightsService.findById(id); // 404s if the flight doesn't exist
+  async getAnalysis(@Param('id') id: string, @CurrentUser() user: User) {
+    await this.flightsService.findByIdForUser(id, user.id); // 404s/403s as appropriate
     return this.flightAnalysisService.getAnalysis(id);
   }
 

@@ -280,10 +280,10 @@ export class FlightsService {
   // CRUD
   // ---------------------------------------------------------------------------
 
-  /** Flights are shared/read-only across pilots on a given day, like media browsing. */
-  async findByDate(date: string): Promise<Flight[]> {
+  /** Owner only — returns just the requesting user's flights for the given date. */
+  async findByDate(date: string, userId: string): Promise<Flight[]> {
     return this.flightsRepository.find({
-      where: { flight_date: new Date(date) },
+      where: { flight_date: new Date(date), uploaded_by: userId },
       relations: ['pilot', 'site'],
       order: { created_at: 'ASC' },
     });
@@ -398,8 +398,31 @@ export class FlightsService {
     };
   }
 
-  /** POST /flights/compare — return normalized comparison data for selected flights (shared across pilots) */
-  async compareFlights(flightIds: string[]): Promise<ComparisonResult> {
+  /**
+   * Trackpoints for a flight that a public media item links to (e.g. FlightTV showing a
+   * flight path alongside a video). NOT ownership-scoped — unlike getTrackpoints, this is
+   * only ever reached via GET /media/:id/flight/trackpoints, which resolves a real,
+   * browsable media item's flight_id first. A flight with no media linked to it is never
+   * reachable through this method, so it stays fully private.
+   */
+  async getPublicTrackpoints(
+    id: string,
+  ): Promise<{ flight_id: string; parse_status: string; timezone: string; trackpoints: unknown[] }> {
+    const flight = await this.flightsRepository.findOne({
+      where: { id },
+      select: ['id', 'parse_status', 'timezone', 'trackpoints_json'],
+    });
+    if (!flight) throw new NotFoundException(`Flight with ID ${id} not found`);
+    return {
+      flight_id: flight.id,
+      parse_status: flight.parse_status,
+      timezone: flight.timezone,
+      trackpoints: (flight.trackpoints_json as unknown[]) ?? [],
+    };
+  }
+
+  /** POST /flights/compare — return normalized comparison data for selected flights (owner only) */
+  async compareFlights(flightIds: string[], userId: string): Promise<ComparisonResult> {
     if (!flightIds || flightIds.length < 2) {
       throw new BadRequestException('At least 2 flight IDs are required for comparison');
     }
@@ -407,7 +430,7 @@ export class FlightsService {
       throw new BadRequestException('Cannot compare more than 6 flights at once');
     }
 
-    const flights = await Promise.all(flightIds.map((id) => this.findById(id)));
+    const flights = await Promise.all(flightIds.map((id) => this.findByIdForUser(id, userId)));
 
     // Build normalized comparison entries
     const entries = flights.map((f) => {

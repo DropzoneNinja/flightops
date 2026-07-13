@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import csurf from 'csurf';
+import { apiVersionMiddleware } from './common/api-version';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -63,7 +64,14 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true,
+    exposedHeaders: ['X-API-Version'], // let browser JS read the response header
   });
+
+  // API compatibility gate — reports X-API-Version on every response and
+  // rejects requests from a client declaring an incompatible MAJOR version.
+  // Must run after enableCors() so a 426 rejection still carries CORS
+  // response headers (see common/api-version.ts).
+  app.use(apiVersionMiddleware);
 
   // Global validation pipe
   app.useGlobalPipes(
