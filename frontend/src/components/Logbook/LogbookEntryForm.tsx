@@ -258,8 +258,8 @@ export default function LogbookEntryForm({
   };
 
   const inputClass = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none';
-  const labelClass = 'block text-sm font-medium text-gray-700 mb-1';
-  const errorClass = 'text-red-600 text-xs mt-1';
+  const labelClass = 'block text-sm font-medium text-[#a0b3cc] mb-1';
+  const errorClass = 'text-red-400 text-xs mt-1';
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -296,6 +296,19 @@ export default function LogbookEntryForm({
           />
         </div>
         <div>
+          <label className={labelClass}>Rating (1–5)</label>
+          <input
+            type="number"
+            className={inputClass}
+            value={rating}
+            onChange={(e) => setRating(e.target.value)}
+            min={1}
+            max={5}
+            placeholder="Optional"
+          />
+          {errors.rating && <p className={errorClass}>{errors.rating}</p>}
+        </div>
+        <div>
           <label className={labelClass}>Launch site</label>
           {hasGpx ? (
             <div className="flex items-center gap-2">
@@ -321,30 +334,6 @@ export default function LogbookEntryForm({
             placeholder="Type landing site name"
             sites={sites}
           />
-        </div>
-        <div>
-          <label className={labelClass}>Category</label>
-          <select
-            className={inputClass}
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            <option value="">Select…</option>
-            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={labelClass}>Rating (1–5)</label>
-          <input
-            type="number"
-            className={inputClass}
-            value={rating}
-            onChange={(e) => setRating(e.target.value)}
-            min={1}
-            max={5}
-            placeholder="Optional"
-          />
-          {errors.rating && <p className={errorClass}>{errors.rating}</p>}
         </div>
         <div>
           <label className={labelClass}>Wing</label>
@@ -396,13 +385,24 @@ export default function LogbookEntryForm({
             placeholder="Litres"
           />
         </div>
+        <div>
+          <label className={labelClass}>Category</label>
+          <select
+            className={inputClass}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="">Select…</option>
+            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Flight stats */}
       <div className="pt-1">
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-sm font-semibold text-gray-700">Flight stats</span>
-          <span className="text-xs text-gray-400">(optional)</span>
+          <span className="text-sm font-semibold text-white">Flight stats</span>
+          <span className="text-xs text-[#6b7fa3]">(optional)</span>
         </div>
         {hasGpx && (
           <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-sky-50 border border-sky-200 rounded-lg text-xs text-sky-700">
@@ -424,7 +424,7 @@ export default function LogbookEntryForm({
                 min={0}
                 placeholder="0"
               />
-              <span className="text-sm text-gray-500 shrink-0">h</span>
+              <span className="text-sm text-[#6b7fa3] shrink-0">h</span>
               <input
                 type="number"
                 className={`${inputClass} w-full`}
@@ -434,7 +434,7 @@ export default function LogbookEntryForm({
                 max={59}
                 placeholder="0"
               />
-              <span className="text-sm text-gray-500 shrink-0">min</span>
+              <span className="text-sm text-[#6b7fa3] shrink-0">min</span>
             </div>
             {errors.duration && <p className={errorClass}>{errors.duration}</p>}
           </div>
@@ -492,7 +492,7 @@ export default function LogbookEntryForm({
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+          className="px-4 py-2 text-sm rounded-lg border border-[#2a3a54] text-[#a0b3cc] hover:bg-[#1e2a3a] transition-colors"
         >
           Cancel
         </button>
