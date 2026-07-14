@@ -10,6 +10,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import SiteMarker from '../components/Site/SiteMarker';
 import SiteInspectionPanel from '../components/Site/SiteInspectionPanel';
 import EditSitePanel from '../components/Site/EditSitePanel';
+import AddSitePanel from '../components/Site/AddSitePanel';
 import { createWindSockIcon } from '../utils/windsockIcon';
 import { convertWindSpeed, windSpeedUnitLabel } from '../utils/windSpeed';
 import LeftSidebar from '../components/Layout/LeftSidebar';
@@ -133,6 +134,7 @@ export default function MapView() {
   // Selected site drives both the inspection panel and the airspace visualization
   const [selectedSite, setSelectedSite] = useState<FlightSite | null>(null);
   const [isEditingSite, setIsEditingSite] = useState(false);
+  const [isAddingSite, setIsAddingSite] = useState(false);
   const [windsockWind, setWindsockWind] = useState<{ dir: number; speed: number } | null>(null);
 
   // Keep selectedSite in sync with the React Query cache (picks up updates after a save)
@@ -228,6 +230,7 @@ export default function MapView() {
   };
 
   const handleTakeoffClick = (site: FlightSite) => {
+    setIsAddingSite(false);
     if (mapRef.current) {
       const center = mapRef.current.getCenter();
       prevMapStateRef.current = { lat: center.lat, lng: center.lng, zoom: mapRef.current.getZoom() };
@@ -277,6 +280,24 @@ export default function MapView() {
     setActiveLocationSelection(type);
   };
 
+  const handleOpenAddSite = () => {
+    setSelectedSite(null);
+    setIsEditingSite(false);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('site');
+      return next;
+    });
+    setIsAddingSite(true);
+  };
+
+  const handleCloseAddSite = () => {
+    setIsAddingSite(false);
+    setPendingLocation(null);
+    setPendingLocationType(null);
+    setActiveLocationSelection(null);
+  };
+
   // On initial load, open site panel if URL has ?site=
   useEffect(() => {
     if (isLoading) return;
@@ -308,6 +329,8 @@ export default function MapView() {
           user={user}
           showAirspace={showAirspace}
           onToggleAirspace={() => setShowAirspace(v => !v)}
+          onAddSite={handleOpenAddSite}
+          isAddingSite={isAddingSite}
           onLogout={logout}
         />
       )}
@@ -470,6 +493,23 @@ export default function MapView() {
           isOpen={isEditingSite && !!selectedSite}
           site={selectedSite}
           onClose={handleCloseEditSite}
+          onSelectLocation={handleSelectLocation}
+          activeLocationSelection={activeLocationSelection}
+          pendingLocation={pendingLocation}
+          pendingLocationType={pendingLocationType}
+          onLocationUsed={() => {
+            setPendingLocation(null);
+            setPendingLocationType(null);
+          }}
+          onZoomToLocation={handleZoomToLocation}
+        />
+      )}
+
+      {/* Desktop site add panel */}
+      {!isMobile && (
+        <AddSitePanel
+          isOpen={isAddingSite}
+          onClose={handleCloseAddSite}
           onSelectLocation={handleSelectLocation}
           activeLocationSelection={activeLocationSelection}
           pendingLocation={pendingLocation}

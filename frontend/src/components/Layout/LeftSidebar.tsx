@@ -11,6 +11,8 @@ interface LeftSidebarProps {
   user: User | null;
   showAirspace: boolean;
   onToggleAirspace: () => void;
+  onAddSite?: () => void;
+  isAddingSite?: boolean;
   onLogout: () => void;
 }
 
@@ -27,6 +29,14 @@ const AirspaceIcon = () => (
     <path d="M12 2L2 7l10 5 10-5-10-5z" />
     <path d="M2 17l10 5 10-5" />
     <path d="M2 12l10 5 10-5" />
+  </svg>
+);
+
+const AddSiteIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+    <path d="M12 21s-7-6.5-7-11.5A7 7 0 0 1 19 9.5C19 14.5 12 21 12 21z" />
+    <line x1="12" y1="6.5" x2="12" y2="12.5" />
+    <line x1="9" y1="9.5" x2="15" y2="9.5" />
   </svg>
 );
 
@@ -73,7 +83,7 @@ const LogoutIcon = () => (
   </svg>
 );
 
-export default function LeftSidebar({ user, showAirspace, onToggleAirspace, onLogout }: LeftSidebarProps) {
+export default function LeftSidebar({ user, showAirspace, onToggleAirspace, onAddSite = () => {}, isAddingSite = false, onLogout }: LeftSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -107,6 +117,9 @@ export default function LeftSidebar({ user, showAirspace, onToggleAirspace, onLo
 
   const navItems = [
     { id: 'map', label: 'Map', Icon: MapIcon, action: () => navigate('/') },
+    ...(isMapActive
+      ? [{ id: 'add-site', label: 'Add Site', Icon: AddSiteIcon, action: onAddSite, isActive: isAddingSite }]
+      : []),
     {
       id: 'airspace',
       label: 'Airspace',
@@ -132,6 +145,7 @@ export default function LeftSidebar({ user, showAirspace, onToggleAirspace, onLo
         {navItems.map(({ id, label, Icon, action, isActive }) => {
           let active: boolean;
           if (id === 'airspace') active = isActive ?? false;
+          else if (id === 'add-site') active = isActive ?? false;
           else if (id === 'map') active = isMapActive;
           else if (id === 'media') active = location.pathname.startsWith('/media');
           else if (id === 'logbook') active = location.pathname.startsWith('/logbook');
