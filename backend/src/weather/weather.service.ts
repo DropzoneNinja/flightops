@@ -111,7 +111,7 @@ export class WeatherService {
     // Check if we need to refresh data
     const needsRefresh = await this.needsRefresh(siteId);
 
-    if (needsRefresh) {
+    if (needsRefresh && site.include_in_weather) {
       this.logger.log(`Weather data stale for site ${siteId}, triggering refresh`);
 
       const forecastDays = await this.settingsService.getValue(

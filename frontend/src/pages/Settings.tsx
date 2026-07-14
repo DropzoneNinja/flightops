@@ -25,6 +25,9 @@ export default function Settings() {
   const [editedValues, setEditedValues] = useState<Record<string, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
 
+  // API version state (admin only)
+  const [apiVersion, setApiVersion] = useState<string | null>(null);
+
   // Pre-authorized emails state (admin only)
   const [preAuthEmails, setPreAuthEmails] = useState<PreAuthorizedEmail[]>([]);
   const [loadingEmails, setLoadingEmails] = useState(false);
@@ -151,6 +154,15 @@ export default function Settings() {
     setEditedValues({});
     setHasChanges(false);
   };
+
+  // Load API version (admin only)
+  useEffect(() => {
+    if (user?.is_admin) {
+      api.get('/health')
+        .then(response => setApiVersion(response.data.apiVersion))
+        .catch(error => console.error('Failed to load API version:', error));
+    }
+  }, [user?.is_admin]);
 
   // Load pre-authorized emails (admin only)
   useEffect(() => {
@@ -1518,6 +1530,9 @@ export default function Settings() {
           {/* Version */}
           <div className="pb-6 text-center">
             <p className="text-xs text-[#4a5568]">v{version}</p>
+            {user?.is_admin && apiVersion && (
+              <p className="text-xs text-[#4a5568] mt-1">API v{apiVersion}</p>
+            )}
           </div>
         </div>
       </div>

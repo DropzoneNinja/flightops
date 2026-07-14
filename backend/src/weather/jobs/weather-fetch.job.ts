@@ -48,9 +48,9 @@ export class WeatherFetchJob {
 
       this.logger.log(`Weather refresh frequency: ${refreshFrequencyHours} hour(s)`);
 
-      // Get all enabled sites
+      // Get all enabled sites that are included in weather scanning
       const enabledSites = await this.siteRepository.find({
-        where: { enabled: true },
+        where: { enabled: true, include_in_weather: true },
       });
 
       this.logger.log(`Found ${enabledSites.length} enabled sites to check`);

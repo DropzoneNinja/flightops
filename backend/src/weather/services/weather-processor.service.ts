@@ -45,8 +45,8 @@ export class WeatherProcessorService {
         throw new Error(`Site ${siteId} not found`);
       }
 
-      if (!site.enabled) {
-        this.logger.log(`Skipping disabled site: ${site.name} (${siteId})`);
+      if (!site.enabled || !site.include_in_weather) {
+        this.logger.log(`Skipping site excluded from weather scanning: ${site.name} (${siteId})`);
         return;
       }
 
@@ -264,7 +264,7 @@ export class WeatherProcessorService {
     this.logger.log('Starting weather processing for all enabled sites');
 
     const enabledSites = await this.siteRepository.find({
-      where: { enabled: true },
+      where: { enabled: true, include_in_weather: true },
     });
 
     this.logger.log(`Found ${enabledSites.length} enabled sites to process`);

@@ -1,4 +1,4 @@
-import { IsString, IsNumber, Min, Max, Length, IsOptional } from 'class-validator';
+import { IsString, IsNumber, Min, Max, Length, IsOptional, IsBoolean } from 'class-validator';
 
 export class CreateSiteDto {
   @IsString()
@@ -50,5 +50,9 @@ export class CreateSiteDto {
   @IsString()
   @Length(0, 100, { message: 'Country must not exceed 100 characters' })
   country?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  include_in_weather?: boolean;
 
 }

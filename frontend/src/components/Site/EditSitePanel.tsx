@@ -37,6 +37,7 @@ export default function EditSitePanel({
     parking_notes: '',
     weather_notes: '',
     elevation_m: '' as number | '',
+    include_in_weather: true,
   });
 
   // Initialise form when site changes
@@ -52,6 +53,7 @@ export default function EditSitePanel({
         parking_notes: site.parking_notes ?? '',
         weather_notes: site.weather_notes ?? '',
         elevation_m: site.elevation_m ?? '',
+        include_in_weather: site.include_in_weather,
       });
     }
   }, [site]);
@@ -96,6 +98,7 @@ export default function EditSitePanel({
         parking_notes: formData.parking_notes || undefined,
         weather_notes: formData.weather_notes || undefined,
         elevation_m: formData.elevation_m !== '' ? Number(formData.elevation_m) : undefined,
+        include_in_weather: formData.include_in_weather,
       };
 
       await updateSiteMutation.mutateAsync({ id: site.id, data: updateData });
@@ -367,6 +370,20 @@ export default function EditSitePanel({
               min="-500"
               max="9000"
             />
+          </div>
+
+          {/* Weather */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="edit-include-in-weather"
+              checked={formData.include_in_weather}
+              onChange={(e) => setFormData({ ...formData, include_in_weather: e.target.checked })}
+              className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+            />
+            <label htmlFor="edit-include-in-weather" className="text-sm font-medium text-gray-700">
+              Include in weather scan and forecast
+            </label>
           </div>
 
           {/* Action Buttons */}

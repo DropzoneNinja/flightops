@@ -61,6 +61,9 @@ export class FlightSite {
   @Column({ type: 'boolean', default: true })
   enabled: boolean;
 
+  @Column({ type: 'boolean', default: true })
+  include_in_weather: boolean;
+
   @CreateDateColumn()
   created_at: Date;
 

@@ -6,6 +6,7 @@ import { Mission, missionsService } from '../../services/missions.service';
 import { scoreToHeatColor } from '../../utils/colorInterpolation';
 import { convertWindSpeed, windSpeedUnitLabel } from '../../utils/windSpeed';
 import { useWeather } from '../../hooks/useWeather';
+import { useSites } from '../../hooks/useSites';
 import { useSettings } from '../../hooks/useSettings';
 import { SettingKey } from '../../services/settings.service';
 import CombinedWeatherDialog from '../Weather/CombinedWeatherDialog';
@@ -295,8 +296,20 @@ function AirspaceSvgBar({ layers }: { layers: AirspaceLayer[] }) {
 
 export default function SiteInspectionPanel({ site, onClose, onForecastSelect, prevMapState, windOverride, canEdit, onEdit }: SiteInspectionPanelProps) {
   const navigate = useNavigate();
-  const { forecasts, isLoading } = useWeather(site.id);
+  const { forecasts, isLoading } = useWeather(site.include_in_weather ? site.id : null);
+  const { updateSiteMutation } = useSites();
   const { settingsMap } = useSettings();
+
+  const handleToggleWeather = async () => {
+    try {
+      await updateSiteMutation.mutateAsync({
+        id: site.id,
+        data: { include_in_weather: !site.include_in_weather },
+      });
+    } catch (error) {
+      console.error('Failed to update weather setting:', error);
+    }
+  };
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [selectedForecast, setSelectedForecast] = useState<WeatherForecast | null>(null);
   const [siteMissions, setSiteMissions] = useState<Mission[]>([]);
@@ -388,8 +401,32 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
         </div>
 
         <div className={`flex-1 overflow-y-auto px-5 space-y-4 ${canEdit ? 'pb-4' : 'pb-5'}`}>
+          {/* Weather toggle */}
+          <div className="flex items-center gap-2 bg-[#1a2234] border border-[#1e2a3a] rounded-xl px-4 py-3">
+            <input
+              type="checkbox"
+              id="site-include-weather"
+              checked={site.include_in_weather}
+              disabled={!canEdit || updateSiteMutation.isPending}
+              onChange={handleToggleWeather}
+              className="h-4 w-4 rounded border-[#2a3a54] bg-[#0d1421] text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+            />
+            <label htmlFor="site-include-weather" className="text-sm text-white">
+              Weather
+              <span className="block text-xs text-[#6b7fa3] font-normal">
+                Include this site in weather scans and forecasts
+              </span>
+            </label>
+          </div>
+
+          {!site.include_in_weather && (
+            <p className="text-[#3a4a64] text-sm text-center py-2">
+              Weather scanning is disabled for this site.
+            </p>
+          )}
+
           {/* Best Window card */}
-          {!isLoading && forecasts.length > 0 && (
+          {site.include_in_weather && !isLoading && forecasts.length > 0 && (
             bestWindow ? (
               <div className="bg-[#1a2e4a] border border-[#2a4a6a] rounded-xl p-4">
                 <div className="flex items-center justify-between">
@@ -425,6 +462,7 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
           )}
 
           {/* 4-Day Forecast */}
+          {site.include_in_weather && (
           <div>
             <h3 className="text-[#6b7fa3] text-xs font-semibold tracking-widest uppercase mb-3">
               4-Day Flyability Forecast
@@ -510,6 +548,7 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
               </div>
             )}
           </div>
+          )}
 
           {/* Airspace */}
           {displayLayers.length > 0 && (

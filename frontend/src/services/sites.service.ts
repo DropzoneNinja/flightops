@@ -19,6 +19,7 @@ export interface FlightSite {
   elevation_m?: number;
   plot_data?: PlotData | null;
   enabled: boolean;
+  include_in_weather: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -34,6 +35,7 @@ export interface CreateSiteData {
   weather_notes?: string;
   elevation_m?: number;
   plot_data?: PlotData | null;
+  include_in_weather?: boolean;
 }
 
 export interface UpdateSiteData {
@@ -47,6 +49,7 @@ export interface UpdateSiteData {
   weather_notes?: string;
   elevation_m?: number;
   plot_data?: PlotData | null;
+  include_in_weather?: boolean;
 }
 
 export interface GeocodingResult {
