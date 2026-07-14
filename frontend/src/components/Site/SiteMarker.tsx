@@ -236,24 +236,6 @@ export default function SiteMarker({
     });
   }, [site.name]);
 
-  // Simple dot icon — shown at high zoom for sites excluded from weather scanning,
-  // matching the mission marker's dot style
-  const dotIcon = useMemo(() => {
-    return new L.DivIcon({
-      className: 'site-dot-marker',
-      html: `<div style="
-        width: 14px;
-        height: 14px;
-        background: #4F46E5;
-        border: 2px solid white;
-        border-radius: 50%;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.35);
-      "></div>`,
-      iconSize: [14, 14],
-      iconAnchor: [7, 7],
-    });
-  }, []);
-
   // Render the React card into the DivIcon (only at low zoom)
   useEffect(() => {
     if (isHighZoom) return;
@@ -331,18 +313,16 @@ export default function SiteMarker({
         onClose={() => setShowParkingModal(false)}
       />
 
-      {/* Takeoff-to-parking line (hidden when reduced to a dot at high zoom) */}
-      {!(isHighZoom && !site.include_in_weather) && (
-        <Polyline
-          positions={positions}
-          pathOptions={{
-            color: site.enabled ? '#22c55e' : '#9ca3af',
-            weight: 2,
-            opacity: 0.6,
-            dashArray: '5, 5',
-          }}
-        />
-      )}
+      {/* Takeoff-to-parking line */}
+      <Polyline
+        positions={positions}
+        pathOptions={{
+          color: site.enabled ? '#22c55e' : '#9ca3af',
+          weight: 2,
+          opacity: 0.6,
+          dashArray: '5, 5',
+        }}
+      />
 
       {/* Low zoom: card marker with site name + day score dots */}
       {!isHighZoom && (
@@ -361,7 +341,7 @@ export default function SiteMarker({
       )}
 
       {/* High zoom: paramotor icon at takeoff point */}
-      {isHighZoom && site.include_in_weather && (
+      {isHighZoom && (
         <Marker
           position={[takeoffLat, takeoffLon]}
           icon={takeoffIcon}
@@ -376,27 +356,12 @@ export default function SiteMarker({
       )}
 
       {/* High zoom: parking marker */}
-      {isHighZoom && site.include_in_weather && (
+      {isHighZoom && (
         <Marker
           position={[parkingLat, parkingLon]}
           icon={parkingIcon}
           zIndexOffset={PARKING_Z_INDEX}
           eventHandlers={{ click: handleParkingClick }}
-        />
-      )}
-
-      {/* High zoom, weather excluded: simple dot marker at takeoff point */}
-      {isHighZoom && !site.include_in_weather && (
-        <Marker
-          position={[takeoffLat, takeoffLon]}
-          icon={dotIcon}
-          zIndexOffset={TAKEOFF_Z_INDEX}
-          eventHandlers={{
-            click: (e) => {
-              e.originalEvent.stopPropagation();
-              if (onTakeoffClick) onTakeoffClick(site);
-            },
-          }}
         />
       )}
     </>
