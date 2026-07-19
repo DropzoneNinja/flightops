@@ -59,7 +59,7 @@ export class FlightsController {
     @Body() dto: CreateFlightDto,
     @CurrentUser() user: User,
   ) {
-    return this.flightsService.uploadGpx(file, dto, user.id);
+    return this.flightsService.uploadGpx(file, dto, user);
   }
 
   /**

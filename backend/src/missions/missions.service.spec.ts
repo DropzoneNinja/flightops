@@ -1,12 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { MissionsService } from './missions.service';
 import { Mission } from '../database/entities/mission.entity';
 import { MissionWaypoint } from '../database/entities/mission-waypoint.entity';
 import { User } from '../database/entities/user.entity';
 
 const adminUser = { id: 'user-admin', is_admin: true } as User;
+const regularUser = { id: 'user-1', is_admin: false } as User;
 
 const mockMission = (overrides: Partial<Mission> = {}): Mission => ({
   id: 'mission-1',
@@ -85,30 +86,26 @@ describe('MissionsService', () => {
   });
 
   describe('findAll', () => {
-    it('returns all missions for admin', async () => {
+    it('returns all missions', async () => {
       const missions = [mockMission()];
       const qb = makeQb(missions);
       missionRepo.createQueryBuilder.mockReturnValue(qb);
-      const result = await service.findAll({}, adminUser);
+      const result = await service.findAll({});
       expect(result).toEqual(missions);
       expect(missionRepo.createQueryBuilder).toHaveBeenCalled();
     });
 
-    it('scopes results to user when not admin', async () => {
-      const regularUser = { id: 'user-1', is_admin: false } as User;
+    it('does not scope results by ownership', async () => {
       const qb = makeQb([]);
       missionRepo.createQueryBuilder.mockReturnValue(qb);
-      await service.findAll({}, regularUser);
-      expect(qb.where).toHaveBeenCalledWith(
-        expect.stringContaining('created_by'),
-        expect.objectContaining({ userId: 'user-1' }),
-      );
+      await service.findAll({});
+      expect(qb.where).not.toHaveBeenCalled();
     });
 
     it('applies search filter', async () => {
       const qb = makeQb([]);
       missionRepo.createQueryBuilder.mockReturnValue(qb);
-      await service.findAll({ search: 'foo' }, adminUser);
+      await service.findAll({ search: 'foo' });
       expect(qb.andWhere).toHaveBeenCalledWith(
         expect.stringContaining('ILIKE'),
         expect.objectContaining({ search: '%foo%' }),
@@ -118,7 +115,7 @@ describe('MissionsService', () => {
     it('applies launchSiteId filter', async () => {
       const qb = makeQb([]);
       missionRepo.createQueryBuilder.mockReturnValue(qb);
-      await service.findAll({ launchSiteId: 'site-1' }, adminUser);
+      await service.findAll({ launchSiteId: 'site-1' });
       expect(qb.andWhere).toHaveBeenCalledWith(
         expect.stringContaining('launch_site_id'),
         expect.objectContaining({ launchSiteId: 'site-1' }),
@@ -174,6 +171,29 @@ describe('MissionsService', () => {
       expect(missionRepo.save).toHaveBeenCalled();
     });
 
+    it('allows the owner to update their mission', async () => {
+      const mission = mockMission({ created_by: regularUser.id });
+      missionRepo.findOne.mockResolvedValue(mission);
+      missionRepo.save.mockResolvedValue(mission);
+      await service.update('mission-1', { name: 'Updated' }, regularUser);
+      expect(missionRepo.save).toHaveBeenCalled();
+    });
+
+    it("throws ForbiddenException when a non-admin updates another user's mission", async () => {
+      const mission = mockMission({ created_by: 'user-2' });
+      missionRepo.findOne.mockResolvedValue(mission);
+      await expect(service.update('mission-1', { name: 'X' }, regularUser)).rejects.toThrow(ForbiddenException);
+      expect(missionRepo.save).not.toHaveBeenCalled();
+    });
+
+    it("allows an admin to update another user's mission", async () => {
+      const mission = mockMission({ created_by: 'user-2' });
+      missionRepo.findOne.mockResolvedValue(mission);
+      missionRepo.save.mockResolvedValue(mission);
+      await service.update('mission-1', { name: 'Updated' }, adminUser);
+      expect(missionRepo.save).toHaveBeenCalled();
+    });
+
     it('throws NotFoundException for missing mission', async () => {
       missionRepo.findOne.mockResolvedValue(null);
       await expect(service.update('missing', { name: 'X' }, adminUser)).rejects.toThrow(NotFoundException);
@@ -187,6 +207,13 @@ describe('MissionsService', () => {
       missionRepo.remove.mockResolvedValue(undefined);
       await service.remove('mission-1', adminUser);
       expect(missionRepo.remove).toHaveBeenCalledWith(mission);
+    });
+
+    it("throws ForbiddenException when a non-admin removes another user's mission", async () => {
+      const mission = mockMission({ created_by: 'user-2' });
+      missionRepo.findOne.mockResolvedValue(mission);
+      await expect(service.remove('mission-1', regularUser)).rejects.toThrow(ForbiddenException);
+      expect(missionRepo.remove).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException for missing mission', async () => {
@@ -219,6 +246,15 @@ describe('MissionsService', () => {
         expect.objectContaining({ sort_order: 2, latitude: 47.5, longitude: 8.5 }),
       );
       expect(result).toEqual(wp);
+    });
+
+    it("throws ForbiddenException when a non-admin adds a waypoint to another user's mission", async () => {
+      const mission = mockMission({ created_by: 'user-2' });
+      missionRepo.findOne.mockResolvedValue(mission);
+      await expect(
+        service.addWaypoint('mission-1', { latitude: 47.5, longitude: 8.5 }, regularUser),
+      ).rejects.toThrow(ForbiddenException);
+      expect(waypointRepo.save).not.toHaveBeenCalled();
     });
   });
 

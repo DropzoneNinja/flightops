@@ -1,4 +1,4 @@
-import { IsNumber, IsIn, Min, Max } from 'class-validator';
+import { IsNumber, IsIn, IsOptional, Min, Max } from 'class-validator';
 
 export class UpdatePositionDto {
   @IsNumber()
@@ -10,6 +10,10 @@ export class UpdatePositionDto {
   @Min(-180)
   @Max(180)
   lon: number;
+
+  @IsOptional()
+  @IsNumber()
+  altitude_m?: number;
 
   @IsIn(['Flying', 'Landed'])
   state: 'Flying' | 'Landed';

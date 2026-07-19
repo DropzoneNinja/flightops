@@ -19,11 +19,11 @@ when the wire protocol itself changes, and follows `MAJOR.MINOR`:
 - **MINOR** bumps on additive, backward-compatible changes — new endpoints,
   new optional fields/params. Existing clients keep working unmodified.
 
-Current version: **1.1** (source of truth: `backend/src/common/api-version.ts`).
+Current version: **1.3** (source of truth: `backend/src/common/api-version.ts`).
 
 ### Response header
 
-Every response includes `X-API-Version: 1.1`. `GET /health` and `GET /` also
+Every response includes `X-API-Version: 1.3`. `GET /health` and `GET /` also
 include an `apiVersion` field in their JSON body for clients that prefer
 checking the body over headers at startup.
 
@@ -50,15 +50,18 @@ Content-Type: application/json
 {
   "statusCode": 426,
   "error": "Upgrade Required",
-  "message": "This client was built for API v2.x, but the server is running v1.1. Please update the app to continue.",
-  "serverApiVersion": "1.1",
+  "message": "This client was built for API v2.x, but the server is running v1.3. Please update the app to continue.",
+  "serverApiVersion": "1.3",
   "clientApiVersion": "2.0"
 }
 ```
 
-MINOR mismatches are never rejected — an older client simply doesn't call
-newer endpoints/fields, and a client expecting an unreleased MINOR gets an
-ordinary `404` on the route that doesn't exist yet.
+MINOR mismatches are never rejected up front — an older client simply
+doesn't call newer endpoints/fields. A client expecting an unreleased MINOR
+gets an ordinary `404` on a route that doesn't exist yet, or a
+`400 Bad Request` when it sends a not-yet-supported field in a request body
+(the server rejects unknown body fields). Check the `X-API-Version`
+response header before using MINOR-gated fields.
 
 **flightnow / FlightTV:** send `X-API-Version: <major>` once your build
 knows its target, and treat `426` as "must upgrade," the same way you
@@ -818,13 +821,15 @@ Server-Sent Events stream that pushes real-time weather update notifications.
 
 ## Missions
 
+Missions are visible to every authenticated user. Editing and deleting a mission (including its waypoints) is restricted to the mission's creator and administrators — those endpoints return `403` for anyone else. Missions without a creator (created before ownership tracking) are editable by everyone.
+
 ### List Missions
 ```http
 GET /missions
 Authorization: Bearer <token>
 ```
 
-Returns only the authenticated user's missions.
+Returns all missions, regardless of creator.
 
 Optional query params:
 | Param | Description |
@@ -862,8 +867,6 @@ GET /missions/:id
 Authorization: Bearer <token>
 ```
 
-> Owner only — returns `403` if the mission does not belong to the authenticated user.
-
 ---
 
 ### Update Mission
@@ -878,6 +881,8 @@ Content-Type: application/json
 }
 ```
 
+> Creator or admin only — returns `403` otherwise.
+
 ---
 
 ### Delete Mission
@@ -886,7 +891,7 @@ DELETE /missions/:id
 Authorization: Bearer <token>
 ```
 
-> Returns `204 No Content`.
+> Creator or admin only — returns `403` otherwise. Returns `204 No Content`.
 
 ---
 
@@ -1064,11 +1069,14 @@ Content-Type: application/json
 {
   "lat": 51.5074,
   "lon": -0.1278,
+  "altitude_m": 320.5,
   "state": "Flying"
 }
 ```
 
-`state` must be `"Flying"` or `"Landed"`.
+`state` must be `"Flying"` or `"Landed"`. `altitude_m` (metres, optional) is stored per update — omitting it clears the previously reported altitude, so it never goes stale.
+
+> **flightnow / FlightTV:** `altitude_m` exists since API version **1.3**. Rather than probing responses for the field, gate altitude features on the `X-API-Version` response header: enabled when MAJOR is `1` and MINOR ≥ `3`. This gate applies to **sending** the field too, not just rendering the marker altitude badge — the server rejects unknown body fields, so a pre-1.3 server responds `400 Bad Request` to a body containing `altitude_m`.
 
 Called by a flying pilot's app to push their current position. Call repeatedly while airborne (e.g. every 10–30 seconds). Set `state` to `"Landed"` on touchdown.
 
@@ -1090,7 +1098,7 @@ Authorization: Bearer <token>
 
 Returns all pilots that have reported a position, plus any nearby aircraft detected via OpenSky Network. Poll this endpoint to show live positions on a map.
 
-Aircraft are sourced from the [OpenSky Network](https://opensky-network.org/) and queried on each pilot position update, subject to a 10-second minimum interval between API calls. `aircraft.updated_at` is the ISO timestamp of the last successful OpenSky response (`null` if no query has succeeded yet). When position updates arrive faster than the 10-second window, the cached positions from the previous query are returned — use `updated_at` to decide whether the data is still relevant. `aircraft.positions` is empty when no pilots are actively flying. The airspace query radius is controlled by the `opensky.airspace_radius_km` setting (default 5 km).
+Aircraft are sourced from the [OpenSky Network](https://opensky-network.org/) and queried on each pilot position update, subject to a 10-second minimum interval between API calls. `aircraft.updated_at` is the ISO timestamp of the last successful OpenSky response (`null` if no query has succeeded yet). When position updates arrive faster than the 10-second window, the cached positions from the previous query are returned — use `updated_at` to decide whether the data is still relevant. `aircraft.positions` is empty when no pilots are actively flying. The airspace query radius is controlled by the `opensky.airspace_radius_km` setting (default 10 km, i.e. a 20 km diameter circle around each flying pilot). Each aircraft entry carries `altitude_m` (metres; barometric altitude, falling back to geometric altitude when the barometric value is unavailable — `null` only when OpenSky reports neither).
 
 Response:
 ```json
@@ -1101,6 +1109,7 @@ Response:
       "display_name": "Alice",
       "lat": 51.5074,
       "lon": -0.1278,
+      "altitude_m": 320.5,
       "state": "Flying",
       "updated_at": "2026-06-16T14:30:00.000Z"
     },
@@ -1109,6 +1118,7 @@ Response:
       "display_name": "Bob",
       "lat": 51.5100,
       "lon": -0.1300,
+      "altitude_m": null,
       "state": "Landed",
       "updated_at": "2026-06-16T14:25:00.000Z"
     }
@@ -1177,8 +1187,11 @@ Content-Type: multipart/form-data
 
 file:         <GPX file>
 flight_date:  2026-01-15
-pilot_id:     uuid
+pilot_id:     uuid (optional — defaults to your linked pilot; must be your own pilot unless you are an admin: `403` otherwise, `400` if the pilot does not exist)
 site_id:      uuid (optional)
+client_id:    uuid (optional — flightnow Flight.id, links the upload to a logbook entry)
+takeoff_lat:  52.3555 (optional)
+takeoff_lon:  -1.1743 (optional)
 title:        "Morning flight"  (optional)
 notes:        "Great conditions" (optional)
 glider:       "Ozone Alpina 4"  (optional)

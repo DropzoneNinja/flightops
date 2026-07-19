@@ -17,6 +17,7 @@ import { GpxNormalizerService } from './gpx-normalizer.service';
 import { FlightAnalysisService } from './flight-analysis.service';
 import { CreateFlightDto } from './dto/create-flight.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
+import { User } from '../database/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { PilotsService } from '../pilots/pilots.service';
 import { LogbookService } from '../logbook/logbook.service';
@@ -88,7 +89,7 @@ export class FlightsService {
   async uploadGpx(
     file: Express.Multer.File,
     dto: CreateFlightDto,
-    uploadedByUserId: string,
+    user: User,
   ): Promise<Flight> {
     // Validate file presence
     if (!file) throw new BadRequestException('No file uploaded');
@@ -111,6 +112,24 @@ export class FlightsService {
       throw new BadRequestException(`Unsupported MIME type: ${file.mimetype}`);
     }
 
+    // Pilot attribution: defaults to the uploader's linked pilot; an explicit
+    // pilot_id may only reference someone else's pilot when the uploader is an admin
+    const ownPilot = await this.pilotsService.findByUserId(user.id);
+    let pilotId: string | null = ownPilot?.id ?? null;
+    if (dto.pilot_id && dto.pilot_id !== ownPilot?.id) {
+      if (!user.is_admin) {
+        throw new ForbiddenException(
+          'You can only attribute a flight to your own pilot profile',
+        );
+      }
+      try {
+        await this.pilotsService.findById(dto.pilot_id);
+      } catch {
+        throw new BadRequestException('pilot_id does not reference an existing pilot');
+      }
+      pilotId = dto.pilot_id;
+    }
+
     // Sanitize filename – prevent path traversal
     const sanitizedName = this.sanitizeFilename(file.originalname);
     const secureFilename = `${randomUUID()}-${sanitizedName}`;
@@ -131,7 +150,7 @@ export class FlightsService {
     const flight = this.flightsRepository.create({
       flight_date: new Date(dto.flight_date),
       site_id: dto.site_id ?? null,
-      pilot_id: dto.pilot_id ?? null,
+      pilot_id: pilotId,
       title: dto.title ?? null,
       notes: dto.notes ?? null,
       launch_site_name: dto.launch_site_name ?? null,
@@ -142,32 +161,29 @@ export class FlightsService {
       file_size: file.size,
       parse_status: 'uploaded',
       analysis_status: 'pending',
-      uploaded_by: uploadedByUserId,
+      uploaded_by: user.id,
     });
 
     const saved = await this.flightsRepository.save(flight);
 
     // Update user storage usage (best-effort – don't fail the upload if this errors)
     try {
-      const user = await this.usersService.findById(uploadedByUserId);
-      if (user?.username) {
-        await this.usersService.adjustStorageUsed(user.username, file.size);
+      const fullUser = await this.usersService.findById(user.id);
+      if (fullUser?.username) {
+        await this.usersService.adjustStorageUsed(fullUser.username, file.size);
       }
     } catch (err) {
-      this.logger.warn(`Failed to update storage_used for user ${uploadedByUserId}: ${err}`);
+      this.logger.warn(`Failed to update storage_used for user ${user.id}: ${err}`);
     }
 
     // Auto-create a linked logbook entry for the uploading pilot (best-effort)
-    if (this.logbookService) {
-      this.pilotsService.findByUserId(uploadedByUserId).then((pilot) => {
-        if (!pilot) return;
-        return this.logbookService.linkFlight({
-          pilotId: pilot.id,
-          clientId: dto.client_id ?? null,
-          flight: saved,
-          source: dto.client_id ? 'flightnow' : 'web',
-          createdByUserId: uploadedByUserId,
-        });
+    if (this.logbookService && ownPilot) {
+      this.logbookService.linkFlight({
+        pilotId: ownPilot.id,
+        clientId: dto.client_id ?? null,
+        flight: saved,
+        source: dto.client_id ? 'flightnow' : 'web',
+        createdByUserId: user.id,
       }).catch((err) =>
         this.logger.warn(`Failed to auto-link logbook entry for flight ${saved.id}: ${err}`),
       );

@@ -32,6 +32,9 @@ export class Pilot {
   @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
   lon: number | null;
 
+  @Column({ type: 'float', nullable: true })
+  altitude_m: number | null;
+
   @Column({ type: 'varchar', length: 10, nullable: true })
   flight_state: 'Flying' | 'Landed' | null;
 

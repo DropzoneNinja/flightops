@@ -317,7 +317,7 @@ export const DEFAULT_SETTINGS: DefaultSetting[] = [
   // OpenSky Integration
   {
     key: SettingKey.OPENSKY_AIRSPACE_RADIUS_KM,
-    value: 5,
+    value: 10,
     type: SettingType.NUMBER,
     description: 'Radius (km) around each flying pilot to query for nearby aircraft via OpenSky Network',
     category: 'OpenSky Integration',

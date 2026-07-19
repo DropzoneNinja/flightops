@@ -272,7 +272,7 @@ export class OpenSkyService implements OnModuleDestroy {
           callsign: s[1]?.trim() || null,
           lat: s[6] as number,
           lon: s[5] as number,
-          altitude_m: s[7],
+          altitude_m: s[7] ?? s[13],
           on_ground: s[8],
           velocity_mps: s[9],
           heading_deg: s[10],

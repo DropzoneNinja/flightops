@@ -36,11 +36,7 @@ export class MissionsService {
     return user.is_admin || mission.created_by === null || mission.created_by === user.id;
   }
 
-  private canUserView(mission: Mission, user: User): boolean {
-    return user.is_admin || mission.created_by === null || mission.created_by === user.id;
-  }
-
-  async findAll(query: MissionListQuery = {}, user: User): Promise<Mission[]> {
+  async findAll(query: MissionListQuery = {}): Promise<Mission[]> {
     const { search, launchSiteId, sort = 'updated_at', order = 'DESC' } = query;
 
     const VALID_SORTS = new Set(['updated_at', 'name', 'created_at']);
@@ -54,9 +50,6 @@ export class MissionsService {
       .leftJoinAndSelect('m.creator', 'creator')
       .orderBy(`m.${safeSort}`, safeOrder);
 
-    if (!user.is_admin) {
-      qb.where('m.created_by = :userId OR m.created_by IS NULL', { userId: user.id });
-    }
     if (search) {
       qb.andWhere('m.name ILIKE :search', { search: `%${search}%` });
     }
@@ -67,7 +60,7 @@ export class MissionsService {
     return qb.getMany();
   }
 
-  async findOne(id: string, user?: User): Promise<Mission> {
+  async findOne(id: string): Promise<Mission> {
     const mission = await this.missionRepository.findOne({
       where: { id },
       relations: ['launch_site', 'waypoints', 'creator'],
@@ -76,10 +69,6 @@ export class MissionsService {
 
     if (!mission) {
       throw new NotFoundException('Mission not found');
-    }
-
-    if (user && !this.canUserView(mission, user)) {
-      throw new ForbiddenException('You do not have permission to view this mission');
     }
 
     return mission;
@@ -144,7 +133,7 @@ export class MissionsService {
   }
 
   async duplicate(id: string, user: User): Promise<Mission> {
-    const source = await this.findOne(id, user);
+    const source = await this.findOne(id);
 
     const newMission = this.missionRepository.create({
       name: `${source.name} (copy)`,
@@ -301,8 +290,8 @@ export class MissionsService {
     return updates.sort((a, b) => a.sort_order - b.sort_order);
   }
 
-  async getWaypoints(missionId: string, user: User): Promise<MissionWaypoint[]> {
-    await this.findOne(missionId, user);
+  async getWaypoints(missionId: string): Promise<MissionWaypoint[]> {
+    await this.findOne(missionId);
 
     return this.waypointRepository.find({
       where: { mission_id: missionId },

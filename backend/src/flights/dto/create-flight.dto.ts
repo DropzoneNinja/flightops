@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsUUID, IsDateString, MaxLength, IsNumber, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateFlightDto {
   @IsDateString()
@@ -41,13 +42,17 @@ export class CreateFlightDto {
   @IsUUID()
   client_id?: string;
 
+  // @Type coercion: this DTO arrives as multipart/form-data, where every
+  // field is a string — without it @IsNumber() rejects the request with 400.
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(-90)
   @Max(90)
   takeoff_lat?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(-180)
   @Max(180)

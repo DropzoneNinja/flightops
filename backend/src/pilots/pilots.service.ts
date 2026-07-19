@@ -16,6 +16,7 @@ export interface PilotPosition {
   display_name: string;
   lat: number;
   lon: number;
+  altitude_m: number | null;
   state: string | null;
   updated_at: Date | null;
 }
@@ -253,6 +254,7 @@ export class PilotsService {
 
     pilot.lat = dto.lat;
     pilot.lon = dto.lon;
+    pilot.altitude_m = dto.altitude_m ?? null;
     pilot.flight_state = dto.state;
     pilot.position_updated_at = new Date();
     await this.pilotsRepository.save(pilot);
@@ -274,6 +276,7 @@ export class PilotsService {
         display_name: p.display_name,
         lat: Number(p.lat),
         lon: Number(p.lon),
+        altitude_m: p.altitude_m === null ? null : Number(p.altitude_m),
         state: p.flight_state,
         updated_at: p.position_updated_at,
       })),
