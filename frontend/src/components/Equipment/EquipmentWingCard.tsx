@@ -42,6 +42,11 @@ export default function EquipmentWingCard({ wing, onEdit, onDelete }: Props) {
               Trim: <span className="text-[#a0b3cc]">{wing.trim_speed_kmh} km/h</span>
             </span>
           )}
+          {wing.color && (
+            <span className="text-xs text-[#6b7fa3]">
+              Colour: <span className="text-[#a0b3cc]">{wing.color}</span>
+            </span>
+          )}
         </div>
         {wing.notes && (
           <p className="mt-1 text-xs text-[#6b7fa3] line-clamp-2">{wing.notes}</p>

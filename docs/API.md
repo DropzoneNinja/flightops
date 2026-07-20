@@ -19,11 +19,19 @@ when the wire protocol itself changes, and follows `MAJOR.MINOR`:
 - **MINOR** bumps on additive, backward-compatible changes — new endpoints,
   new optional fields/params. Existing clients keep working unmodified.
 
-Current version: **1.3** (source of truth: `backend/src/common/api-version.ts`).
+Current version: **2.0** (source of truth: `backend/src/common/api-version.ts`).
+
+> **v2.0 breaking change (equipment restructure):** the Engine fields
+> `tank_size_litres` and `fuel_consumption_lph` were removed. Fuel tank size
+> now lives on the Paramotor, and fuel burn rate lives on each
+> Paramotor↔Wing link (see [Equipment](#equipment)). This shipped as a hard
+> cut (no side-by-side v1 endpoints): clients declaring `X-API-Version: 1`
+> receive `426 Upgrade Required`; clients not sending the header pass the
+> gate but will no longer see the removed engine fields.
 
 ### Response header
 
-Every response includes `X-API-Version: 1.3`. `GET /health` and `GET /` also
+Every response includes `X-API-Version: 2.0`. `GET /health` and `GET /` also
 include an `apiVersion` field in their JSON body for clients that prefer
 checking the body over headers at startup.
 
@@ -32,10 +40,10 @@ checking the body over headers at startup.
 Clients MAY declare the version they were built against:
 
 ```http
-X-API-Version: 1
+X-API-Version: 2
 ```
 
-(`1` or `1.0` are both accepted — only MAJOR is checked.) This is currently
+(`2` or `2.0` are both accepted — only MAJOR is checked.) This is currently
 **optional** — if omitted, the server assumes compatibility. This lets
 already-deployed clients (the flightnow iOS app, the FlightTV tvOS app)
 keep working before they've adopted the header.
@@ -50,9 +58,9 @@ Content-Type: application/json
 {
   "statusCode": 426,
   "error": "Upgrade Required",
-  "message": "This client was built for API v2.x, but the server is running v1.3. Please update the app to continue.",
-  "serverApiVersion": "1.3",
-  "clientApiVersion": "2.0"
+  "message": "This client was built for API v1.x, but the server is running v2.0. Please update the app to continue.",
+  "serverApiVersion": "2.0",
+  "clientApiVersion": "1.3"
 }
 ```
 
@@ -428,7 +436,29 @@ Permanently deletes the user account. Returns `403` if the caller is deleting th
 
 ## Equipment
 
-Equipment (paramotors, engines, and wings) is private to the authenticated user. All endpoints require `Authorization: Bearer <token>`.
+Equipment comes in **four categories — paramotors, engines, wings, and
+reserves** — all private to the authenticated user. All endpoints require
+`Authorization: Bearer <token>`.
+
+Relationships (all owned by the paramotor):
+
+- **Paramotor → Engine**: 0..1. The paramotor also owns `tank_size_litres`.
+- **Paramotor → Wings**: many, via link objects. Each paramotor↔wing pairing
+  carries its own `fuel_burn_lph` (burn rate depends on the combination).
+- **Paramotor → Reserve**: 0..1.
+
+**Hours:** every component accrues `total_hours` automatically from
+non-deleted logbook entries. Wings and paramotors are summed from entries
+that reference them directly (`wing_id` / `paramotor_id`); an engine or
+reserve's `total_hours` is the aggregate of all paramotors *currently*
+linked to it (history-free — re-pointing a paramotor moves its hours to the
+new engine/reserve). `base_hours` is a manual pre-history offset and is not
+included in `total_hours`; clients sum the two for display.
+
+**Maintenance records:** engines have *service records*, wings and reserves
+have *inspection records*, and reserves additionally have *pack records*.
+Records live under their parent (`404` if the parent isn't yours) and are
+deleted with it.
 
 ### List Engines
 ```http
@@ -443,14 +473,19 @@ Response:
     "id": "uuid",
     "user_id": "uuid",
     "name": "Vittorazi Moster 185",
-    "tank_size_litres": 10,
-    "fuel_consumption_lph": 3.5,
+    "base_hours": 12.5,
+    "total_hours": 34.2,
     "notes": null,
     "created_at": "2026-01-15T10:00:00.000Z",
     "updated_at": "2026-01-15T10:00:00.000Z"
   }
 ]
 ```
+
+> **Changed in 2.0:** `tank_size_litres` and `fuel_consumption_lph` were
+> removed from engines. Tank size is on the paramotor; burn rate is on each
+> paramotor↔wing link. Sending either field to an engine endpoint returns
+> `400`.
 
 ---
 
@@ -462,8 +497,7 @@ Content-Type: application/json
 
 {
   "name": "Vittorazi Moster 185",
-  "tank_size_litres": 10,
-  "fuel_consumption_lph": 3.5,
+  "base_hours": 12.5,
   "notes": "Optional notes"
 }
 ```
@@ -484,10 +518,7 @@ PUT /equipment/engines/:id
 Authorization: Bearer <token>
 Content-Type: application/json
 
-{
-  "name": "Vittorazi Moster 185 Plus",
-  "tank_size_litres": 12
-}
+{ "name": "Vittorazi Moster 185 Plus" }
 ```
 
 ---
@@ -499,6 +530,47 @@ Authorization: Bearer <token>
 ```
 
 Response: `{ "message": "Engine deleted" }`
+
+Paramotors linked to the engine keep working (`engine_id` becomes `null`);
+the engine's service records are deleted with it.
+
+---
+
+### Engine Service Records
+
+```http
+GET    /equipment/engines/:id/services
+POST   /equipment/engines/:id/services
+PUT    /equipment/engines/:id/services/:recordId
+DELETE /equipment/engines/:id/services/:recordId
+Authorization: Bearer <token>
+```
+
+Create/update body:
+```json
+{
+  "service_date": "2026-06-01",
+  "service_type": "Top-end rebuild",
+  "notes": "Optional notes"
+}
+```
+
+Response (list is ordered by `service_date` descending):
+```json
+[
+  {
+    "id": "uuid",
+    "engine_id": "uuid",
+    "service_date": "2026-06-01",
+    "service_type": "Top-end rebuild",
+    "notes": null,
+    "created_at": "2026-06-01T10:00:00.000Z",
+    "updated_at": "2026-06-01T10:00:00.000Z"
+  }
+]
+```
+
+`DELETE` responds `{ "message": "Service record deleted" }`.
 
 ---
 
@@ -519,12 +591,18 @@ Response:
     "model": "Spyder 3",
     "size": "26m²",
     "trim_speed_kmh": 38,
+    "color": "red/white",
+    "base_hours": 0,
+    "total_hours": 21.7,
     "notes": null,
     "created_at": "2026-01-15T10:00:00.000Z",
     "updated_at": "2026-01-15T10:00:00.000Z"
   }
 ]
 ```
+
+`color` (new in 2.0) is free text — list multiple colours however you like,
+e.g. `"red/white/blue"`.
 
 ---
 
@@ -540,6 +618,7 @@ Content-Type: application/json
   "model": "Spyder 3",
   "size": "26m²",
   "trim_speed_kmh": 38,
+  "color": "red/white",
   "notes": "Optional notes"
 }
 ```
@@ -573,6 +652,158 @@ Authorization: Bearer <token>
 
 Response: `{ "message": "Wing deleted" }`
 
+Deleting a wing also removes its paramotor links and inspection records;
+logbook entries referencing it keep their text `wing` but lose the `wing_id`
+link.
+
+---
+
+### Wing Inspection Records
+
+```http
+GET    /equipment/wings/:id/inspections
+POST   /equipment/wings/:id/inspections
+PUT    /equipment/wings/:id/inspections/:recordId
+DELETE /equipment/wings/:id/inspections/:recordId
+Authorization: Bearer <token>
+```
+
+Create/update body:
+```json
+{
+  "inspection_date": "2026-05-15",
+  "inspection_type": "Annual trim check",
+  "notes": "Optional notes"
+}
+```
+
+Responses mirror engine service records (`inspection_date` /
+`inspection_type` fields, list ordered by date descending). `DELETE`
+responds `{ "message": "Inspection record deleted" }`.
+
+---
+
+### List Reserves
+```http
+GET /equipment/reserves
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+[
+  {
+    "id": "uuid",
+    "user_id": "uuid",
+    "name": "My Reserve",
+    "manufacturer": "Gin",
+    "model": "Yeti Cross",
+    "size": "37m²",
+    "base_hours": 0,
+    "total_hours": 21.7,
+    "notes": null,
+    "created_at": "2026-01-15T10:00:00.000Z",
+    "updated_at": "2026-01-15T10:00:00.000Z"
+  }
+]
+```
+
+---
+
+### Create Reserve
+```http
+POST /equipment/reserves
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "My Reserve",
+  "manufacturer": "Gin",
+  "model": "Yeti Cross",
+  "size": "37m²",
+  "notes": "Optional notes"
+}
+```
+
+---
+
+### Get Reserve
+```http
+GET /equipment/reserves/:id
+Authorization: Bearer <token>
+```
+
+---
+
+### Update Reserve
+```http
+PUT /equipment/reserves/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "name": "My Reserve (repacked)" }
+```
+
+---
+
+### Delete Reserve
+```http
+DELETE /equipment/reserves/:id
+Authorization: Bearer <token>
+```
+
+Response: `{ "message": "Reserve deleted" }`
+
+Paramotors linked to the reserve keep working (`reserve_id` becomes
+`null`); the reserve's pack and inspection records are deleted with it.
+
+---
+
+### Reserve Pack Records
+
+```http
+GET    /equipment/reserves/:id/packs
+POST   /equipment/reserves/:id/packs
+PUT    /equipment/reserves/:id/packs/:recordId
+DELETE /equipment/reserves/:id/packs/:recordId
+Authorization: Bearer <token>
+```
+
+Create/update body:
+```json
+{
+  "pack_date": "2026-04-01",
+  "notes": "Optional notes"
+}
+```
+
+List is ordered by `pack_date` descending. `DELETE` responds
+`{ "message": "Pack record deleted" }`.
+
+---
+
+### Reserve Inspection Records
+
+```http
+GET    /equipment/reserves/:id/inspections
+POST   /equipment/reserves/:id/inspections
+PUT    /equipment/reserves/:id/inspections/:recordId
+DELETE /equipment/reserves/:id/inspections/:recordId
+Authorization: Bearer <token>
+```
+
+Create/update body:
+```json
+{
+  "inspection_date": "2026-04-01",
+  "inspection_type": "Repack inspection",
+  "notes": "Optional notes"
+}
+```
+
+List is ordered by `inspection_date` descending. `DELETE` responds
+`{ "message": "Inspection record deleted" }`.
+
 ---
 
 ### List Paramotors
@@ -581,7 +812,9 @@ GET /equipment/paramotors
 Authorization: Bearer <token>
 ```
 
-Response includes the nested `engine` object when an engine is linked:
+Response includes the nested `engine` and `reserve` objects when linked, and
+a `wing_links` array (one entry per linked wing, each with the pairing's own
+`fuel_burn_lph` and the nested `wing`):
 ```json
 [
   {
@@ -589,12 +822,31 @@ Response includes the nested `engine` object when an engine is linked:
     "user_id": "uuid",
     "name": "My Paramotor",
     "engine_id": "uuid",
+    "reserve_id": "uuid",
+    "tank_size_litres": 10,
+    "base_hours": 0,
+    "total_hours": 34.2,
     "engine": {
       "id": "uuid",
-      "name": "Vittorazi Moster 185",
-      "tank_size_litres": 10,
-      "fuel_consumption_lph": 3.5
+      "name": "Vittorazi Moster 185"
     },
+    "reserve": {
+      "id": "uuid",
+      "name": "My Reserve"
+    },
+    "wing_links": [
+      {
+        "id": "uuid",
+        "paramotor_id": "uuid",
+        "wing_id": "uuid",
+        "fuel_burn_lph": 3.5,
+        "wing": {
+          "id": "uuid",
+          "name": "My Main Wing",
+          "color": "red/white"
+        }
+      }
+    ],
     "notes": null,
     "created_at": "2026-01-15T10:00:00.000Z",
     "updated_at": "2026-01-15T10:00:00.000Z"
@@ -613,11 +865,21 @@ Content-Type: application/json
 {
   "name": "My Paramotor",
   "engine_id": "uuid",
+  "reserve_id": "uuid",
+  "tank_size_litres": 10,
+  "wings": [
+    { "wing_id": "uuid", "fuel_burn_lph": 3.5 },
+    { "wing_id": "uuid", "fuel_burn_lph": 4.2 }
+  ],
   "notes": "Optional notes"
 }
 ```
 
-`engine_id` is optional — omit or pass `null` for a paramotor with no linked engine.
+- `engine_id`, `reserve_id`, `tank_size_litres`, and `wings` are all
+  optional.
+- Every referenced engine/reserve/wing must belong to you (`404` otherwise);
+  a duplicate `wing_id` in `wings` returns `400`.
+- `fuel_burn_lph` is optional per wing link.
 
 ---
 
@@ -635,8 +897,18 @@ PUT /equipment/paramotors/:id
 Authorization: Bearer <token>
 Content-Type: application/json
 
-{ "engine_id": "uuid" }
+{
+  "engine_id": "uuid",
+  "wings": [{ "wing_id": "uuid", "fuel_burn_lph": 3.8 }]
+}
 ```
+
+- `engine_id: null` / `reserve_id: null` clears the link.
+- `wings` uses **replace semantics**: omit the field to leave links
+  untouched, send `[]` to remove all links, or send the complete new set to
+  replace them.
+- Re-pointing `engine_id`/`reserve_id` immediately recomputes hours on both
+  the old and new engine/reserve.
 
 ---
 
@@ -647,6 +919,9 @@ Authorization: Bearer <token>
 ```
 
 Response: `{ "message": "Paramotor deleted" }`
+
+Wing links are removed with the paramotor and hours on the linked engine and
+reserve are recomputed; logbook entries lose their `paramotor_id` link.
 
 ---
 
@@ -1076,7 +1351,7 @@ Content-Type: application/json
 
 `state` must be `"Flying"` or `"Landed"`. `altitude_m` (metres, optional) is stored per update — omitting it clears the previously reported altitude, so it never goes stale.
 
-> **flightnow / FlightTV:** `altitude_m` exists since API version **1.3**. Rather than probing responses for the field, gate altitude features on the `X-API-Version` response header: enabled when MAJOR is `1` and MINOR ≥ `3`. This gate applies to **sending** the field too, not just rendering the marker altitude badge — the server rejects unknown body fields, so a pre-1.3 server responds `400 Bad Request` to a body containing `altitude_m`.
+> **flightnow / FlightTV:** `altitude_m` exists since API version **1.3**. Rather than probing responses for the field, gate altitude features on the `X-API-Version` response header: enabled when MAJOR ≥ `2`, or when MAJOR is `1` and MINOR ≥ `3`. This gate applies to **sending** the field too, not just rendering the marker altitude badge — the server rejects unknown body fields, so a pre-1.3 server responds `400 Bad Request` to a body containing `altitude_m`.
 
 Called by a flying pilot's app to push their current position. Call repeatedly while airborne (e.g. every 10–30 seconds). Set `state` to `"Landed"` on touchdown.
 
@@ -1536,6 +1811,17 @@ Content-Type: application/json
 ```
 
 Uses last-write-wins conflict resolution based on `client_updated_at`. The server returns the authoritative state for each pushed entry — always apply the `server` value to the local record.
+
+**Equipment linking (changed in 2.0):** when a pushed entry carries
+`equipment_refs_json` (`{ "paramotorId": "...", "engineId": "...", "wingId": "..." }`),
+the server now resolves `wingId`/`paramotorId` against the user's server-side
+equipment: if an ID matches a wing/paramotor owned by the user, the entry's
+`wing_id`/`paramotor_id` FK is set and equipment hours accrue automatically
+(engine and reserve hours roll up through the linked paramotor — see
+[Equipment](#equipment)). Resolution is best-effort: IDs that don't match
+server equipment are ignored (never a sync error), and an unresolvable ID
+never clears an existing link. The raw `equipment_refs_json` is still stored
+and returned verbatim either way.
 
 Response:
 ```json

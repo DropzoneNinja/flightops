@@ -1,6 +1,6 @@
-import { IsString, IsNumber, IsOptional, IsUUID, Length, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, Length, Min } from 'class-validator';
 
-export class CreateWingDto {
+export class CreateReserveDto {
   @IsString()
   @Length(1, 255)
   name: string;
@@ -19,16 +19,6 @@ export class CreateWingDto {
   @IsString()
   @Length(0, 50)
   size?: string;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  trim_speed_kmh?: number;
-
-  @IsOptional()
-  @IsString()
-  @Length(0, 255)
-  color?: string;
 
   @IsOptional()
   @IsNumber()

@@ -8,16 +8,6 @@ export class CreateEngineDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  tank_size_litres?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  fuel_consumption_lph?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
   base_hours?: number;
 
   @IsOptional()

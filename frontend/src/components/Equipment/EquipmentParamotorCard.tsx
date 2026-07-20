@@ -28,12 +28,32 @@ export default function EquipmentParamotorCard({ paramotor, onEdit, onDelete }: 
         {paramotor.engine ? (
           <p className="text-xs text-[#a0b3cc] truncate">
             Engine: {paramotor.engine.name}
-            {paramotor.engine.tank_size_litres != null && (
-              <span className="text-[#6b7fa3]"> · {paramotor.engine.tank_size_litres} L tank</span>
+            {paramotor.tank_size_litres != null && (
+              <span className="text-[#6b7fa3]"> · {paramotor.tank_size_litres} L tank</span>
             )}
           </p>
         ) : (
-          <p className="text-xs text-[#6b7fa3]">No engine assigned</p>
+          <p className="text-xs text-[#6b7fa3]">
+            No engine assigned
+            {paramotor.tank_size_litres != null && (
+              <span> · {paramotor.tank_size_litres} L tank</span>
+            )}
+          </p>
+        )}
+        {paramotor.reserve && (
+          <p className="text-xs text-[#a0b3cc] truncate">Reserve: {paramotor.reserve.name}</p>
+        )}
+        {paramotor.wing_links.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+            {paramotor.wing_links.map(link => (
+              <span key={link.id} className="text-xs text-[#6b7fa3]">
+                {link.wing.name}
+                {link.fuel_burn_lph != null && (
+                  <span className="text-[#a0b3cc]"> · {link.fuel_burn_lph} L/hr</span>
+                )}
+              </span>
+            ))}
+          </div>
         )}
         {paramotor.notes && (
           <p className="mt-1 text-xs text-[#6b7fa3] line-clamp-2">{paramotor.notes}</p>

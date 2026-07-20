@@ -10,9 +10,9 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 
-@Entity('equipment_wings')
+@Entity('equipment_reserves')
 @Index(['user_id'])
-export class EquipmentWing {
+export class EquipmentReserve {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -30,13 +30,6 @@ export class EquipmentWing {
 
   @Column({ length: 50, nullable: true })
   size: string | null;
-
-  @Column({ type: 'float', nullable: true })
-  trim_speed_kmh: number | null;
-
-  // Free text — a wing may have multiple colours, e.g. "red/white/blue"
-  @Column({ length: 255, nullable: true })
-  color: string | null;
 
   @Column({ type: 'float', default: 0 })
   base_hours: number;

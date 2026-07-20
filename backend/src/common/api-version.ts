@@ -20,8 +20,8 @@ import type { Request, Response, NextFunction } from 'express';
  * for. See docs/API.md "Versioning" for the client-facing contract.
  */
 export const API_VERSION = {
-  major: 1,
-  minor: 3,
+  major: 2,
+  minor: 0,
 } as const;
 
 export const API_VERSION_STRING = `${API_VERSION.major}.${API_VERSION.minor}`;

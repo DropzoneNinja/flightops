@@ -1,20 +1,18 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { EquipmentWing, CreateWingData } from '../../services/equipment.service';
+import { EquipmentReserve, CreateReserveData } from '../../services/equipment.service';
 
 interface Props {
-  initial?: EquipmentWing;
-  onSave: (data: CreateWingData) => void;
+  initial?: EquipmentReserve;
+  onSave: (data: CreateReserveData) => void;
   onCancel: () => void;
   isSaving: boolean;
 }
 
-export default function EquipmentWingForm({ initial, onSave, onCancel, isSaving }: Props) {
+export default function EquipmentReserveForm({ initial, onSave, onCancel, isSaving }: Props) {
   const [name, setName] = useState('');
   const [manufacturer, setManufacturer] = useState('');
   const [model, setModel] = useState('');
   const [size, setSize] = useState('');
-  const [trimSpeed, setTrimSpeed] = useState('');
-  const [color, setColor] = useState('');
   const [baseHours, setBaseHours] = useState('');
   const [totalHours, setTotalHours] = useState('');
   const [notes, setNotes] = useState('');
@@ -24,8 +22,6 @@ export default function EquipmentWingForm({ initial, onSave, onCancel, isSaving 
     setManufacturer(initial?.manufacturer ?? '');
     setModel(initial?.model ?? '');
     setSize(initial?.size ?? '');
-    setTrimSpeed(initial?.trim_speed_kmh != null ? String(initial.trim_speed_kmh) : '');
-    setColor(initial?.color ?? '');
     setBaseHours(initial?.base_hours != null ? String(initial.base_hours) : '0');
     setTotalHours(initial?.total_hours != null ? String(initial.total_hours) : '0');
     setNotes(initial?.notes ?? '');
@@ -38,8 +34,6 @@ export default function EquipmentWingForm({ initial, onSave, onCancel, isSaving 
       manufacturer: manufacturer.trim() || undefined,
       model: model.trim() || undefined,
       size: size.trim() || undefined,
-      trim_speed_kmh: trimSpeed !== '' ? Number(trimSpeed) : undefined,
-      color: color.trim() || undefined,
       base_hours: baseHours !== '' ? Number(baseHours) : 0,
       total_hours: totalHours !== '' ? Number(totalHours) : 0,
       notes: notes.trim() || undefined,
@@ -54,7 +48,7 @@ export default function EquipmentWingForm({ initial, onSave, onCancel, isSaving 
           required
           value={name}
           onChange={e => setName(e.target.value)}
-          placeholder="e.g. My Main Wing"
+          placeholder="e.g. My Reserve"
           className="w-full bg-[#141d2e] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5a74] focus:outline-none focus:border-blue-500"
         />
       </div>
@@ -65,7 +59,7 @@ export default function EquipmentWingForm({ initial, onSave, onCancel, isSaving 
           <input
             value={manufacturer}
             onChange={e => setManufacturer(e.target.value)}
-            placeholder="e.g. Ozone"
+            placeholder="e.g. Gin"
             className="w-full bg-[#141d2e] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5a74] focus:outline-none focus:border-blue-500"
           />
         </div>
@@ -74,42 +68,18 @@ export default function EquipmentWingForm({ initial, onSave, onCancel, isSaving 
           <input
             value={model}
             onChange={e => setModel(e.target.value)}
-            placeholder="e.g. Spyder 3"
-            className="w-full bg-[#141d2e] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5a74] focus:outline-none focus:border-blue-500"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs text-[#6b7fa3] mb-1">Size</label>
-          <input
-            value={size}
-            onChange={e => setSize(e.target.value)}
-            placeholder="e.g. 26m²"
-            className="w-full bg-[#141d2e] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5a74] focus:outline-none focus:border-blue-500"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-[#6b7fa3] mb-1">Trim speed (km/h)</label>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            value={trimSpeed}
-            onChange={e => setTrimSpeed(e.target.value)}
-            placeholder="e.g. 38"
+            placeholder="e.g. Yeti Cross"
             className="w-full bg-[#141d2e] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5a74] focus:outline-none focus:border-blue-500"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-xs text-[#6b7fa3] mb-1">Colour(s)</label>
+        <label className="block text-xs text-[#6b7fa3] mb-1">Size</label>
         <input
-          value={color}
-          onChange={e => setColor(e.target.value)}
-          placeholder="e.g. red/white/blue"
+          value={size}
+          onChange={e => setSize(e.target.value)}
+          placeholder="e.g. 37m²"
           className="w-full bg-[#141d2e] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5a74] focus:outline-none focus:border-blue-500"
         />
       </div>
@@ -158,7 +128,7 @@ export default function EquipmentWingForm({ initial, onSave, onCancel, isSaving 
           disabled={isSaving || !name.trim()}
           className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {isSaving ? 'Saving…' : initial ? 'Save changes' : 'Add wing'}
+          {isSaving ? 'Saving…' : initial ? 'Save changes' : 'Add reserve'}
         </button>
         <button
           type="button"

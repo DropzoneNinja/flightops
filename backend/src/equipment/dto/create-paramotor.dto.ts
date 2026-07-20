@@ -1,4 +1,15 @@
-import { IsString, IsOptional, IsUUID, IsNumber, Length, Min } from 'class-validator';
+import {
+  IsArray,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { ParamotorWingLinkDto } from './paramotor-wing-link.dto';
 
 export class CreateParamotorDto {
   @IsString()
@@ -8,6 +19,22 @@ export class CreateParamotorDto {
   @IsOptional()
   @IsUUID()
   engine_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  reserve_id?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  tank_size_litres?: number;
+
+  // Omitted = leave wing links untouched (on update); [] = clear; array = full replace
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ParamotorWingLinkDto)
+  wings?: ParamotorWingLinkDto[];
 
   @IsOptional()
   @IsNumber()

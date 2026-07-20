@@ -10,16 +10,12 @@ interface Props {
 
 export default function EquipmentEngineForm({ initial, onSave, onCancel, isSaving }: Props) {
   const [name, setName] = useState('');
-  const [tankSize, setTankSize] = useState('');
-  const [fuelConsumption, setFuelConsumption] = useState('');
   const [baseHours, setBaseHours] = useState('');
   const [totalHours, setTotalHours] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
     setName(initial?.name ?? '');
-    setTankSize(initial?.tank_size_litres != null ? String(initial.tank_size_litres) : '');
-    setFuelConsumption(initial?.fuel_consumption_lph != null ? String(initial.fuel_consumption_lph) : '');
     setBaseHours(initial?.base_hours != null ? String(initial.base_hours) : '0');
     setTotalHours(initial?.total_hours != null ? String(initial.total_hours) : '0');
     setNotes(initial?.notes ?? '');
@@ -29,8 +25,6 @@ export default function EquipmentEngineForm({ initial, onSave, onCancel, isSavin
     e.preventDefault();
     onSave({
       name: name.trim(),
-      tank_size_litres: tankSize !== '' ? Number(tankSize) : undefined,
-      fuel_consumption_lph: fuelConsumption !== '' ? Number(fuelConsumption) : undefined,
       base_hours: baseHours !== '' ? Number(baseHours) : 0,
       total_hours: totalHours !== '' ? Number(totalHours) : 0,
       notes: notes.trim() || undefined,
@@ -48,33 +42,6 @@ export default function EquipmentEngineForm({ initial, onSave, onCancel, isSavin
           placeholder="e.g. Vittorazi Moster 185"
           className="w-full bg-[#141d2e] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5a74] focus:outline-none focus:border-blue-500"
         />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs text-[#6b7fa3] mb-1">Tank size (L)</label>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            value={tankSize}
-            onChange={e => setTankSize(e.target.value)}
-            placeholder="e.g. 10"
-            className="w-full bg-[#141d2e] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5a74] focus:outline-none focus:border-blue-500"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-[#6b7fa3] mb-1">Burn rate (L/hr)</label>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            value={fuelConsumption}
-            onChange={e => setFuelConsumption(e.target.value)}
-            placeholder="e.g. 3.5"
-            className="w-full bg-[#141d2e] border border-[#2a3a54] rounded-lg px-3 py-2 text-sm text-white placeholder-[#4a5a74] focus:outline-none focus:border-blue-500"
-          />
-        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

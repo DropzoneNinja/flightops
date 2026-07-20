@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
+import { isUUID } from 'class-validator';
 import { randomUUID } from 'crypto';
 import { LogbookEntry, WeatherSnapshot } from '../database/entities/logbook-entry.entity';
 import { LogbookBaseline } from '../database/entities/logbook-baseline.entity';
@@ -13,7 +14,7 @@ import { Flight } from '../database/entities/flight.entity';
 import { Pilot } from '../database/entities/pilot.entity';
 import { EquipmentWing } from '../database/entities/equipment-wing.entity';
 import { EquipmentParamotor } from '../database/entities/equipment-paramotor.entity';
-import { EquipmentEngine } from '../database/entities/equipment-engine.entity';
+import { EquipmentHoursService } from '../equipment/equipment-hours.service';
 import { PilotsService } from '../pilots/pilots.service';
 import { LogbookWeatherService } from './logbook-weather.service';
 import { LogbookMediaService, MediaRef } from './logbook-media.service';
@@ -121,8 +122,7 @@ export class LogbookService {
     private readonly wingRepository: Repository<EquipmentWing>,
     @InjectRepository(EquipmentParamotor)
     private readonly paramotorRepository: Repository<EquipmentParamotor>,
-    @InjectRepository(EquipmentEngine)
-    private readonly engineRepository: Repository<EquipmentEngine>,
+    private readonly equipmentHoursService: EquipmentHoursService,
     private readonly pilotsService: PilotsService,
     private readonly weatherService: LogbookWeatherService,
     private readonly mediaService: LogbookMediaService,
@@ -134,60 +134,44 @@ export class LogbookService {
 
   /**
    * After any logbook mutation that may affect equipment hours, call this with
-   * the set of wing IDs and paramotor IDs touched. Each piece of equipment's
-   * total_hours is recomputed as the sum of duration_seconds across all
-   * non-deleted entries for this pilot that reference it. Engine hours are the
-   * aggregate of all paramotors that use that engine.
+   * the set of wing IDs and paramotor IDs touched. Engine and reserve hours
+   * roll up through the paramotors currently linked to them.
    */
   private async recalculateEquipmentHours(
     wingIds: Set<string>,
     paramotorIds: Set<string>,
     pilotId: string,
   ): Promise<void> {
-    for (const wingId of wingIds) {
-      const row = await this.logbookRepository
-        .createQueryBuilder('e')
-        .select('COALESCE(SUM(e.duration_seconds), 0)', 'total')
-        .where('e.wing_id = :wingId', { wingId })
-        .andWhere('e.pilot_id = :pilotId', { pilotId })
-        .andWhere('e.deleted_at IS NULL')
-        .getRawOne<{ total: string }>();
-      const hours = Number(row?.total ?? 0) / 3600;
-      await this.wingRepository.update(wingId, { total_hours: hours });
+    await this.equipmentHoursService.recalculate({ wingIds, paramotorIds }, pilotId);
+  }
+
+  /**
+   * Best-effort resolution of a mobile push's equipment_refs_json to server
+   * equipment FKs. IDs that don't resolve to equipment owned by this user are
+   * skipped silently — a sync batch must never fail on stale references.
+   */
+  private async resolveMobileEquipmentRefs(
+    userId: string,
+    refs: { paramotorId?: string; engineId?: string; wingId?: string } | null | undefined,
+  ): Promise<{ wingId: string | null; paramotorId: string | null }> {
+    const resolved: { wingId: string | null; paramotorId: string | null } = {
+      wingId: null,
+      paramotorId: null,
+    };
+    if (!refs) return resolved;
+    if (refs.wingId && isUUID(refs.wingId)) {
+      const wing = await this.wingRepository.findOne({
+        where: { id: refs.wingId, user_id: userId },
+      });
+      if (wing) resolved.wingId = wing.id;
     }
-
-    const engineIdsToRecalc = new Set<string>();
-
-    for (const paramotorId of paramotorIds) {
-      const row = await this.logbookRepository
-        .createQueryBuilder('e')
-        .select('COALESCE(SUM(e.duration_seconds), 0)', 'total')
-        .where('e.paramotor_id = :paramotorId', { paramotorId })
-        .andWhere('e.pilot_id = :pilotId', { pilotId })
-        .andWhere('e.deleted_at IS NULL')
-        .getRawOne<{ total: string }>();
-      const hours = Number(row?.total ?? 0) / 3600;
-      await this.paramotorRepository.update(paramotorId, { total_hours: hours });
-
-      const pm = await this.paramotorRepository.findOne({ where: { id: paramotorId } });
-      if (pm?.engine_id) engineIdsToRecalc.add(pm.engine_id);
+    if (refs.paramotorId && isUUID(refs.paramotorId)) {
+      const paramotor = await this.paramotorRepository.findOne({
+        where: { id: refs.paramotorId, user_id: userId },
+      });
+      if (paramotor) resolved.paramotorId = paramotor.id;
     }
-
-    for (const engineId of engineIdsToRecalc) {
-      const paramotors = await this.paramotorRepository.find({ where: { engine_id: engineId } });
-      let engineHours = 0;
-      for (const pm of paramotors) {
-        const row = await this.logbookRepository
-          .createQueryBuilder('e')
-          .select('COALESCE(SUM(e.duration_seconds), 0)', 'total')
-          .where('e.paramotor_id = :pid', { pid: pm.id })
-          .andWhere('e.pilot_id = :pilotId', { pilotId })
-          .andWhere('e.deleted_at IS NULL')
-          .getRawOne<{ total: string }>();
-        engineHours += Number(row?.total ?? 0) / 3600;
-      }
-      await this.engineRepository.update(engineId, { total_hours: engineHours });
-    }
+    return resolved;
   }
 
   private async validateEquipmentOwnership(
@@ -587,16 +571,24 @@ export class LogbookService {
     const serverTime = new Date();
     const results: SyncPushResult[] = [];
 
+    // Equipment touched anywhere in the batch; hours are recalculated once at
+    // the end rather than per entry.
+    const touched = { wingIds: new Set<string>(), paramotorIds: new Set<string>() };
+
     // Process entries
     for (const pushed of entries) {
-      const result = await this.upsertFromMobile(pilot, pushed, names);
+      const result = await this.upsertFromMobile(pilot, userId, pushed, names, touched);
       results.push(result);
     }
 
     // Process deletes
     for (const del of deletes) {
-      const result = await this.tombstoneFromMobile(pilot, del);
+      const result = await this.tombstoneFromMobile(pilot, del, touched);
       results.push(result);
+    }
+
+    if (touched.wingIds.size || touched.paramotorIds.size) {
+      await this.recalculateEquipmentHours(touched.wingIds, touched.paramotorIds, pilot.id);
     }
 
     return { server_time: serverTime.toISOString(), results };
@@ -604,8 +596,10 @@ export class LogbookService {
 
   private async upsertFromMobile(
     pilot: Pilot,
+    userId: string,
     pushed: PushEntryDto,
     names: string[],
+    touched: { wingIds: Set<string>; paramotorIds: Set<string> },
   ): Promise<SyncPushResult> {
     const existing = await this.logbookRepository.findOne({
       where: { pilot_id: pilot.id, client_id: pushed.client_id },
@@ -657,7 +651,15 @@ export class LogbookService {
         synced_at: new Date(),
         revision: 1,
       });
+
+      // Link server equipment (and thus accrue hours) when the mobile refs resolve
+      const refs = await this.resolveMobileEquipmentRefs(userId, pushed.equipment_refs_json);
+      entry.wing_id = refs.wingId;
+      entry.paramotor_id = refs.paramotorId;
+
       const saved = await this.logbookRepository.save(entry);
+      if (saved.wing_id) touched.wingIds.add(saved.wing_id);
+      if (saved.paramotor_id) touched.paramotorIds.add(saved.paramotor_id);
 
       // Capture weather async (best-effort, non-blocking)
       if (pushed.takeoff_lat != null && pushed.takeoff_lon != null) {
@@ -693,6 +695,8 @@ export class LogbookService {
     }
 
     // Mobile wins — update client-owned fields only; never overwrite server-authoritative ones
+    const oldWingId = existing.wing_id;
+    const oldParamotorId = existing.paramotor_id;
     existing.title = pushed.title ?? existing.title;
     existing.notes = pushed.notes ?? existing.notes;
     existing.launch_site_name = pushed.launch_site_name ?? existing.launch_site_name;
@@ -705,6 +709,12 @@ export class LogbookService {
     existing.engine = pushed.engine ?? existing.engine;
     existing.paramotor = pushed.paramotor ?? existing.paramotor;
     existing.equipment_refs_json = pushed.equipment_refs_json ?? existing.equipment_refs_json;
+    if (pushed.equipment_refs_json) {
+      // Re-link server equipment; unresolvable refs never wipe an existing link
+      const refs = await this.resolveMobileEquipmentRefs(userId, pushed.equipment_refs_json);
+      if (refs.wingId) existing.wing_id = refs.wingId;
+      if (refs.paramotorId) existing.paramotor_id = refs.paramotorId;
+    }
     existing.fuel_start_litres = pushed.fuel_start_litres ?? existing.fuel_start_litres;
     existing.fuel_used_litres = pushed.fuel_used_litres ?? existing.fuel_used_litres;
     existing.battery_start_percent = pushed.battery_start_percent ?? existing.battery_start_percent;
@@ -733,6 +743,12 @@ export class LogbookService {
     existing.revision += 1;
 
     const saved = await this.logbookRepository.save(existing);
+    for (const id of [oldWingId, saved.wing_id]) {
+      if (id) touched.wingIds.add(id);
+    }
+    for (const id of [oldParamotorId, saved.paramotor_id]) {
+      if (id) touched.paramotorIds.add(id);
+    }
     const media = await this.mediaService.getMediaForPilotOnDate(names, saved.flight_date as Date);
     const flightNumber = await this.flightNumberForEntry(pilot.id, saved.id);
     return {
@@ -747,6 +763,7 @@ export class LogbookService {
   private async tombstoneFromMobile(
     pilot: Pilot,
     del: DeleteRefDto,
+    touched: { wingIds: Set<string>; paramotorIds: Set<string> },
   ): Promise<SyncPushResult> {
     const entry = await this.logbookRepository.findOne({
       where: { pilot_id: pilot.id, client_id: del.client_id },
@@ -766,6 +783,8 @@ export class LogbookService {
       entry.deleted_at = deleteTime;
       entry.revision += 1;
       await this.logbookRepository.save(entry);
+      if (entry.wing_id) touched.wingIds.add(entry.wing_id);
+      if (entry.paramotor_id) touched.paramotorIds.add(entry.paramotor_id);
     }
     return {
       client_id: del.client_id,

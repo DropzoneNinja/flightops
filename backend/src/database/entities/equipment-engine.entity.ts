@@ -23,12 +23,6 @@ export class EquipmentEngine {
   @Column({ length: 255 })
   name: string;
 
-  @Column({ type: 'float', nullable: true })
-  tank_size_litres: number | null;
-
-  @Column({ type: 'float', nullable: true })
-  fuel_consumption_lph: number | null;
-
   @Column({ type: 'float', default: 0 })
   base_hours: number;
 
