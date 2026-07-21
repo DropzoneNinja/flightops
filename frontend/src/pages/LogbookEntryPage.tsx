@@ -3,9 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useIsMobile } from '../hooks/useIsMobile';
 import LeftSidebar from '../components/Layout/LeftSidebar';
-import { useLogbookEntry, useUpdateLogbookEntry, useDeleteLogbookEntry } from '../hooks/useLogbook';
+import { useLogbookEntry, useUpdateLogbookEntry, useDeleteLogbookEntry, useOrphanedFlights } from '../hooks/useLogbook';
 import { useWings, useParamotors } from '../hooks/useEquipment';
-import { useFlightById, useFlightsByDate } from '../hooks/useFlights';
+import { useFlightById } from '../hooks/useFlights';
 import { useSites } from '../hooks/useSites';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSettings } from '../hooks/useSettings';
@@ -86,7 +86,13 @@ export default function LogbookEntryPage() {
     ? findNearestSite(trackpoints[trackpoints.length - 1].lat, trackpoints[trackpoints.length - 1].lon, enabledSites)?.name
     : undefined;
 
-  const { data: flightsOnDay } = useFlightsByDate(!flightId ? entry?.flight_date : undefined);
+  // GPX flights are private per pilot for logbook linking (unlike Media, where
+  // flight info is shared/viewable across pilots) — pull candidates only from
+  // this pilot's own unlinked uploads, not the site-wide flights list.
+  const { data: orphanedFlights } = useOrphanedFlights();
+  const flightsOnDay = !flightId
+    ? orphanedFlights?.filter((f) => f.flight_date === entry?.flight_date)
+    : undefined;
 
   const handleGpxFile = async (file: File) => {
     if (!entry) return;

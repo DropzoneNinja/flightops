@@ -1707,6 +1707,8 @@ Content-Type: application/json
 }
 ```
 
+`flight_id` (optional, one-time — only applied if the entry has no flight linked yet) attaches a GPX flight to this entry. Unlike Flights' general viewing endpoints (open to any authenticated user, matching Media's shared-browsing model), **linking is ownership-scoped**: `flight_id` must reference a flight uploaded by the same user — `403` otherwise. This is the only place flight ownership is still enforced for GPX flights; a pilot's logbook can only ever reference their own uploads.
+
 ---
 
 ### Delete Entry (Soft Delete)
@@ -1768,21 +1770,21 @@ Content-Type: application/json
 
 ### Orphaned Flights
 
-Flights that were uploaded via GPX but have no linked logbook entry.
+Flights that were uploaded via GPX but have no linked logbook entry. Scoped to flights **uploaded by the requesting user only** — this is a logbook-linking helper, not a browse-everyone's-flights endpoint (see the note on `flight_id` in [Update Entry](#update-entry) above for why GPX linking stays private per pilot even though Flights' general viewing endpoints are shared).
 
 ```http
 GET /logbook/orphaned-flights
 Authorization: Bearer <token>
 ```
 
-Returns an array of `Flight` records.
+Returns an array of `Flight` records, all uploaded by the requesting user.
 
 ```http
 POST /logbook/orphaned-flights/:flightId/import
 Authorization: Bearer <token>
 ```
 
-Creates a logbook entry linked to the given flight and returns the new `LogbookEntry`.
+Creates a logbook entry linked to the given flight and returns the new `LogbookEntry`. `403` if the flight wasn't uploaded by the requesting user.
 
 ---
 

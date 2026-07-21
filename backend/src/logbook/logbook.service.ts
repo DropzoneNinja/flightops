@@ -458,6 +458,12 @@ export class LogbookService {
 
     if (dto.flight_id !== undefined && !entry.flight_id) {
       const flight = await this.flightsRepository.findOne({ where: { id: dto.flight_id } });
+      if (flight && flight.uploaded_by !== userId) {
+        // GPX flights are shared/viewable app-wide (unlike logbook entries,
+        // which are private per pilot) — but a pilot may only link their OWN
+        // uploaded flight into their own logbook entry, never someone else's.
+        throw new ForbiddenException('You can only link a flight you uploaded yourself');
+      }
       if (flight) {
         entry.flight_id = flight.id;
         // Derive approximate coordinates from bbox for weather capture

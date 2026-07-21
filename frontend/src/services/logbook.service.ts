@@ -145,6 +145,8 @@ export interface OrphanedFlight {
   id: string;
   flight_date: string;
   title: string | null;
+  launch_site_name: string | null;
+  original_filename: string;
   start_at: string | null;
   duration_seconds: number | null;
   total_distance_m: number | null;

@@ -71,9 +71,14 @@ export class EquipmentHoursService {
     equipmentId: string,
     pilotId?: string,
   ): Promise<number> {
+    // Entries auto-created from a GPX upload (LogbookService.linkFlight) never get their
+    // own duration_seconds populated — the analyzed duration lives on the linked Flight
+    // instead (same fallback already used for display, see toResponse()'s effectiveDuration).
+    // Without this COALESCE, flight-linked entries silently contribute 0 hours here.
     const qb = this.logbookRepo
       .createQueryBuilder('e')
-      .select('COALESCE(SUM(e.duration_seconds), 0)', 'total')
+      .leftJoin('e.flight', 'f')
+      .select('COALESCE(SUM(COALESCE(e.duration_seconds, f.duration_seconds, 0)), 0)', 'total')
       .where(`e.${column} = :equipmentId`, { equipmentId })
       .andWhere('e.deleted_at IS NULL');
     if (pilotId) qb.andWhere('e.pilot_id = :pilotId', { pilotId });
