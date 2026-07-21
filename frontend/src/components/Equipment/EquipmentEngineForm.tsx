@@ -3,7 +3,7 @@ import { EquipmentEngine, CreateEngineData } from '../../services/equipment.serv
 
 interface Props {
   initial?: EquipmentEngine;
-  onSave: (data: CreateEngineData) => void;
+  onSave: (data: CreateEngineData & { updated_at?: string }) => void;
   onCancel: () => void;
   isSaving: boolean;
 }
@@ -28,6 +28,7 @@ export default function EquipmentEngineForm({ initial, onSave, onCancel, isSavin
       base_hours: baseHours !== '' ? Number(baseHours) : 0,
       total_hours: totalHours !== '' ? Number(totalHours) : 0,
       notes: notes.trim() || undefined,
+      updated_at: initial?.updated_at,
     });
   }
 

@@ -35,11 +35,11 @@ export class FlightsController {
 
   /**
    * POST /flights/compare — compare multiple flights (normalized trackpoints + stats)
-   * Body: { flight_ids: string[] } — all IDs must belong to the authenticated user (owner only)
+   * Body: { flight_ids: string[] } — flights are shared/viewable, any authenticated user may compare any set
    */
   @Post('compare')
-  compareFlights(@Body('flight_ids') flightIds: string[], @CurrentUser() user: User) {
-    return this.flightsService.compareFlights(flightIds, user.id);
+  compareFlights(@Body('flight_ids') flightIds: string[]) {
+    return this.flightsService.compareFlights(flightIds);
   }
 
   /**
@@ -63,39 +63,38 @@ export class FlightsController {
   }
 
   /**
-   * GET /flights?date=YYYY-MM-DD — list the authenticated user's flights for a flight day (owner only)
+   * GET /flights?date=YYYY-MM-DD — list all flights for a flight day (shared/viewable by any authenticated user)
    */
   @Get()
-  findByDate(@Query('date') date: string, @CurrentUser() user: User) {
-    return this.flightsService.findByDate(date, user.id);
+  findByDate(@Query('date') date: string) {
+    return this.flightsService.findByDate(date);
   }
 
   /**
-   * GET /flights/:id — flight detail (owner only)
+   * GET /flights/:id — flight detail (viewable by any authenticated user)
    */
   @Get(':id')
-  findOne(@Param('id') id: string, @CurrentUser() user: User) {
-    return this.flightsService.findByIdForUser(id, user.id);
+  findOne(@Param('id') id: string) {
+    return this.flightsService.findById(id);
   }
 
   /**
-   * GET /flights/:id/trackpoints — parsed trackpoint array for local sync (owner only)
+   * GET /flights/:id/trackpoints — parsed trackpoint array (viewable by any authenticated user)
    */
   @Get(':id/trackpoints')
-  getTrackpoints(@Param('id') id: string, @CurrentUser() user: User) {
-    return this.flightsService.getTrackpoints(id, user.id);
+  getTrackpoints(@Param('id') id: string) {
+    return this.flightsService.getTrackpoints(id);
   }
 
   /**
-   * GET /flights/:id/file — stream the raw GPX file (owner only)
+   * GET /flights/:id/file — stream the raw GPX file (viewable by any authenticated user)
    */
   @Get(':id/file')
   async streamFile(
     @Param('id') id: string,
     @Res({ passthrough: true }) res: Response,
-    @CurrentUser() user: User,
   ): Promise<StreamableFile> {
-    const filePath = await this.flightsService.getFilePath(id, user.id);
+    const filePath = await this.flightsService.getFilePath(id);
     let stat: ReturnType<typeof statSync>;
     try {
       stat = statSync(filePath);
@@ -111,38 +110,38 @@ export class FlightsController {
   }
 
   /**
-   * GET /flights/:id/analysis — return score + events + coaching notes (owner only)
+   * GET /flights/:id/analysis — return score + events + coaching notes (viewable by any authenticated user)
    */
   @Get(':id/analysis')
-  async getAnalysis(@Param('id') id: string, @CurrentUser() user: User) {
-    await this.flightsService.findByIdForUser(id, user.id); // 404s/403s as appropriate
+  async getAnalysis(@Param('id') id: string) {
+    await this.flightsService.findById(id); // 404s if the flight doesn't exist
     return this.flightAnalysisService.getAnalysis(id);
   }
 
   /**
-   * POST /flights/:id/reanalyze — re-run analysis on an existing parsed flight
+   * POST /flights/:id/reanalyze — re-run analysis on an existing parsed flight (uploader or admin only — it's a mutation)
    */
   @Post(':id/reanalyze')
   async reanalyze(@Param('id') id: string, @CurrentUser() user: User) {
-    const flight = await this.flightsService.findByIdForUser(id, user.id);
+    const flight = await this.flightsService.getForEdit(id, user);
     // Fire-and-forget; client polls via GET /flights/:id/analysis or GET /flights/:id
     this.flightAnalysisService.analyzeFlightAsync(flight.id).catch(() => {/* logged internally */});
     return { message: 'Analysis started', flightId: flight.id };
   }
 
   /**
-   * PATCH /flights/:id — update flight metadata
+   * PATCH /flights/:id — update flight metadata (uploader or admin only)
    */
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateFlightDto, @CurrentUser() user: User) {
-    return this.flightsService.update(id, dto, user.id);
+    return this.flightsService.update(id, dto, user);
   }
 
   /**
-   * DELETE /flights/:id — delete flight + file
+   * DELETE /flights/:id — delete flight + file (uploader or admin only)
    */
   @Delete(':id')
   remove(@Param('id') id: string, @CurrentUser() user: User) {
-    return this.flightsService.delete(id, user.id);
+    return this.flightsService.delete(id, user);
   }
 }

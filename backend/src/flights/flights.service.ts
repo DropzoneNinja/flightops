@@ -296,10 +296,10 @@ export class FlightsService {
   // CRUD
   // ---------------------------------------------------------------------------
 
-  /** Owner only — returns just the requesting user's flights for the given date. */
-  async findByDate(date: string, userId: string): Promise<Flight[]> {
+  /** Open to any authenticated user — flights are shared/viewable across pilots. */
+  async findByDate(date: string): Promise<Flight[]> {
     return this.flightsRepository.find({
-      where: { flight_date: new Date(date), uploaded_by: userId },
+      where: { flight_date: new Date(date) },
       relations: ['pilot', 'site'],
       order: { created_at: 'ASC' },
     });
@@ -314,14 +314,14 @@ export class FlightsService {
     return flight;
   }
 
-  async update(id: string, dto: UpdateFlightDto, userId: string): Promise<Flight> {
-    const flight = await this.findByIdForUser(id, userId);
+  async update(id: string, dto: UpdateFlightDto, user: User): Promise<Flight> {
+    const flight = await this.getForEdit(id, user);
     Object.assign(flight, dto);
     return this.flightsRepository.save(flight);
   }
 
-  async delete(id: string, userId: string): Promise<void> {
-    const flight = await this.findByIdForUser(id, userId);
+  async delete(id: string, user: User): Promise<void> {
+    const flight = await this.getForEdit(id, user);
 
     // Delete file from disk (best-effort)
     try {
@@ -344,28 +344,28 @@ export class FlightsService {
     await this.flightsRepository.remove(flight);
   }
 
-  async findByIdForUser(id: string, userId: string): Promise<Flight> {
+  /**
+   * View access to flights is open to any authenticated user (shared across
+   * pilots, like Media). This gate is only for mutations: update, delete,
+   * and re-analysis. Uploader or admin only.
+   */
+  async getForEdit(id: string, user: User): Promise<Flight> {
     const flight = await this.findById(id);
-    if (flight.uploaded_by !== userId) {
-      throw new ForbiddenException('You do not have access to this flight');
+    if (!user.is_admin && flight.uploaded_by !== user.id) {
+      throw new ForbiddenException('You do not have permission to modify this flight');
     }
     return flight;
   }
 
-  async getFilePath(id: string, requestingUserId: string): Promise<string> {
+  async getFilePath(id: string): Promise<string> {
     const flight = await this.findById(id);
-    if (flight.uploaded_by !== requestingUserId) {
-      throw new ForbiddenException('You do not have access to this flight file');
-    }
     return path.join(this.mediaStoragePath, flight.storage_key);
   }
 
   /**
    * Limited, read-only flight summary for display alongside media that references this
-   * flight (e.g. FlightTV's "Flight Information" panel). Unlike findByIdForUser, this is
-   * NOT ownership-scoped — media browsing is shared/read-only across pilots, so a viewer
-   * looking at someone else's video still needs the flight stats. Only display fields are
-   * returned; trackpoints/GPX/storage details are never exposed here.
+   * flight (e.g. FlightTV's "Flight Information" panel). Only display fields are returned —
+   * trackpoints/GPX/storage details are never exposed here, unlike findById.
    */
   async getDisplaySummary(id: string): Promise<{
     id: string;
@@ -394,32 +394,17 @@ export class FlightsService {
     };
   }
 
+  /** View access is open to any authenticated user — see getForEdit. */
   async getTrackpoints(
     id: string,
-    userId: string,
   ): Promise<{ flight_id: string; parse_status: string; timezone: string; trackpoints: unknown[] }> {
-    const flight = await this.flightsRepository.findOne({
-      where: { id },
-      select: ['id', 'uploaded_by', 'parse_status', 'timezone', 'trackpoints_json'],
-    });
-    if (!flight) throw new NotFoundException(`Flight with ID ${id} not found`);
-    if (flight.uploaded_by !== userId) {
-      throw new ForbiddenException('You do not have access to this flight');
-    }
-    return {
-      flight_id: flight.id,
-      parse_status: flight.parse_status,
-      timezone: flight.timezone,
-      trackpoints: (flight.trackpoints_json as unknown[]) ?? [],
-    };
+    return this.getPublicTrackpoints(id);
   }
 
   /**
-   * Trackpoints for a flight that a public media item links to (e.g. FlightTV showing a
-   * flight path alongside a video). NOT ownership-scoped — unlike getTrackpoints, this is
-   * only ever reached via GET /media/:id/flight/trackpoints, which resolves a real,
-   * browsable media item's flight_id first. A flight with no media linked to it is never
-   * reachable through this method, so it stays fully private.
+   * Trackpoints for a flight, reachable either directly (GET /flights/:id/trackpoints,
+   * any authenticated user) or via a linked media item (GET /media/:id/flight/trackpoints,
+   * e.g. FlightTV showing a flight path alongside a video). Not ownership-scoped.
    */
   async getPublicTrackpoints(
     id: string,
@@ -437,8 +422,8 @@ export class FlightsService {
     };
   }
 
-  /** POST /flights/compare — return normalized comparison data for selected flights (owner only) */
-  async compareFlights(flightIds: string[], userId: string): Promise<ComparisonResult> {
+  /** POST /flights/compare — return normalized comparison data for selected flights */
+  async compareFlights(flightIds: string[]): Promise<ComparisonResult> {
     if (!flightIds || flightIds.length < 2) {
       throw new BadRequestException('At least 2 flight IDs are required for comparison');
     }
@@ -446,7 +431,7 @@ export class FlightsService {
       throw new BadRequestException('Cannot compare more than 6 flights at once');
     }
 
-    const flights = await Promise.all(flightIds.map((id) => this.findByIdForUser(id, userId)));
+    const flights = await Promise.all(flightIds.map((id) => this.findById(id)));
 
     // Build normalized comparison entries
     const entries = flights.map((f) => {

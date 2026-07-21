@@ -21,7 +21,7 @@ import type { Request, Response, NextFunction } from 'express';
  */
 export const API_VERSION = {
   major: 2,
-  minor: 0,
+  minor: 2,
 } as const;
 
 export const API_VERSION_STRING = `${API_VERSION.major}.${API_VERSION.minor}`;

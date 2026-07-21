@@ -94,7 +94,7 @@ export default function FlightsSection({ date }: FlightsSectionProps) {
               key={flight.id}
               flight={flight}
               date={date}
-              canDelete={flight.uploaded_by === user?.id}
+              canDelete={!!user && (user.is_admin || flight.uploaded_by === user.id)}
             />
           ))}
         </div>

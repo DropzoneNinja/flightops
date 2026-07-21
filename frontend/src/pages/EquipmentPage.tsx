@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { useToastContext } from '../contexts/ToastContext';
 import LeftSidebar from '../components/Layout/LeftSidebar';
 import {
   useEngines, useCreateEngine, useUpdateEngine, useDeleteEngine,
@@ -9,7 +11,6 @@ import {
   useParamotors, useCreateParamotor, useUpdateParamotor, useDeleteParamotor,
 } from '../hooks/useEquipment';
 import {
-  EquipmentEngine, EquipmentWing, EquipmentReserve, EquipmentParamotor,
   CreateEngineData, CreateWingData, CreateReserveData, CreateParamotorData,
 } from '../services/equipment.service';
 import EquipmentEngineCard from '../components/Equipment/EquipmentEngineCard';
@@ -24,21 +25,39 @@ import MaintenanceRecordsSection from '../components/Equipment/MaintenanceRecord
 
 type Tab = 'paramotors' | 'engines' | 'wings' | 'reserves';
 
+// Edit panels store just the id, not a snapshot of the item — the item is
+// looked up live from the query cache on every render (see editing* below),
+// so a background refetch (triggered on open) reactively refreshes the form
+// instead of the panel being frozen at whatever was cached when it opened.
 type Panel =
   | { type: 'add-engine' }
-  | { type: 'edit-engine'; item: EquipmentEngine }
+  | { type: 'edit-engine'; id: string }
   | { type: 'add-wing' }
-  | { type: 'edit-wing'; item: EquipmentWing }
+  | { type: 'edit-wing'; id: string }
   | { type: 'add-reserve' }
-  | { type: 'edit-reserve'; item: EquipmentReserve }
+  | { type: 'edit-reserve'; id: string }
   | { type: 'add-paramotor' }
-  | { type: 'edit-paramotor'; item: EquipmentParamotor }
+  | { type: 'edit-paramotor'; id: string }
   | null;
+
+const ENGINES_KEY = ['equipment', 'engines'] as const;
+const WINGS_KEY = ['equipment', 'wings'] as const;
+const RESERVES_KEY = ['equipment', 'reserves'] as const;
+const PARAMOTORS_KEY = ['equipment', 'paramotors'] as const;
+
+function isConflict(err: unknown): boolean {
+  return (
+    typeof err === 'object' && err !== null && 'response' in err &&
+    (err as { response?: { status?: number } }).response?.status === 409
+  );
+}
 
 export default function EquipmentPage() {
   const { user, logout } = useAuth();
   const isMobile = useIsMobile();
   const [showAirspace] = useState(false);
+  const qc = useQueryClient();
+  const toast = useToastContext();
 
   const [activeTab, setActiveTab] = useState<Tab>('paramotors');
   const [panel, setPanel] = useState<Panel>(null);
@@ -71,40 +90,79 @@ export default function EquipmentPage() {
 
   const closePanel = () => setPanel(null);
 
-  async function handleSaveEngine(data: CreateEngineData) {
-    if (panel?.type === 'edit-engine') {
-      await updateEngine.mutateAsync({ id: panel.item.id, data });
-    } else {
-      await createEngine.mutateAsync(data);
-    }
-    closePanel();
+  // Opening an edit panel refetches that item in the background — otherwise
+  // the form can populate from a query cached up to 5 minutes ago (the app's
+  // default staleTime), silently reverting a change made from another device
+  // (e.g. flightnow) if the user then saves without noticing anything's off.
+  function openEdit(type: 'edit-engine' | 'edit-wing' | 'edit-reserve' | 'edit-paramotor', id: string) {
+    const key = { 'edit-engine': ENGINES_KEY, 'edit-wing': WINGS_KEY, 'edit-reserve': RESERVES_KEY, 'edit-paramotor': PARAMOTORS_KEY }[type];
+    qc.invalidateQueries({ queryKey: key });
+    setPanel({ type, id } as Panel);
   }
 
-  async function handleSaveWing(data: CreateWingData) {
-    if (panel?.type === 'edit-wing') {
-      await updateWing.mutateAsync({ id: panel.item.id, data });
-    } else {
-      await createWing.mutateAsync(data);
-    }
-    closePanel();
+  // A 409 means someone else changed this record since it was fetched (e.g.
+  // the same paramotor edited from flightnow moments ago) — the save is
+  // rejected rather than silently overwriting their change. Refresh and keep
+  // the panel open so the user can see the new data and redo their edit.
+  function handleConflict(kind: string, key: readonly unknown[]) {
+    qc.invalidateQueries({ queryKey: key });
+    toast.error(`This ${kind} was changed elsewhere since you opened it. Refreshed with the latest data — please redo your change.`);
   }
 
-  async function handleSaveReserve(data: CreateReserveData) {
-    if (panel?.type === 'edit-reserve') {
-      await updateReserve.mutateAsync({ id: panel.item.id, data });
-    } else {
-      await createReserve.mutateAsync(data);
+  async function handleSaveEngine(data: CreateEngineData & { updated_at?: string }) {
+    try {
+      if (panel?.type === 'edit-engine') {
+        await updateEngine.mutateAsync({ id: panel.id, data });
+      } else {
+        await createEngine.mutateAsync(data);
+      }
+      closePanel();
+    } catch (err) {
+      if (isConflict(err)) { handleConflict('engine', ENGINES_KEY); return; }
+      throw err;
     }
-    closePanel();
   }
 
-  async function handleSaveParamotor(data: CreateParamotorData) {
-    if (panel?.type === 'edit-paramotor') {
-      await updateParamotor.mutateAsync({ id: panel.item.id, data });
-    } else {
-      await createParamotor.mutateAsync(data);
+  async function handleSaveWing(data: CreateWingData & { updated_at?: string }) {
+    try {
+      if (panel?.type === 'edit-wing') {
+        await updateWing.mutateAsync({ id: panel.id, data });
+      } else {
+        await createWing.mutateAsync(data);
+      }
+      closePanel();
+    } catch (err) {
+      if (isConflict(err)) { handleConflict('wing', WINGS_KEY); return; }
+      throw err;
     }
-    closePanel();
+  }
+
+  async function handleSaveReserve(data: CreateReserveData & { updated_at?: string }) {
+    try {
+      if (panel?.type === 'edit-reserve') {
+        await updateReserve.mutateAsync({ id: panel.id, data });
+      } else {
+        await createReserve.mutateAsync(data);
+      }
+      closePanel();
+    } catch (err) {
+      if (isConflict(err)) { handleConflict('reserve', RESERVES_KEY); return; }
+      throw err;
+    }
+  }
+
+  async function handleSaveParamotor(data: CreateParamotorData & { updated_at?: string }) {
+    try {
+      if (panel?.type === 'edit-paramotor') {
+        await updateParamotor.mutateAsync({ id: panel.id, data });
+      } else {
+        await createParamotor.mutateAsync(data);
+      }
+      closePanel();
+    } catch (err) {
+      if (isConflict(err)) { handleConflict('paramotor', PARAMOTORS_KEY); return; }
+      throw err;
+    }
   }
 
   const tabs: { id: Tab; label: string; count: number }[] = [
@@ -136,6 +194,13 @@ export default function EquipmentPage() {
     activeTab === 'engines' ? 'Engine' :
     activeTab === 'wings' ? 'Wing' :
     activeTab === 'reserves' ? 'Reserve' : 'Paramotor';
+
+  // Looked up live from the query cache every render, so the background
+  // refetch triggered by openEdit() reactively updates the open form.
+  const editingEngine = panel?.type === 'edit-engine' ? engines.find(e => e.id === panel.id) : undefined;
+  const editingWing = panel?.type === 'edit-wing' ? wings.find(w => w.id === panel.id) : undefined;
+  const editingReserve = panel?.type === 'edit-reserve' ? reserves.find(r => r.id === panel.id) : undefined;
+  const editingParamotor = panel?.type === 'edit-paramotor' ? paramotors.find(p => p.id === panel.id) : undefined;
 
   return (
     <div className="flex h-screen bg-[#0d1421] overflow-hidden">
@@ -215,7 +280,7 @@ export default function EquipmentPage() {
                     <EquipmentEngineCard
                       key={engine.id}
                       engine={engine}
-                      onEdit={item => setPanel({ type: 'edit-engine', item })}
+                      onEdit={item => openEdit('edit-engine', item.id)}
                       onDelete={id => deleteEngine.mutate(id)}
                     />
                   ))}
@@ -230,7 +295,7 @@ export default function EquipmentPage() {
                     <EquipmentWingCard
                       key={wing.id}
                       wing={wing}
-                      onEdit={item => setPanel({ type: 'edit-wing', item })}
+                      onEdit={item => openEdit('edit-wing', item.id)}
                       onDelete={id => deleteWing.mutate(id)}
                     />
                   ))}
@@ -245,7 +310,7 @@ export default function EquipmentPage() {
                     <EquipmentReserveCard
                       key={reserve.id}
                       reserve={reserve}
-                      onEdit={item => setPanel({ type: 'edit-reserve', item })}
+                      onEdit={item => openEdit('edit-reserve', item.id)}
                       onDelete={id => deleteReserve.mutate(id)}
                     />
                   ))}
@@ -260,7 +325,7 @@ export default function EquipmentPage() {
                     <EquipmentParamotorCard
                       key={paramotor.id}
                       paramotor={paramotor}
-                      onEdit={item => setPanel({ type: 'edit-paramotor', item })}
+                      onEdit={item => openEdit('edit-paramotor', item.id)}
                       onDelete={id => deleteParamotor.mutate(id)}
                     />
                   ))}
@@ -289,48 +354,48 @@ export default function EquipmentPage() {
               {(panel.type === 'add-engine' || panel.type === 'edit-engine') && (
                 <>
                   <EquipmentEngineForm
-                    initial={panel.type === 'edit-engine' ? panel.item : undefined}
+                    initial={editingEngine}
                     onSave={handleSaveEngine}
                     onCancel={closePanel}
                     isSaving={isSavingAny}
                   />
                   {panel.type === 'edit-engine' && (
-                    <MaintenanceRecordsSection kind="engine-services" parentId={panel.item.id} />
+                    <MaintenanceRecordsSection kind="engine-services" parentId={panel.id} />
                   )}
                 </>
               )}
               {(panel.type === 'add-wing' || panel.type === 'edit-wing') && (
                 <>
                   <EquipmentWingForm
-                    initial={panel.type === 'edit-wing' ? panel.item : undefined}
+                    initial={editingWing}
                     onSave={handleSaveWing}
                     onCancel={closePanel}
                     isSaving={isSavingAny}
                   />
                   {panel.type === 'edit-wing' && (
-                    <MaintenanceRecordsSection kind="wing-inspections" parentId={panel.item.id} />
+                    <MaintenanceRecordsSection kind="wing-inspections" parentId={panel.id} />
                   )}
                 </>
               )}
               {(panel.type === 'add-reserve' || panel.type === 'edit-reserve') && (
                 <>
                   <EquipmentReserveForm
-                    initial={panel.type === 'edit-reserve' ? panel.item : undefined}
+                    initial={editingReserve}
                     onSave={handleSaveReserve}
                     onCancel={closePanel}
                     isSaving={isSavingAny}
                   />
                   {panel.type === 'edit-reserve' && (
                     <>
-                      <MaintenanceRecordsSection kind="reserve-packs" parentId={panel.item.id} />
-                      <MaintenanceRecordsSection kind="reserve-inspections" parentId={panel.item.id} />
+                      <MaintenanceRecordsSection kind="reserve-packs" parentId={panel.id} />
+                      <MaintenanceRecordsSection kind="reserve-inspections" parentId={panel.id} />
                     </>
                   )}
                 </>
               )}
               {(panel.type === 'add-paramotor' || panel.type === 'edit-paramotor') && (
                 <EquipmentParamotorForm
-                  initial={panel.type === 'edit-paramotor' ? panel.item : undefined}
+                  initial={editingParamotor}
                   engines={engines}
                   wings={wings}
                   reserves={reserves}

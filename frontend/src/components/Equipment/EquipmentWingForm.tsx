@@ -3,7 +3,7 @@ import { EquipmentWing, CreateWingData } from '../../services/equipment.service'
 
 interface Props {
   initial?: EquipmentWing;
-  onSave: (data: CreateWingData) => void;
+  onSave: (data: CreateWingData & { updated_at?: string }) => void;
   onCancel: () => void;
   isSaving: boolean;
 }
@@ -43,6 +43,7 @@ export default function EquipmentWingForm({ initial, onSave, onCancel, isSaving 
       base_hours: baseHours !== '' ? Number(baseHours) : 0,
       total_hours: totalHours !== '' ? Number(totalHours) : 0,
       notes: notes.trim() || undefined,
+      updated_at: initial?.updated_at,
     });
   }
 

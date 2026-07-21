@@ -15,6 +15,7 @@ import {
   StreamableFile,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request, Response } from 'express';
@@ -523,7 +524,7 @@ export class MediaController {
     const media = await this.mediaService.getMediaById(id);
 
     if (!user.is_admin && media.uploaded_by !== user.username) {
-      throw new BadRequestException('You can only edit media that you uploaded');
+      throw new ForbiddenException('You can only edit media that you uploaded');
     }
 
     return this.mediaService.updateMedia(id, updateMediaDto);
@@ -546,7 +547,7 @@ export class MediaController {
     const isAdmin = user.is_admin;
 
     if (!isAdmin && !isUploader) {
-      throw new BadRequestException('You can only delete media that you uploaded');
+      throw new ForbiddenException('You can only delete media that you uploaded');
     }
 
     await this.mediaService.deleteMedia(id);

@@ -108,17 +108,20 @@ export interface ReserveInspectionRecord {
 export type CreateEngineData = Pick<EquipmentEngine, 'name'> &
   Partial<Pick<EquipmentEngine, 'base_hours' | 'total_hours' | 'notes'>>;
 
-export type UpdateEngineData = Partial<CreateEngineData>;
+// updated_at: pass back exactly what you last fetched to enable the server's
+// optimistic-concurrency check — a stale value gets rejected with 409 instead
+// of silently overwriting a change made elsewhere (e.g. another device).
+export type UpdateEngineData = Partial<CreateEngineData> & { updated_at?: string };
 
 export type CreateWingData = Pick<EquipmentWing, 'name'> &
   Partial<Pick<EquipmentWing, 'manufacturer' | 'model' | 'size' | 'trim_speed_kmh' | 'color' | 'base_hours' | 'total_hours' | 'notes'>>;
 
-export type UpdateWingData = Partial<CreateWingData>;
+export type UpdateWingData = Partial<CreateWingData> & { updated_at?: string };
 
 export type CreateReserveData = Pick<EquipmentReserve, 'name'> &
   Partial<Pick<EquipmentReserve, 'manufacturer' | 'model' | 'size' | 'base_hours' | 'total_hours' | 'notes'>>;
 
-export type UpdateReserveData = Partial<CreateReserveData>;
+export type UpdateReserveData = Partial<CreateReserveData> & { updated_at?: string };
 
 export interface ParamotorWingLinkData {
   wing_id: string;
@@ -131,7 +134,7 @@ export type CreateParamotorData = Pick<EquipmentParamotor, 'name'> &
     wings?: ParamotorWingLinkData[];
   };
 
-export type UpdateParamotorData = Partial<CreateParamotorData>;
+export type UpdateParamotorData = Partial<CreateParamotorData> & { updated_at?: string };
 
 export type CreateEngineServiceRecordData = Pick<EngineServiceRecord, 'service_date' | 'service_type'> &
   Partial<Pick<EngineServiceRecord, 'notes'>>;

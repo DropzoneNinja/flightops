@@ -3,7 +3,7 @@ import { EquipmentReserve, CreateReserveData } from '../../services/equipment.se
 
 interface Props {
   initial?: EquipmentReserve;
-  onSave: (data: CreateReserveData) => void;
+  onSave: (data: CreateReserveData & { updated_at?: string }) => void;
   onCancel: () => void;
   isSaving: boolean;
 }
@@ -37,6 +37,7 @@ export default function EquipmentReserveForm({ initial, onSave, onCancel, isSavi
       base_hours: baseHours !== '' ? Number(baseHours) : 0,
       total_hours: totalHours !== '' ? Number(totalHours) : 0,
       notes: notes.trim() || undefined,
+      updated_at: initial?.updated_at,
     });
   }
 

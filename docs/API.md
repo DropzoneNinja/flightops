@@ -19,7 +19,7 @@ when the wire protocol itself changes, and follows `MAJOR.MINOR`:
 - **MINOR** bumps on additive, backward-compatible changes — new endpoints,
   new optional fields/params. Existing clients keep working unmodified.
 
-Current version: **2.0** (source of truth: `backend/src/common/api-version.ts`).
+Current version: **2.2** (source of truth: `backend/src/common/api-version.ts`).
 
 > **v2.0 breaking change (equipment restructure):** the Engine fields
 > `tank_size_litres` and `fuel_consumption_lph` were removed. Fuel tank size
@@ -31,7 +31,7 @@ Current version: **2.0** (source of truth: `backend/src/common/api-version.ts`).
 
 ### Response header
 
-Every response includes `X-API-Version: 2.0`. `GET /health` and `GET /` also
+Every response includes `X-API-Version: 2.2`. `GET /health` and `GET /` also
 include an `apiVersion` field in their JSON body for clients that prefer
 checking the body over headers at startup.
 
@@ -459,6 +459,33 @@ included in `total_hours`; clients sum the two for display.
 have *inspection records*, and reserves additionally have *pack records*.
 Records live under their parent (`404` if the parent isn't yours) and are
 deleted with it.
+
+**Optimistic concurrency (new in 2.1):** `PUT /equipment/{engines,wings,reserves,paramotors}/:id`
+accepts an optional `updated_at` field — pass back exactly the `updated_at`
+you last fetched for this record. If the record has since been changed by
+someone else, the value you're holding won't match the server's current one
+and the request is rejected with `409 Conflict`:
+```json
+{
+  "statusCode": 409,
+  "message": "This record was modified since you last fetched it. Refresh and try again.",
+  "current": { "id": "uuid", "...": "current server state" }
+}
+```
+Refetch, reconcile, and retry with the fresh `updated_at`. Omitting the
+field skips the check entirely — the update applies unconditionally, same
+as before 2.1 — so existing clients don't need to change anything to keep
+working.
+
+This exists specifically for **paramotors**, whose `engine_id`/`reserve_id`
+FK fields are easy to clobber from a client that pushes a whole locally
+cached snapshot on every save (rather than only the field it actually
+changed): if that snapshot is stale on just one field, submitting it can
+silently overwrite a change made from elsewhere (e.g. the web app) to a
+*different* field on the same paramotor. Clients that maintain a local copy
+of paramotor equipment should send `updated_at` and treat `409` as "someone
+else changed this — reload before saving," rather than pushing whole-record
+writes from a cache that might not reflect the very field it isn't touching.
 
 ### List Engines
 ```http
@@ -909,6 +936,10 @@ Content-Type: application/json
   replace them.
 - Re-pointing `engine_id`/`reserve_id` immediately recomputes hours on both
   the old and new engine/reserve.
+- Pass `updated_at` (see [Optimistic concurrency](#equipment) above) to guard
+  against overwriting a concurrent change to a field you aren't touching —
+  strongly recommended for any client that caches a local copy of the
+  paramotor and pushes it back selectively field-by-field.
 
 ---
 
@@ -1444,13 +1475,18 @@ Response:
 
 ## Flights
 
+**Changed:** flights are shared/viewable across all pilots, like Media —
+any authenticated user can list, view, download, compare, and analyze any
+flight. Only the uploader or an admin can edit metadata, delete, or trigger
+re-analysis (a mutation) — those return `403` otherwise.
+
 ### List Flights by Date
 ```http
 GET /flights?date=2026-01-15
 Authorization: Bearer <token>
 ```
 
-Returns only the authenticated user's flights for that date.
+Returns every flight for that date, from all pilots.
 
 ---
 
@@ -1488,7 +1524,7 @@ Content-Type: application/json
 }
 ```
 
-Returns normalized trackpoints and stats for side-by-side comparison. All flight IDs must belong to the authenticated user — returns `403` if any ID does not. Minimum 2, maximum 6 flights.
+Returns normalized trackpoints and stats for side-by-side comparison, for any flights (not just your own). Minimum 2, maximum 6 flights.
 
 ---
 
@@ -1498,9 +1534,7 @@ GET /flights/:id
 Authorization: Bearer <token>
 ```
 
-> Owner only — returns `403` if the requesting user did not upload the flight.
-
-Response includes parsed stats: duration, distance, max altitude, speeds, climb rate, bounding box, parse and analysis status, and the full `trackpoints_json` array.
+Viewable by any authenticated user. Response includes parsed stats: duration, distance, max altitude, speeds, climb rate, bounding box, parse and analysis status, and the full `trackpoints_json` array.
 
 ---
 
@@ -1510,9 +1544,7 @@ GET /flights/:id/trackpoints
 Authorization: Bearer <token>
 ```
 
-> Owner only — returns `403` if the requesting user did not upload the flight.
-
-Returns only the parsed trackpoint array with minimal metadata. Intended for mobile clients syncing GPS breadcrumb data to a local logbook without downloading the full flight record.
+Viewable by any authenticated user. Returns only the parsed trackpoint array with minimal metadata. Intended for mobile clients syncing GPS breadcrumb data to a local logbook without downloading the full flight record.
 
 Response:
 ```json
@@ -1546,9 +1578,7 @@ GET /flights/:id/file
 Authorization: Bearer <token>
 ```
 
-> Owner only — returns `403` if the requesting user did not upload the flight.
-
-Returns the raw `.gpx` file as `application/gpx+xml`.
+Viewable by any authenticated user. Returns the raw `.gpx` file as `application/gpx+xml`.
 
 ---
 
@@ -1558,9 +1588,7 @@ GET /flights/:id/analysis
 Authorization: Bearer <token>
 ```
 
-> Owner only — returns `403` if the requesting user did not upload the flight.
-
-Returns per-phase scores, events (takeoff, landing, thermals), and coaching notes.
+Viewable by any authenticated user. Returns per-phase scores, events (takeoff, landing, thermals), and coaching notes.
 
 ---
 
@@ -1570,7 +1598,7 @@ POST /flights/:id/reanalyze
 Authorization: Bearer <token>
 ```
 
-> Owner only — returns `403` if the requesting user did not upload the flight.
+> Uploader or admin only — returns `403` otherwise. This is a mutation (overwrites analysis results), unlike the other Flights endpoints above.
 
 Re-runs the flight analysis pipeline. Fire-and-forget — poll `GET /flights/:id/analysis` for results.
 
@@ -1594,7 +1622,7 @@ Content-Type: application/json
 }
 ```
 
-> Owner only — returns `403` if the requesting user did not upload the flight.
+> Uploader or admin only — returns `403` otherwise.
 
 ---
 
@@ -1604,7 +1632,7 @@ DELETE /flights/:id
 Authorization: Bearer <token>
 ```
 
-> Owner only — returns `403` if the requesting user did not upload the flight.
+> Uploader or admin only — returns `403` otherwise.
 
 Deletes the flight record and the GPX file from disk.
 

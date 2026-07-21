@@ -17,7 +17,7 @@ interface Props {
   engines: EquipmentEngine[];
   wings: EquipmentWing[];
   reserves: EquipmentReserve[];
-  onSave: (data: CreateParamotorData) => void;
+  onSave: (data: CreateParamotorData & { updated_at?: string }) => void;
   onCancel: () => void;
   isSaving: boolean;
 }
@@ -72,6 +72,7 @@ export default function EquipmentParamotorForm({ initial, engines, wings, reserv
       base_hours: baseHours !== '' ? Number(baseHours) : 0,
       total_hours: totalHours !== '' ? Number(totalHours) : 0,
       notes: notes.trim() || undefined,
+      updated_at: initial?.updated_at,
     });
   }
 

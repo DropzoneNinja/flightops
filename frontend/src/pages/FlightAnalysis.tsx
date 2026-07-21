@@ -104,7 +104,7 @@ export default function FlightAnalysis() {
   const { data: flight, isLoading: flightLoading, error: flightError } = useFlightById(id);
   const { data: analysis, isLoading: analysisLoading } = useFlightAnalysis(id);
   const reanalyzeMutation = useFlightReanalyze();
-  const isOwner = flight?.uploaded_by === user?.id;
+  const canEdit = !!user && (user.is_admin || flight?.uploaded_by === user.id);
 
   // Hover highlight (ephemeral, follows mouse/scrubber)
   const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
@@ -380,7 +380,7 @@ export default function FlightAnalysis() {
           </div>
         )}
 
-        {isOwner && (
+        {canEdit && (
           <button
             onClick={() => reanalyzeMutation.mutate(flight.id)}
             disabled={reanalyzeMutation.isPending || flight.analysis_status === 'running'}

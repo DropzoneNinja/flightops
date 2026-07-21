@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -82,7 +83,9 @@ export class EquipmentService {
 
   async updateEngine(id: string, userId: string, dto: UpdateEngineDto): Promise<EquipmentEngine> {
     const engine = await this.findOneEngine(id, userId);
-    Object.assign(engine, dto);
+    this.assertNotStale(engine.updated_at, dto.updated_at, engine);
+    const { updated_at, ...rest } = dto;
+    Object.assign(engine, rest);
     return this.engineRepo.save(engine);
   }
 
@@ -113,7 +116,9 @@ export class EquipmentService {
 
   async updateWing(id: string, userId: string, dto: UpdateWingDto): Promise<EquipmentWing> {
     const wing = await this.findOneWing(id, userId);
-    Object.assign(wing, dto);
+    this.assertNotStale(wing.updated_at, dto.updated_at, wing);
+    const { updated_at, ...rest } = dto;
+    Object.assign(wing, rest);
     return this.wingRepo.save(wing);
   }
 
@@ -144,7 +149,9 @@ export class EquipmentService {
 
   async updateReserve(id: string, userId: string, dto: UpdateReserveDto): Promise<EquipmentReserve> {
     const reserve = await this.findOneReserve(id, userId);
-    Object.assign(reserve, dto);
+    this.assertNotStale(reserve.updated_at, dto.updated_at, reserve);
+    const { updated_at, ...rest } = dto;
+    Object.assign(reserve, rest);
     return this.reserveRepo.save(reserve);
   }
 
@@ -205,7 +212,8 @@ export class EquipmentService {
     dto: UpdateParamotorDto,
   ): Promise<EquipmentParamotor> {
     const paramotor = await this.findOneParamotor(id, userId);
-    const { wings, ...rest } = dto;
+    this.assertNotStale(paramotor.updated_at, dto.updated_at, paramotor);
+    const { wings, updated_at, ...rest } = dto;
     await this.validateParamotorRefs(
       userId,
       rest.engine_id ?? undefined,
@@ -217,12 +225,14 @@ export class EquipmentService {
     const oldReserveId = paramotor.reserve_id;
 
     await this.dataSource.transaction(async (em) => {
-      Object.assign(paramotor, rest);
-      // Clear stale eager relation objects so the changed FK column wins on save
-      if (rest.engine_id !== undefined) paramotor.engine = null;
-      if (rest.reserve_id !== undefined) paramotor.reserve = null;
-      delete (paramotor as Partial<EquipmentParamotor>).wing_links;
-      await em.getRepository(EquipmentParamotor).save(paramotor);
+      // Raw column update, not .save() on the loaded entity: `paramotor` has
+      // engine/reserve eager-loaded as full relation objects, and TypeORM's
+      // entity persistence synchronizes engine_id/reserve_id FROM those
+      // relation properties, not the other way around — assigning engine_id
+      // directly (or nulling the relation object to "let the FK column win")
+      // gets silently overridden/nulled by the stale relation. .update()
+      // writes exactly the given columns with no relation involved at all.
+      await em.getRepository(EquipmentParamotor).update(id, rest);
 
       if (wings !== undefined) {
         // Full replace: drop existing links, insert the new set
@@ -267,6 +277,28 @@ export class EquipmentService {
       engineIds: engine_id ? [engine_id] : [],
       reserveIds: reserve_id ? [reserve_id] : [],
     });
+  }
+
+  /**
+   * Optimistic concurrency: if the caller passes the updated_at it last
+   * fetched and it no longer matches the server's, someone else changed this
+   * record in between — reject rather than silently overwriting their
+   * change. Omitting clientUpdatedAt skips the check entirely (existing
+   * clients that don't send it keep today's unconditional-overwrite
+   * behavior).
+   */
+  private assertNotStale(
+    serverUpdatedAt: Date,
+    clientUpdatedAt: string | undefined,
+    current: unknown,
+  ): void {
+    if (!clientUpdatedAt) return;
+    if (new Date(clientUpdatedAt).getTime() !== serverUpdatedAt.getTime()) {
+      throw new ConflictException({
+        message: 'This record was modified since you last fetched it. Refresh and try again.',
+        current,
+      });
+    }
   }
 
   private async validateParamotorRefs(
