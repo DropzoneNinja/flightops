@@ -49,8 +49,6 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedUsername, setSelectedUsername] = useState('');
   const [title, setTitle] = useState('');
-  const [glider, setGlider] = useState('');
-  const [harness, setHarness] = useState('');
   const [selectedSiteId, setSelectedSiteId] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -83,8 +81,6 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
       const meta = parseGpxMeta(text);
 
       if (meta.flightDate) setGpxDate(meta.flightDate);
-      if (meta.glider && !glider) setGlider(meta.glider);
-      if (meta.harness && !harness) setHarness(meta.harness);
 
       if (meta.firstLat !== undefined && meta.firstLon !== undefined) {
         const match = sites
@@ -109,15 +105,13 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
     setDragActive(false);
     const file = e.dataTransfer.files[0];
     if (file) handleFileSelect(file);
-  }, [glider, harness, sites]);
+  }, [sites]);
 
   const handleClose = () => {
     if (uploadMutation.isPending) return;
     setSelectedFile(null);
     setSelectedUsername('');
     setTitle('');
-    setGlider('');
-    setHarness('');
     setSelectedSiteId('');
     setNotes('');
     setGpxDate(null);
@@ -163,8 +157,6 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
           site_id: selectedSiteId || undefined,
           title: title.trim() || undefined,
           notes: notes.trim() || undefined,
-          glider: glider.trim() || undefined,
-          harness: harness.trim() || undefined,
         },
         onProgress: setUploadProgress,
       });
@@ -285,30 +277,6 @@ export default function FlightUploadModal({ date, open, onClose, onSuccess }: Fl
               ))}
             </select>
             {pilotError && <p className="mt-1 text-xs text-red-400">{pilotError}</p>}
-          </div>
-
-          {/* Glider & Harness */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelCls}>Glider / Wing</label>
-              <input
-                type="text"
-                value={glider}
-                onChange={(e) => setGlider(e.target.value)}
-                placeholder="e.g. Ozone Roadster 3"
-                className={inputCls}
-              />
-            </div>
-            <div>
-              <label className={labelCls}>Harness / Trike</label>
-              <input
-                type="text"
-                value={harness}
-                onChange={(e) => setHarness(e.target.value)}
-                placeholder="e.g. Dudek Comfort"
-                className={inputCls}
-              />
-            </div>
           </div>
 
           {/* Launch site */}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CreateLogbookEntryData } from '../../services/logbook.service';
 import { useSites } from '../../hooks/useSites';
+import { useMissions } from '../../hooks/useMissions';
 import type { EquipmentWing, EquipmentParamotor } from '../../services/equipment.service';
 
 const CATEGORIES = [
@@ -177,6 +178,9 @@ export default function LogbookEntryForm({
   const { sites: sitesData } = useSites();
   const sites = sitesData.filter((s) => s.enabled).sort((a, b) => a.name.localeCompare(b.name));
   const [category, setCategory] = useState(initialValues.category ?? '');
+  const [missionId, setMissionId] = useState(initialValues.mission_id ?? '');
+  const isMission = category === 'Mission';
+  const { missions } = useMissions();
 
   // Wing picker state
   const [wingId, setWingId] = useState(initialValues.wing_id ?? '');
@@ -241,6 +245,7 @@ export default function LogbookEntryForm({
       launch_site_name: launch_site_name || undefined,
       landing_site_name: landing_site_name || undefined,
       category: category || undefined,
+      mission_id: isMission ? (missionId || null) : null,
       wing: wing || undefined,
       wing_id: wingId || undefined,
       paramotor: paramotor || undefined,
@@ -396,6 +401,19 @@ export default function LogbookEntryForm({
             {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
+        {isMission && (
+          <div>
+            <label className={labelClass}>Mission</label>
+            <select
+              className={inputClass}
+              value={missionId}
+              onChange={(e) => setMissionId(e.target.value)}
+            >
+              <option value="">None</option>
+              {missions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Flight stats */}

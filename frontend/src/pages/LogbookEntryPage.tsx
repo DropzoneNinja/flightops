@@ -5,6 +5,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import LeftSidebar from '../components/Layout/LeftSidebar';
 import { useLogbookEntry, useUpdateLogbookEntry, useDeleteLogbookEntry, useOrphanedFlights } from '../hooks/useLogbook';
 import { useWings, useParamotors } from '../hooks/useEquipment';
+import { useMissions } from '../hooks/useMissions';
 import { useFlightById } from '../hooks/useFlights';
 import { useSites } from '../hooks/useSites';
 import { useQueryClient } from '@tanstack/react-query';
@@ -68,6 +69,10 @@ export default function LogbookEntryPage() {
   const { data: wingsData } = useWings();
   const { data: paramotorsData } = useParamotors();
   const { sites: sitesData } = useSites();
+  const { missions } = useMissions();
+  const missionName = entry?.mission_id
+    ? missions.find((m) => m.id === entry.mission_id)?.name ?? null
+    : null;
 
   const flightId = entry?.gpx?.flight_id ?? null;
   const { data: flight } = useFlightById(flightId ?? undefined);
@@ -229,6 +234,7 @@ export default function LogbookEntryPage() {
                   launch_site_name: entry.launch_site_name || suggestedLaunchSite || undefined,
                   landing_site_name: entry.landing_site_name || suggestedLandingSite || undefined,
                   category: entry.category ?? undefined,
+                  mission_id: entry.mission_id ?? undefined,
                   wing: entry.wing ?? undefined,
                   wing_id: entry.wing_id ?? undefined,
                   paramotor: entry.paramotor ?? undefined,
@@ -353,11 +359,12 @@ export default function LogbookEntryPage() {
               ['Launch site', entry.launch_site_name],
               ['Landing site', entry.landing_site_name],
               ['Category', entry.category],
+              ['Mission', missionName],
               ['Wing', entry.wing],
               ['Paramotor', entry.paramotor ?? entry.engine],
               ['Rating', entry.rating ? '★'.repeat(entry.rating) : null],
               ['Fuel start', entry.fuel_start_litres != null ? `${entry.fuel_start_litres} L` : null],
-              ['Fuel used', entry.fuel_used_litres != null ? `${entry.fuel_used_litres} L` : null],
+              ['Fuel used', entry.fuel_used_litres != null ? `${entry.fuel_used_litres.toFixed(1)} L` : null],
               ['Fuel rate', entry.fuel_rate_lph != null ? `${entry.fuel_rate_lph.toFixed(1)} L/h` : null],
               ['Source', entry.source],
             ]

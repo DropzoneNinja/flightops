@@ -19,7 +19,7 @@ when the wire protocol itself changes, and follows `MAJOR.MINOR`:
 - **MINOR** bumps on additive, backward-compatible changes — new endpoints,
   new optional fields/params. Existing clients keep working unmodified.
 
-Current version: **2.2** (source of truth: `backend/src/common/api-version.ts`).
+Current version: **2.3** (source of truth: `backend/src/common/api-version.ts`).
 
 > **v2.0 breaking change (equipment restructure):** the Engine fields
 > `tank_size_litres` and `fuel_consumption_lph` were removed. Fuel tank size
@@ -31,7 +31,7 @@ Current version: **2.2** (source of truth: `backend/src/common/api-version.ts`).
 
 ### Response header
 
-Every response includes `X-API-Version: 2.2`. `GET /health` and `GET /` also
+Every response includes `X-API-Version: 2.3`. `GET /health` and `GET /` also
 include an `apiVersion` field in their JSON body for clients that prefer
 checking the body over headers at startup.
 
@@ -1708,6 +1708,8 @@ Content-Type: application/json
 ```
 
 `flight_id` (optional, one-time — only applied if the entry has no flight linked yet) attaches a GPX flight to this entry. Unlike Flights' general viewing endpoints (open to any authenticated user, matching Media's shared-browsing model), **linking is ownership-scoped**: `flight_id` must reference a flight uploaded by the same user — `403` otherwise. This is the only place flight ownership is still enforced for GPX flights; a pilot's logbook can only ever reference their own uploads.
+
+`mission_id` (optional) links this entry to a mission (see [Missions](#missions)) — the web UI offers this picker when `category` is `"Mission"`. Missions are shared fleet-wide, not per-pilot, so no ownership check is applied; any existing mission ID is accepted. Send `null` to clear it.
 
 ---
 

@@ -12,11 +12,7 @@ export default function EquipmentParamotorCard({ paramotor, onEdit, onDelete }: 
 
   return (
     <div className="bg-[#1e2a3a] border border-[#2a3a54] rounded-xl p-4 flex items-start gap-4">
-      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#141d2e] flex items-center justify-center text-[#a0b3cc]">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-        </svg>
-      </div>
+      <img src="/equipment-trike.png" alt="" className="flex-shrink-0 w-10 h-10 rounded-lg object-cover" />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-3">

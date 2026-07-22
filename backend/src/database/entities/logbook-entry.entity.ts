@@ -95,6 +95,10 @@ export class LogbookEntry {
   @Column({ type: 'uuid', nullable: true })
   site_id: string | null;
 
+  /** FK to missions — set when category is "Mission" and a mission is selected. */
+  @Column({ type: 'uuid', nullable: true })
+  mission_id: string | null;
+
   // --- Flight metadata ------------------------------------------------------
 
   @Column({ type: 'date' })

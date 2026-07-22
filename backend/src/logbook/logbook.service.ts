@@ -60,6 +60,7 @@ export interface LogbookEntryResponse {
   paramotor: string | null;
   wing_id: string | null;
   paramotor_id: string | null;
+  mission_id: string | null;
   equipment_refs_json: unknown;
   fuel_start_litres: number | null;
   fuel_used_litres: number | null;
@@ -374,6 +375,7 @@ export class LogbookService {
       launch_site_name: dto.launch_site_name ?? null,
       landing_site_name: dto.landing_site_name ?? null,
       category: dto.category ?? null,
+      mission_id: dto.mission_id ?? null,
       flight_purpose: dto.flight_purpose ?? null,
       route_name: dto.route_name ?? null,
       rating: dto.rating ?? null,
@@ -436,6 +438,7 @@ export class LogbookService {
     if (dto.launch_site_name !== undefined) entry.launch_site_name = dto.launch_site_name;
     if (dto.landing_site_name !== undefined) entry.landing_site_name = dto.landing_site_name;
     if (dto.category !== undefined) entry.category = dto.category;
+    if (dto.mission_id !== undefined) entry.mission_id = dto.mission_id ?? null;
     if (dto.flight_purpose !== undefined) entry.flight_purpose = dto.flight_purpose;
     if (dto.route_name !== undefined) entry.route_name = dto.route_name;
     if (dto.rating !== undefined) entry.rating = dto.rating;
@@ -1017,6 +1020,7 @@ export class LogbookService {
       paramotor: entry.paramotor ?? null,
       wing_id: entry.wing_id ?? null,
       paramotor_id: entry.paramotor_id ?? null,
+      mission_id: entry.mission_id ?? null,
       equipment_refs_json: entry.equipment_refs_json,
       fuel_start_litres: entry.fuel_start_litres,
       fuel_used_litres: entry.fuel_used_litres,

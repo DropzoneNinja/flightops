@@ -64,7 +64,10 @@ const MissionsIcon = () => (
 
 const EquipmentIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+    <path d="M2 10c2.5-6.5 17.5-6.5 20 0" />
+    <line x1="2" y1="10" x2="12" y2="20" />
+    <line x1="12" y1="5" x2="12" y2="20" />
+    <line x1="22" y1="10" x2="12" y2="20" />
   </svg>
 );
 
@@ -127,9 +130,9 @@ export default function LeftSidebar({ user, showAirspace, onToggleAirspace, onAd
       action: onToggleAirspace,
       isActive: showAirspace,
     },
+    { id: 'missions', label: 'Missions', Icon: MissionsIcon, action: () => navigate('/missions') },
     { id: 'media', label: 'Media', Icon: MediaIcon, action: () => navigate('/media') },
     { id: 'logbook', label: 'Logbook', Icon: LogbookIcon, action: () => navigate('/logbook') },
-    { id: 'missions', label: 'Missions', Icon: MissionsIcon, action: () => navigate('/missions') },
     { id: 'equipment', label: 'Equipment', Icon: EquipmentIcon, action: () => navigate('/equipment') },
   ];
 

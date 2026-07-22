@@ -14,13 +14,7 @@ export default function EquipmentReserveCard({ reserve, onEdit, onDelete }: Prop
 
   return (
     <div className="bg-[#1e2a3a] border border-[#2a3a54] rounded-xl p-4 flex items-start gap-4">
-      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#141d2e] flex items-center justify-center text-[#a0b3cc]">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-          <path d="M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9z" />
-          <path d="M5 12l7 9 7-9" />
-          <path d="M12 12v9" />
-        </svg>
-      </div>
+      <img src="/equipment-reserve.png" alt="" className="flex-shrink-0 w-10 h-10 rounded-lg object-cover" />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-3">

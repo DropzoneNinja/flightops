@@ -12,12 +12,7 @@ export default function EquipmentEngineCard({ engine, onEdit, onDelete }: Props)
 
   return (
     <div className="bg-[#1e2a3a] border border-[#2a3a54] rounded-xl p-4 flex items-start gap-4">
-      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#141d2e] flex items-center justify-center text-[#a0b3cc]">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
-        </svg>
-      </div>
+      <img src="/equipment-engine.png" alt="" className="flex-shrink-0 w-10 h-10 rounded-lg object-cover" />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-3">

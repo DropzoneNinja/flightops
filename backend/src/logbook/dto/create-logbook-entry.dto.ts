@@ -56,6 +56,11 @@ export class CreateLogbookEntryDto {
   @MaxLength(255)
   category?: string;
 
+  /** Selected mission, when category is "Mission". */
+  @IsOptional()
+  @IsUUID()
+  mission_id?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(255)

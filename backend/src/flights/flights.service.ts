@@ -176,17 +176,21 @@ export class FlightsService {
       this.logger.warn(`Failed to update storage_used for user ${user.id}: ${err}`);
     }
 
-    // Auto-create a linked logbook entry for the uploading pilot (best-effort)
+    // Auto-create a linked logbook entry for the uploading pilot (best-effort).
+    // Awaited so the response the client refetches on already reflects the link —
+    // otherwise the UI's immediate refetch can race this write and show unlinked.
     if (this.logbookService && ownPilot) {
-      this.logbookService.linkFlight({
-        pilotId: ownPilot.id,
-        clientId: dto.client_id ?? null,
-        flight: saved,
-        source: dto.client_id ? 'flightnow' : 'web',
-        createdByUserId: user.id,
-      }).catch((err) =>
-        this.logger.warn(`Failed to auto-link logbook entry for flight ${saved.id}: ${err}`),
-      );
+      try {
+        await this.logbookService.linkFlight({
+          pilotId: ownPilot.id,
+          clientId: dto.client_id ?? null,
+          flight: saved,
+          source: dto.client_id ? 'flightnow' : 'web',
+          createdByUserId: user.id,
+        });
+      } catch (err) {
+        this.logger.warn(`Failed to auto-link logbook entry for flight ${saved.id}: ${err}`);
+      }
     }
 
     // Kick off async parse + analysis pipeline (fire-and-forget)
