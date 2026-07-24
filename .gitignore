@@ -68,6 +68,10 @@ frontend_node_modules/
 /media/
 .media/
 
+# Flightoid APK uploads (user-uploaded files only, not source code)
+/apk-releases/
+.apk-releases/
+
 # Temporary files
 tmp/
 temp/
