@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { version } from '../../package.json';
 import { useSettings } from '../hooks/useSettings';
 import { useAuth } from '../hooks/useAuth';
@@ -7,6 +8,7 @@ import LeftSidebar from '../components/Layout/LeftSidebar';
 import { SettingType, UpdateSettingData } from '../services/settings.service';
 import { preAuthorizedEmailsService, PreAuthorizedEmail } from '../services/pre-authorized-emails.service';
 import { usersService, UserData, AlbumStatRow } from '../services/users.service';
+import { apkReleaseService } from '../services/apkRelease.service';
 import { weatherService, WeatherApiStats } from '../services/weather.service';
 import { openSkyService, OpenSkyStats } from '../services/opensky.service';
 import { useSites } from '../hooks/useSites';
@@ -271,6 +273,25 @@ export default function Settings() {
         console.error('Failed to unlock account:', error);
         alert('Failed to unlock account. Please try again.');
       }
+    }
+  };
+
+  const [togglingApkAccessId, setTogglingApkAccessId] = useState<string | null>(null);
+
+  const handleToggleApkAccess = async (userId: string, currentlyGranted: boolean) => {
+    setTogglingApkAccessId(userId);
+    try {
+      if (currentlyGranted) {
+        await apkReleaseService.revokeAccess(userId);
+      } else {
+        await apkReleaseService.grantAccess(userId);
+      }
+      await loadUsers();
+    } catch (error) {
+      console.error('Failed to update Flightoid access:', error);
+      alert('Failed to update Flightoid access. Please try again.');
+    } finally {
+      setTogglingApkAccessId(null);
     }
   };
 
@@ -597,6 +618,20 @@ export default function Settings() {
             </button>
           </div>
 
+          {/* Flightoid App (visible to admins and explicitly-authorized users) */}
+          {(user?.is_admin || user?.has_apk_access) && (
+            <Link
+              to="/settings/flightoid-app"
+              className="mb-6 flex items-center justify-between bg-[#141d2e] rounded-xl border border-[#1e2a3a] px-6 py-4 hover:border-blue-600/60 transition-colors"
+            >
+              <div>
+                <h2 className="text-base font-semibold text-white">Flightoid App</h2>
+                <p className="text-sm text-[#6b7fa3] mt-0.5">Download and install the Flightoid companion app on your Android phone</p>
+              </div>
+              <span className="text-[#6b7fa3]">&rarr;</span>
+            </Link>
+          )}
+
           {/* Settings by Category */}
           {Object.entries(settingsByCategory)
             .filter(([category]) => category !== 'Database Backup' && category !== 'OpenSky Integration')
@@ -819,6 +854,7 @@ export default function Settings() {
                           <th className="px-4 py-3 text-left text-xs font-medium text-[#6b7fa3] uppercase tracking-wider">Role</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-[#6b7fa3] uppercase tracking-wider">Status</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-[#6b7fa3] uppercase tracking-wider">Last Login</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-[#6b7fa3] uppercase tracking-wider">Flightoid App</th>
                           <th className="px-4 py-3 text-right text-xs font-medium text-[#6b7fa3] uppercase tracking-wider rounded-tr-lg">Actions</th>
                         </tr>
                       </thead>
@@ -851,6 +887,22 @@ export default function Settings() {
                               {userData.last_login
                                 ? new Date(userData.last_login).toLocaleString()
                                 : 'Never'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <button
+                                onClick={() => handleToggleApkAccess(userData.id, userData.has_apk_access)}
+                                disabled={togglingApkAccessId === userData.id}
+                                title={userData.has_apk_access ? 'Revoke Flightoid app access' : 'Grant Flightoid app access'}
+                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ${
+                                  userData.has_apk_access ? 'bg-blue-600' : 'bg-[#2a3a54]'
+                                }`}
+                              >
+                                <span
+                                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                    userData.has_apk_access ? 'translate-x-[18px]' : 'translate-x-1'
+                                  }`}
+                                />
+                              </button>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
                               <div className="flex justify-end gap-2">

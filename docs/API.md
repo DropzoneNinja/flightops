@@ -19,7 +19,7 @@ when the wire protocol itself changes, and follows `MAJOR.MINOR`:
 - **MINOR** bumps on additive, backward-compatible changes — new endpoints,
   new optional fields/params. Existing clients keep working unmodified.
 
-Current version: **2.3** (source of truth: `backend/src/common/api-version.ts`).
+Current version: **2.4** (source of truth: `backend/src/common/api-version.ts`).
 
 > **v2.0 breaking change (equipment restructure):** the Engine fields
 > `tank_size_litres` and `fuel_consumption_lph` were removed. Fuel tank size
@@ -31,7 +31,7 @@ Current version: **2.3** (source of truth: `backend/src/common/api-version.ts`).
 
 ### Response header
 
-Every response includes `X-API-Version: 2.3`. `GET /health` and `GET /` also
+Every response includes `X-API-Version: 2.4`. `GET /health` and `GET /` also
 include an `apiVersion` field in their JSON body for clients that prefer
 checking the body over headers at startup.
 
@@ -177,9 +177,12 @@ Response:
   "is_admin": false,
   "created_at": "2026-01-15T10:00:00.000Z",
   "needs_username_setup": false,
-  "needs_password_reset": false
+  "needs_password_reset": false,
+  "has_apk_access": false
 }
 ```
+
+`has_apk_access` is `true` for admins and for any user an admin has explicitly granted access to the Flightoid APK download page (see [Flightoid App](#flightoid-app-admin) below). It also appears on the `user` object returned by `POST /auth/register`, `POST /auth/login`, and `POST /auth/setup-username`.
 
 ---
 
@@ -431,6 +434,105 @@ Authorization: Bearer <token>
 ```
 
 Permanently deletes the user account. Returns `403` if the caller is deleting themselves or the last admin.
+
+---
+
+## Flightoid App (Admin)
+
+Lets admins publish Flightoid (the companion Android app) APK builds and control which users can see/download them. Viewing and downloading requires either `is_admin` or an explicit access grant (see below); granting/revoking/uploading/deleting requires `is_admin`.
+
+### List APK Releases
+```http
+GET /apk-releases
+Authorization: Bearer <token>
+```
+
+Returns all releases, newest first. `403` if the caller is neither an admin nor an explicitly-authorized user.
+
+Response:
+```json
+[
+  {
+    "id": "uuid",
+    "version_label": "1.4.2",
+    "release_notes": "Fixes GPS drift on landing",
+    "original_filename": "flightoid-1.4.2.apk",
+    "file_size": 24117248,
+    "uploaded_by": "admin",
+    "created_at": "2026-07-01T10:00:00.000Z"
+  }
+]
+```
+
+---
+
+### Upload APK Release
+```http
+POST /apk-releases
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+file:           <File> (.apk, max 300MB)
+version_label:  1.4.2
+release_notes:  Optional notes (optional)
+```
+
+Admin only. The version label is free text chosen by the admin (not parsed from the APK).
+
+---
+
+### Delete APK Release
+```http
+DELETE /apk-releases/:id
+Authorization: Bearer <token>
+```
+
+Admin only. Removes the database record and the file from disk.
+
+---
+
+### Get Download Token
+```http
+GET /apk-releases/:id/token
+Authorization: Bearer <token>
+```
+
+Returns a short-lived (5 minute), release-specific token for `GET /apk-releases/:id/file`, mirroring the `/media/:id/token` pattern.
+
+Response:
+```json
+{ "token": "...", "expiresIn": "5m", "releaseId": "uuid" }
+```
+
+---
+
+### Download APK File
+```http
+GET /apk-releases/:id/file?token=<token>
+```
+
+Streams the APK with `Content-Type: application/vnd.android.package-archive` and `Content-Disposition: attachment`. Requires the token from the endpoint above (not a bearer token).
+
+---
+
+### List Access
+```http
+GET /apk-releases/access
+Authorization: Bearer <token>
+```
+
+Admin only. Every user with their current `has_apk_access` flag, for the "Current Users" access-toggle UI.
+
+---
+
+### Grant / Revoke Access
+```http
+POST /apk-releases/access/:userId
+DELETE /apk-releases/access/:userId
+Authorization: Bearer <token>
+```
+
+Admin only.
 
 ---
 
@@ -2525,6 +2627,7 @@ Response:
 | `LOCKOUT_DURATION` | Account lockout duration (minutes) | `30` | No |
 | `MEDIA_STORAGE_PATH` | Path for media file storage | `/app/media` | No |
 | `MAX_UPLOAD_SIZE` | Maximum file upload size (bytes) | `524288000` | No |
+| `APK_STORAGE_PATH` | Path for Flightoid APK release storage | `/app/apk-releases` | No |
 | `MAX_GPX_UPLOAD_SIZE` | Maximum GPX file upload size (bytes) | `52428800` | No |
 
 ### Frontend

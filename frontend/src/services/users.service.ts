@@ -23,6 +23,7 @@ export interface UserData {
   locked_at: string | null;
   created_at: string;
   updated_at: string;
+  has_apk_access: boolean;
 }
 
 export const usersService = {

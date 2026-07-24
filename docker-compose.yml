@@ -42,6 +42,7 @@ services:
       POSTGRES_CONTAINER_NAME: flightops-postgres
       MEDIA_STORAGE_PATH: /app/media
       MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-2147483648}
+      APK_STORAGE_PATH: /app/apk-releases
     # DNS servers for external API access (Open-Meteo)
     dns:
       - 8.8.8.8      # Google DNS primary
@@ -50,6 +51,7 @@ services:
     volumes:
       - ${BACKUP_DIR:-./backups}:/backups
       - ${MEDIA_STORAGE_PATH:-./media}:/app/media
+      - ${APK_STORAGE_PATH:-./apk-releases}:/app/apk-releases
     depends_on:
       postgres:
         condition: service_healthy

@@ -5,6 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../database/entities/user.entity';
 import { Media } from '../database/entities/media.entity';
 import { Pilot } from '../database/entities/pilot.entity';
+import { ApkAccess } from '../database/entities/apk-access.entity';
 
 export interface AlbumStatRow {
   username: string;
@@ -25,6 +26,8 @@ export class UsersService {
     private readonly mediaRepository: Repository<Media>,
     @InjectRepository(Pilot)
     private readonly pilotsRepository: Repository<Pilot>,
+    @InjectRepository(ApkAccess)
+    private readonly apkAccessRepository: Repository<ApkAccess>,
   ) {}
 
   /**
@@ -208,12 +211,47 @@ export class UsersService {
   }
 
   /**
-   * Get all users (admin only)
+   * Get all users (admin only), each annotated with has_apk_access
+   * (whether they've been explicitly granted the Flightoid APK page —
+   * independent of is_admin, which always grants it regardless of this flag)
    */
-  async findAll(): Promise<User[]> {
-    return this.userRepository.find({
-      order: { created_at: 'DESC' },
-    });
+  async findAll(): Promise<Array<User & { has_apk_access: boolean }>> {
+    const [users, accessRows] = await Promise.all([
+      this.userRepository.find({ order: { created_at: 'DESC' } }),
+      this.apkAccessRepository.find(),
+    ]);
+    const accessUserIds = new Set(accessRows.map((row) => row.user_id));
+    return users.map((user) =>
+      Object.assign(user, { has_apk_access: accessUserIds.has(user.id) }),
+    );
+  }
+
+  /**
+   * Whether a user has been explicitly granted access to the Flightoid APK
+   * download page. Does NOT factor in is_admin — callers that need "can this
+   * user reach the feature" should OR this with user.is_admin themselves.
+   */
+  async hasApkAccess(userId: string): Promise<boolean> {
+    const row = await this.apkAccessRepository.findOne({ where: { user_id: userId } });
+    return row !== null;
+  }
+
+  /**
+   * Grant a user access to the Flightoid APK download page (admin action)
+   */
+  async grantApkAccess(userId: string, grantedByUserId: string): Promise<void> {
+    const existing = await this.apkAccessRepository.findOne({ where: { user_id: userId } });
+    if (existing) return;
+    await this.apkAccessRepository.save(
+      this.apkAccessRepository.create({ user_id: userId, granted_by_user_id: grantedByUserId }),
+    );
+  }
+
+  /**
+   * Revoke a user's access to the Flightoid APK download page (admin action)
+   */
+  async revokeApkAccess(userId: string): Promise<void> {
+    await this.apkAccessRepository.delete({ user_id: userId });
   }
 
   /**

@@ -8,6 +8,7 @@ export interface User {
   created_at: string;
   needs_username_setup?: boolean;
   needs_password_reset?: boolean;
+  has_apk_access?: boolean;
 }
 
 export interface RegisterData {

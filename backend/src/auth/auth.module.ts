@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { LoginAttemptService } from './login-attempt.service';
 import { MediaTokenService } from './media-token.service';
+import { ApkTokenService } from './apk-token.service';
 import { UsersModule } from '../users/users.module';
 import { PreAuthorizedEmailsModule } from '../pre-authorized-emails/pre-authorized-emails.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -31,7 +32,7 @@ import { LoginAttempt } from '../database/entities/login-attempt.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LoginAttemptService, MediaTokenService, JwtStrategy, LocalStrategy],
-  exports: [AuthService, MediaTokenService],
+  providers: [AuthService, LoginAttemptService, MediaTokenService, ApkTokenService, JwtStrategy, LocalStrategy],
+  exports: [AuthService, MediaTokenService, ApkTokenService],
 })
 export class AuthModule {}

@@ -52,6 +52,7 @@ export class AuthService {
         is_admin: user.is_admin,
         created_at: user.created_at,
         needs_password_reset: user.needs_password_reset,
+        has_apk_access: user.is_admin,
       },
     };
   }
@@ -64,6 +65,7 @@ export class AuthService {
     await this.usersService.updateLastLogin(user.id);
 
     const token = this.generateToken(user);
+    const hasApkAccess = user.is_admin || (await this.usersService.hasApkAccess(user.id));
 
     return {
       access_token: token,
@@ -75,6 +77,7 @@ export class AuthService {
         created_at: user.created_at,
         needs_username_setup: !user.username,
         needs_password_reset: user.needs_password_reset,
+        has_apk_access: hasApkAccess,
       },
     };
   }
@@ -192,6 +195,7 @@ export class AuthService {
    */
   async setupUsername(userId: string, setupDto: SetupUsernameDto) {
     const user = await this.usersService.setUsername(userId, setupDto.username);
+    const hasApkAccess = user.is_admin || (await this.usersService.hasApkAccess(user.id));
 
     return {
       user: {
@@ -200,6 +204,7 @@ export class AuthService {
         username: user.username,
         is_admin: user.is_admin,
         created_at: user.created_at,
+        has_apk_access: hasApkAccess,
       },
     };
   }

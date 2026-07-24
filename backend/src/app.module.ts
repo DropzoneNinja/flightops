@@ -21,6 +21,7 @@ import { MissionsModule } from './missions/missions.module';
 import { OpenSkyModule } from './opensky/opensky.module';
 import { LogbookModule } from './logbook/logbook.module';
 import { EquipmentModule } from './equipment/equipment.module';
+import { ApkReleasesModule } from './apk-releases/apk-releases.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { EquipmentModule } from './equipment/equipment.module';
     OpenSkyModule,
     LogbookModule,
     EquipmentModule,
+    ApkReleasesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

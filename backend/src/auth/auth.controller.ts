@@ -17,10 +17,14 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { User } from '../database/entities/user.entity';
+import { UsersService } from '../users/users.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   /**
    * GET /auth/csrf-token
@@ -81,6 +85,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async getMe(@CurrentUser() user: User) {
+    const hasApkAccess = user.is_admin || (await this.usersService.hasApkAccess(user.id));
     return {
       id: user.id,
       email: user.email,
@@ -89,6 +94,7 @@ export class AuthController {
       created_at: user.created_at,
       needs_username_setup: !user.username,
       needs_password_reset: user.needs_password_reset,
+      has_apk_access: hasApkAccess,
     };
   }
 

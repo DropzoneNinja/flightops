@@ -20,6 +20,7 @@ import MissionMediaPage from './pages/MissionMediaPage';
 import LogbookPage from './pages/LogbookPage';
 import LogbookEntryPage from './pages/LogbookEntryPage';
 import EquipmentPage from './pages/EquipmentPage';
+import FlightoidApp from './pages/FlightoidApp';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './contexts/ToastContext';
@@ -56,6 +57,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings/flightoid-app"
+          element={
+            <ProtectedRoute>
+              <FlightoidApp />
             </ProtectedRoute>
           }
         />
