@@ -1,6 +1,7 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { randomInt } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { User } from '../database/entities/user.entity';
 import { Media } from '../database/entities/media.entity';
@@ -279,16 +280,59 @@ export class UsersService {
   }
 
   /**
-   * Set password reset flag for a user
+   * Flag a user for password reset. When flagging (needsReset = true), also
+   * issues a new temporary password and returns it in plaintext — this is
+   * the only time it's ever available, since the app has no email capability
+   * to deliver it and the admin must relay it to the user out of band. The
+   * user's real password is overwritten, so login always requires proof of
+   * the temp password rather than trusting the reset flag alone (see
+   * VULN-01 in CYBER-REVIEW.md for why the flag can't bypass password
+   * validation).
    */
-  async setPasswordResetFlag(userId: string, needsReset: boolean): Promise<User> {
+  async setPasswordResetFlag(
+    userId: string,
+    needsReset: boolean,
+  ): Promise<{ user: User; tempPassword?: string }> {
     const user = await this.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
     user.needs_password_reset = needsReset;
-    return this.userRepository.save(user);
+
+    let tempPassword: string | undefined;
+    if (needsReset) {
+      tempPassword = this.generateTempPassword();
+      user.password = tempPassword;
+    }
+
+    const saved = await this.userRepository.save(user);
+    return { user: saved, tempPassword };
+  }
+
+  /**
+   * Generates a cryptographically random temporary password satisfying the
+   * app's password policy (9+ chars, 1+ uppercase, 1+ digit). Excludes
+   * visually ambiguous characters (0/O, 1/I/l) so it's easy to relay/type.
+   */
+  private generateTempPassword(): string {
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnpqrstuvwxyz';
+    const digits = '23456789';
+    const all = upper + lower + digits;
+    const pick = (charset: string) => charset[randomInt(charset.length)];
+
+    const chars = [pick(upper), pick(digits)];
+    while (chars.length < 12) {
+      chars.push(pick(all));
+    }
+
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = randomInt(i + 1);
+      [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+
+    return chars.join('');
   }
 
   /**

@@ -79,14 +79,18 @@ export class UsersController {
 
   /**
    * PATCH /users/:id/reset-password
-   * Flag user for password reset on next login (admin only)
+   * Flag user for password reset on next login and issue a temporary
+   * password (admin only). The temp password is returned once in the
+   * response body — the app has no email capability, so the admin must
+   * relay it to the user directly.
    */
   @Patch(':id/reset-password')
   @UseGuards(JwtAuthGuard, AdminGuard)
   async flagPasswordReset(@Param('id') id: string) {
-    const user = await this.usersService.setPasswordResetFlag(id, true);
+    const { user, tempPassword } = await this.usersService.setPasswordResetFlag(id, true);
     return {
       message: 'User will be required to reset password on next login',
+      temp_password: tempPassword,
       user: {
         id: user.id,
         email: user.email,

@@ -14,6 +14,7 @@ import { openSkyService, OpenSkyStats } from '../services/opensky.service';
 import { useSites } from '../hooks/useSites';
 import { backupService, BackupStatus, BackupFileInfo } from '../services/backup.service';
 import { RestoreModal } from '../components/RestoreModal';
+import { TempPasswordModal } from '../components/TempPasswordModal';
 import { mediaService } from '../services/media.service';
 import { api } from '../services/api';
 
@@ -58,6 +59,7 @@ export default function Settings() {
   const [loadingBackupStatus, setLoadingBackupStatus] = useState(false);
   const [triggeringBackup, setTriggeringBackup] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [tempPasswordInfo, setTempPasswordInfo] = useState<{ username: string; tempPassword: string } | null>(null);
   const [backupFiles, setBackupFiles] = useState<BackupFileInfo[]>([]);
   const [loadingBackupFiles, setLoadingBackupFiles] = useState(false);
 
@@ -253,9 +255,9 @@ export default function Settings() {
   const handleResetPassword = async (userId: string, username: string) => {
     if (window.confirm(`${username} will be required to reset their password on next login. Continue?`)) {
       try {
-        await usersService.flagPasswordReset(userId);
+        const { tempPassword } = await usersService.flagPasswordReset(userId);
         await loadUsers();
-        alert('Password reset flag set successfully.');
+        setTempPasswordInfo({ username, tempPassword });
       } catch (error) {
         console.error('Failed to set password reset flag:', error);
         alert('Failed to set password reset. Please try again.');
@@ -941,6 +943,14 @@ export default function Settings() {
                 )}
               </div>
             </div>
+          )}
+
+          {tempPasswordInfo && (
+            <TempPasswordModal
+              username={tempPasswordInfo.username}
+              tempPassword={tempPasswordInfo.tempPassword}
+              onClose={() => setTempPasswordInfo(null)}
+            />
           )}
 
           {/* Album Stats */}

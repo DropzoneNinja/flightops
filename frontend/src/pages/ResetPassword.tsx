@@ -7,6 +7,7 @@ export default function ResetPassword() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [formData, setFormData] = useState({
+    currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
@@ -43,6 +44,7 @@ export default function ResetPassword() {
     try {
       setIsLoading(true);
       await api.patch('/auth/reset-password', {
+        current_password: formData.currentPassword,
         new_password: formData.newPassword,
       });
 
@@ -74,6 +76,22 @@ export default function ResetPassword() {
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-4">
+            <div>
+              <label htmlFor="current-password" className="block text-sm font-medium text-[#a0b3cc] mb-1">
+                Temporary Password
+              </label>
+              <input
+                id="current-password"
+                name="currentPassword"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={formData.currentPassword}
+                onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
+                className="appearance-none relative block w-full px-3 py-2 border bg-[#1e2a3a] border-[#2a3a54] placeholder-[#4a5a74] text-white rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Enter the temporary password your admin gave you"
+              />
+            </div>
             <div>
               <label htmlFor="new-password" className="block text-sm font-medium text-[#a0b3cc] mb-1">
                 New Password

@@ -19,7 +19,7 @@ when the wire protocol itself changes, and follows `MAJOR.MINOR`:
 - **MINOR** bumps on additive, backward-compatible changes — new endpoints,
   new optional fields/params. Existing clients keep working unmodified.
 
-Current version: **2.4** (source of truth: `backend/src/common/api-version.ts`).
+Current version: **2.5** (source of truth: `backend/src/common/api-version.ts`).
 
 > **v2.0 breaking change (equipment restructure):** the Engine fields
 > `tank_size_litres` and `fuel_consumption_lph` were removed. Fuel tank size
@@ -31,7 +31,7 @@ Current version: **2.4** (source of truth: `backend/src/common/api-version.ts`).
 
 ### Response header
 
-Every response includes `X-API-Version: 2.4`. `GET /health` and `GET /` also
+Every response includes `X-API-Version: 2.5`. `GET /health` and `GET /` also
 include an `apiVersion` field in their JSON body for clients that prefer
 checking the body over headers at startup.
 
@@ -423,7 +423,29 @@ PATCH /users/:id/reset-password
 Authorization: Bearer <token>
 ```
 
-Forces the user to set a new password on next login (`needs_password_reset` flag).
+Sets the `needs_password_reset` flag and overwrites the user's password with a
+freshly generated temporary password (9+ chars, 1+ uppercase, 1+ digit). The
+app has no email capability, so the temp password is returned in the response
+**once** — the admin must relay it to the user out of band:
+
+```json
+{
+  "message": "User will be required to reset password on next login",
+  "temp_password": "Xk4mQ7pR9fZs",
+  "user": {
+    "id": "...",
+    "email": "...",
+    "username": "...",
+    "needs_password_reset": true
+  }
+}
+```
+
+The user logs in with the temp password (normal password validation still
+applies — the flag never bypasses it, see `CYBER-REVIEW.md` VULN-01), gets
+redirected to the reset page, and must submit the temp password as
+`current_password` on `PATCH /auth/reset-password` (above) along with their
+new password.
 
 ---
 

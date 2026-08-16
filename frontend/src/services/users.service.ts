@@ -51,10 +51,13 @@ export const usersService = {
   },
 
   /**
-   * Flag user for password reset on next login
+   * Flag user for password reset on next login. Returns the temporary
+   * password the admin must relay to the user (the app has no email
+   * capability) — it's only ever available in this response.
    */
-  async flagPasswordReset(id: string): Promise<void> {
-    await api.patch(`/users/${id}/reset-password`);
+  async flagPasswordReset(id: string): Promise<{ tempPassword: string }> {
+    const response = await api.patch<{ temp_password: string }>(`/users/${id}/reset-password`);
+    return { tempPassword: response.data.temp_password };
   },
 
   /**
