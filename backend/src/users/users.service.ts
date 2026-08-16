@@ -155,16 +155,38 @@ export class UsersService {
   }
 
   /**
-   * Update user
+   * Update user. Writes via a direct `.update()` rather than
+   * `findById()` + `save()` — `password_hash` is `select: false`, so an
+   * entity loaded through `findById()` never has it populated, and TypeORM's
+   * `save()` builds its UPDATE from the originally-loaded column set: the
+   * `@BeforeUpdate` hook's `password_hash` assignment never made it into the
+   * SQL even though it read as set on the in-memory object. `.update()`
+   * writes exactly the columns given regardless of what was loaded.
    */
   async update(id: string, updates: Partial<User>): Promise<User> {
+    const { password, ...rest } = updates;
+    const payload: Record<string, unknown> = { ...rest };
+
+    if (password) {
+      payload.password_hash = await this.hashPassword(password);
+    }
+
+    const result = await this.userRepository.update(id, payload);
+    if (result.affected === 0) {
+      throw new NotFoundException('User not found');
+    }
+
     const user = await this.findById(id);
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    return user;
+  }
 
-    Object.assign(user, updates);
-    return this.userRepository.save(user);
+  private async hashPassword(plain: string): Promise<string> {
+    const bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
+    const salt = await bcrypt.genSalt(bcryptRounds);
+    return bcrypt.hash(plain, salt);
   }
 
   /**
@@ -293,20 +315,23 @@ export class UsersService {
     userId: string,
     needsReset: boolean,
   ): Promise<{ user: User; tempPassword?: string }> {
-    const user = await this.findById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    user.needs_password_reset = needsReset;
+    const payload: Record<string, unknown> = { needs_password_reset: needsReset };
 
     let tempPassword: string | undefined;
     if (needsReset) {
       tempPassword = this.generateTempPassword();
-      user.password = tempPassword;
+      payload.password_hash = await this.hashPassword(tempPassword);
     }
 
-    const saved = await this.userRepository.save(user);
+    const result = await this.userRepository.update(userId, payload);
+    if (result.affected === 0) {
+      throw new NotFoundException('User not found');
+    }
+
+    const saved = await this.findById(userId);
+    if (!saved) {
+      throw new NotFoundException('User not found');
+    }
     return { user: saved, tempPassword };
   }
 
