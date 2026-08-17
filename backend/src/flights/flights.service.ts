@@ -283,6 +283,17 @@ export class FlightsService {
         `[parse:complete] flightId=${flightId} trackpointCount=${summary.trackpoint_count} duration_ms=${durationMs}`,
       );
 
+      // Now that real stats exist, check whether this flight's auto-linked
+      // logbook entry can be auto-merged with a matching flightnow-synced
+      // entry for the same real flight (best-effort — must never fail parsing).
+      if (this.logbookService) {
+        try {
+          await this.logbookService.tryMergeAfterAnalysis(flightId);
+        } catch (err) {
+          this.logger.warn(`Post-analysis merge check failed for flight ${flightId}: ${err}`);
+        }
+      }
+
       // Kick off analysis pipeline (fire-and-forget)
       this.flightAnalysis.analyzeFlightAsync(flightId).catch((err) =>
         this.logger.error(`Background analysis failed for flight ${flightId}: ${err}`),

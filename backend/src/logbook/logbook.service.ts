@@ -18,6 +18,7 @@ import { EquipmentHoursService } from '../equipment/equipment-hours.service';
 import { PilotsService } from '../pilots/pilots.service';
 import { LogbookWeatherService } from './logbook-weather.service';
 import { LogbookMediaService, MediaRef } from './logbook-media.service';
+import { LogbookMergeService, BackfillSummary } from './logbook-merge.service';
 import { CreateLogbookEntryDto } from './dto/create-logbook-entry.dto';
 import { UpdateLogbookEntryDto } from './dto/update-logbook-entry.dto';
 import { PushEntryDto, DeleteRefDto } from './dto/push-logbook.dto';
@@ -127,6 +128,7 @@ export class LogbookService {
     private readonly pilotsService: PilotsService,
     private readonly weatherService: LogbookWeatherService,
     private readonly mediaService: LogbookMediaService,
+    private readonly mergeService: LogbookMergeService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -666,12 +668,25 @@ export class LogbookService {
       entry.wing_id = refs.wingId;
       entry.paramotor_id = refs.paramotorId;
 
-      const saved = await this.logbookRepository.save(entry);
+      let saved = await this.logbookRepository.save(entry);
       if (saved.wing_id) touched.wingIds.add(saved.wing_id);
       if (saved.paramotor_id) touched.paramotorIds.add(saved.paramotor_id);
 
-      // Capture weather async (best-effort, non-blocking)
-      if (pushed.takeoff_lat != null && pushed.takeoff_lon != null) {
+      // Auto-merge with a matching web/GPX-linked entry for the same real
+      // flight, if one already exists and has finished analysis. See
+      // LogbookMergeService for why the flightnow row must stay the survivor.
+      const mergeOutcome = await this.mergeService.tryClaimForNewFlightnowEntry(saved);
+      if (mergeOutcome.merged) {
+        const reloaded = await this.logbookRepository.findOne({
+          where: { id: saved.id },
+          relations: ['flight'],
+        });
+        if (reloaded) saved = reloaded;
+      }
+
+      // Capture weather async (best-effort, non-blocking) — skip if the merge
+      // already adopted a snapshot from the web entry.
+      if (!saved.weather_snapshot && pushed.takeoff_lat != null && pushed.takeoff_lon != null) {
         this.captureWeatherAsync(saved, pushed.takeoff_lat, pushed.takeoff_lon, datePart);
       }
 
@@ -904,6 +919,34 @@ export class LogbookService {
     }
 
     return saved;
+  }
+
+  /**
+   * Called by FlightsService once a flight's GPX parse completes
+   * (parse_status -> 'analyzed'). Finds the source:'web' entry linkFlight()
+   * created/linked for this flight at upload time and attempts to reconcile
+   * it against a matching flightnow entry now that real stats exist. Runs
+   * best-effort at the call site — a failure here must never fail the
+   * upload/parse pipeline itself.
+   */
+  async tryMergeAfterAnalysis(flightId: string): Promise<void> {
+    const flight = await this.flightsRepository.findOne({ where: { id: flightId } });
+    if (!flight) return;
+
+    const webEntry = await this.logbookRepository.findOne({
+      where: { flight_id: flightId, source: 'web' },
+    });
+    if (!webEntry) return; // no logbook entry linked to this flight (or already merged away)
+
+    const outcome = await this.mergeService.tryMergeAfterFlightAnalyzed(webEntry, flight);
+    if (outcome.merged) {
+      this.logger.log(`Auto-merged web entry ${webEntry.id} into flightnow entry ${outcome.survivorId}`);
+    }
+  }
+
+  /** Admin-triggered (re-)run of the duplicate-merge backfill. See LogbookMergeService. */
+  async runMergeBackfill(dryRun: boolean): Promise<BackfillSummary> {
+    return this.mergeService.backfillMergeDuplicates({ dryRun });
   }
 
   private captureWeatherAsync(

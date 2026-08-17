@@ -19,7 +19,7 @@ when the wire protocol itself changes, and follows `MAJOR.MINOR`:
 - **MINOR** bumps on additive, backward-compatible changes — new endpoints,
   new optional fields/params. Existing clients keep working unmodified.
 
-Current version: **2.5** (source of truth: `backend/src/common/api-version.ts`).
+Current version: **2.6** (source of truth: `backend/src/common/api-version.ts`).
 
 > **v2.0 breaking change (equipment restructure):** the Engine fields
 > `tank_size_litres` and `fuel_consumption_lph` were removed. Fuel tank size
@@ -31,7 +31,7 @@ Current version: **2.5** (source of truth: `backend/src/common/api-version.ts`).
 
 ### Response header
 
-Every response includes `X-API-Version: 2.5`. `GET /health` and `GET /` also
+Every response includes `X-API-Version: 2.6`. `GET /health` and `GET /` also
 include an `apiVersion` field in their JSON body for clients that prefer
 checking the body over headers at startup.
 
@@ -1911,6 +1911,33 @@ Authorization: Bearer <token>
 ```
 
 Creates a logbook entry linked to the given flight and returns the new `LogbookEntry`. `403` if the flight wasn't uploaded by the requesting user.
+
+---
+
+### Duplicate Merging
+
+Web GPX upload and flightnow mobile sync are two independent ingestion paths that don't know about each other, so the same real flight can land as two separate logbook entries — one carrying the GPX track (uploaded via Media Calendar, `source: "web"`), one carrying location/equipment/category from the phone (`source: "flightnow"`, no GPX). The server automatically detects and merges these when a new entry appears and matches an existing one on the same pilot + date + overlapping time window + nearby launch point + corroborating duration/distance/altitude. This is fully automatic — no client action is required, and it happens transparently as part of `POST /logbook/sync` and after a GPX upload's analysis completes.
+
+The merged entry always keeps the **flightnow-origin `client_id`** (never the web-generated one), since that's the id mobile clients use to reconcile — this is why mobile syncing continues to work correctly across a merge. If a match is found but the two sides disagree on `flight_number_override`, `wing_id`, or `paramotor_id`, the merge is skipped and both entries are flagged (`merge_flagged_at`/`merge_flagged_reason` in the DB) rather than guessing which value is correct.
+
+```http
+POST /logbook/admin/merge-duplicates?dryRun=true
+Authorization: Bearer <token>
+```
+
+Admin only. Re-scans **all pilots'** entries for unmerged duplicate pairs and merges any it finds — safe to re-run at any time (a successful merge removes both rows from future consideration, so nothing is ever double-merged). Pass `dryRun=true` to see what would happen without writing anything. Response:
+
+```json
+{
+  "merged": 3,
+  "flaggedConflicts": 0,
+  "flaggedAmbiguous": 0,
+  "noCandidateCount": 12,
+  "details": [
+    { "flightnowEntryId": "uuid", "webEntryId": "uuid", "outcome": "merged" }
+  ]
+}
+```
 
 ---
 

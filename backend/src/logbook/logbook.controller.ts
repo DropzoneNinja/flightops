@@ -15,6 +15,7 @@ import {
 import { Readable } from 'stream';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../database/entities/user.entity';
 import { LogbookService } from './logbook.service';
@@ -92,6 +93,19 @@ export class LogbookController {
   @Post('orphaned-flights/:flightId/import')
   importFlight(@CurrentUser() user: User, @Param('flightId') flightId: string) {
     return this.logbookService.importFlightToLogbook(user.id, flightId);
+  }
+
+  /**
+   * POST /logbook/admin/merge-duplicates?dryRun=true — admin-only, re-runnable.
+   * Scans all pilots for logbook entries that were split across the web-GPX
+   * and flightnow-sync ingestion paths for the same real flight and merges
+   * them. Safe to re-run: a successful merge removes both rows from the
+   * matcher's candidate pool, so nothing gets double-merged.
+   */
+  @Post('admin/merge-duplicates')
+  @UseGuards(AdminGuard)
+  runMergeBackfill(@Query('dryRun') dryRun?: string) {
+    return this.logbookService.runMergeBackfill(dryRun === 'true');
   }
 
   /** GET /logbook/:id */

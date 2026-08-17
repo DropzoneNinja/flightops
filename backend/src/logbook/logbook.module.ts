@@ -11,6 +11,7 @@ import { LogbookService } from './logbook.service';
 import { LogbookWeatherService } from './logbook-weather.service';
 import { LogbookMediaService } from './logbook-media.service';
 import { LogbookPdfService } from './logbook-pdf.service';
+import { LogbookMergeService } from './logbook-merge.service';
 import { AuthModule } from '../auth/auth.module';
 import { EquipmentModule } from '../equipment/equipment.module';
 import { PilotsModule } from '../pilots/pilots.module';
@@ -27,7 +28,7 @@ import { SitesModule } from '../sites/sites.module';
     SitesModule,
   ],
   controllers: [LogbookController],
-  providers: [LogbookService, LogbookWeatherService, LogbookMediaService, LogbookPdfService],
+  providers: [LogbookService, LogbookWeatherService, LogbookMediaService, LogbookPdfService, LogbookMergeService],
   exports: [LogbookService],
 })
 export class LogbookModule {}

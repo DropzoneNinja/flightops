@@ -249,6 +249,19 @@ export class LogbookEntry {
   @Column({ type: 'timestamptz', nullable: true })
   synced_at: Date | null;
 
+  /**
+   * Set when the merge matcher (LogbookMergeService) found a candidate
+   * duplicate but couldn't safely auto-merge it (e.g. conflicting
+   * flight_number_override/equipment on both sides, or more than one
+   * plausible match). Once set, both live-sync hooks and the backfill skip
+   * this row so a flagged conflict is reported once, not on every run.
+   */
+  @Column({ type: 'timestamptz', nullable: true })
+  merge_flagged_at: Date | null;
+
+  @Column({ type: 'text', nullable: true })
+  merge_flagged_reason: string | null;
+
   /** Who created it on the web (audit). */
   @Column({ type: 'uuid', nullable: true })
   created_by_user_id: string | null;

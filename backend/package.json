@@ -22,7 +22,8 @@
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d ormconfig.ts src/database/migrations/",
     "migration:create": "typeorm-ts-node-commonjs migration:create src/database/migrations/",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d ormconfig.ts",
-    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d ormconfig.ts"
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d ormconfig.ts",
+    "logbook:merge-backfill": "ts-node -r tsconfig-paths/register src/database/scripts/backfill-merge-duplicate-logbook-entries.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
