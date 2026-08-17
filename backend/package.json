@@ -1,6 +1,6 @@
 {
   "name": "flightops-backend",
-  "version": "4.8.2",
+  "version": "4.8.3",
   "description": "Paramotor flight site weather visualization backend",
   "author": "",
   "private": true,
