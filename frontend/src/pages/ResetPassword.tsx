@@ -5,7 +5,7 @@ import { api } from '../services/api';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -48,8 +48,9 @@ export default function ResetPassword() {
         new_password: formData.newPassword,
       });
 
-      alert('Password updated successfully!');
-      navigate('/');
+      alert('Password updated successfully! Please log in with your new password.');
+      logout();
+      navigate('/login');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to reset password. Please try again.');
     } finally {
