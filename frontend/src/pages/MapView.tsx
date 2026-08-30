@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { MapContainer, TileLayer, useMapEvents, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, useMapEvents, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import { LatLng } from 'leaflet';
 import { useSites } from '../hooks/useSites';
 import { useAuth } from '../hooks/useAuth';
@@ -130,6 +130,9 @@ export default function MapView() {
     }
     return new Set(['A', 'C', 'CTR', 'D', 'Q', 'R']);
   });
+  const [showXCountryRadius, setShowXCountryRadius] = useState<boolean>(() => {
+    return localStorage.getItem('showXCountryRadius') === 'true';
+  });
 
   // Selected site drives both the inspection panel and the airspace visualization
   const [selectedSite, setSelectedSite] = useState<FlightSite | null>(null);
@@ -172,6 +175,10 @@ export default function MapView() {
     const classesArray = Array.from(enabledAirspaceClasses);
     localStorage.setItem('enabledAirspaceClasses', JSON.stringify(classesArray));
   }, [enabledAirspaceClasses]);
+
+  useEffect(() => {
+    localStorage.setItem('showXCountryRadius', String(showXCountryRadius));
+  }, [showXCountryRadius]);
 
   useEffect(() => {
     if (!isMissionMode || currentZoom < parkingIconZoomLevel) return;
@@ -439,6 +446,18 @@ export default function MapView() {
                 zIndexOffset={1100}
               />
             )}
+
+            {selectedSite && showXCountryRadius && (
+              <Circle
+                center={[
+                  parseFloat(selectedSite.takeoff_lat.toString()),
+                  parseFloat(selectedSite.takeoff_lon.toString()),
+                ]}
+                radius={25000}
+                pathOptions={{ color: '#f59e0b', weight: 2, fillOpacity: 0.04, dashArray: '6 6' }}
+                interactive={false}
+              />
+            )}
           </MapContainer>
         )}
 
@@ -484,6 +503,8 @@ export default function MapView() {
           windOverride={windsockWind}
           canEdit={!!(user && (user.id === selectedSite.user_id || user.is_admin))}
           onEdit={handleOpenEditSite}
+          showXCountryRadius={showXCountryRadius}
+          onToggleXCountryRadius={() => setShowXCountryRadius(v => !v)}
         />
       )}
 

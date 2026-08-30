@@ -28,6 +28,8 @@ interface SiteInspectionPanelProps {
   windOverride?: { dir: number; speed: number } | null;
   canEdit?: boolean;
   onEdit?: () => void;
+  showXCountryRadius?: boolean;
+  onToggleXCountryRadius?: () => void;
 }
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -294,7 +296,7 @@ function AirspaceSvgBar({ layers }: { layers: AirspaceLayer[] }) {
   );
 }
 
-export default function SiteInspectionPanel({ site, onClose, onForecastSelect, prevMapState, windOverride, canEdit, onEdit }: SiteInspectionPanelProps) {
+export default function SiteInspectionPanel({ site, onClose, onForecastSelect, prevMapState, windOverride, canEdit, onEdit, showXCountryRadius, onToggleXCountryRadius }: SiteInspectionPanelProps) {
   const navigate = useNavigate();
   const { forecasts, isLoading } = useWeather(site.include_in_weather ? site.id : null);
   const { updateSiteMutation } = useSites();
@@ -423,6 +425,25 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
             <p className="text-[#3a4a64] text-sm text-center py-2">
               Weather scanning is disabled for this site.
             </p>
+          )}
+
+          {/* X-Country distance radius toggle */}
+          {onToggleXCountryRadius && (
+            <div className="flex items-center gap-2 bg-[#1a2234] border border-[#1e2a3a] rounded-xl px-4 py-3">
+              <input
+                type="checkbox"
+                id="site-xcountry-radius"
+                checked={!!showXCountryRadius}
+                onChange={onToggleXCountryRadius}
+                className="h-4 w-4 rounded border-[#2a3a54] bg-[#0d1421] text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="site-xcountry-radius" className="text-sm text-white">
+                X-Country Distance
+                <span className="block text-xs text-[#6b7fa3] font-normal">
+                  Show 25 km radius — max distance flyable without a Cross Country endorsement
+                </span>
+              </label>
+            </div>
           )}
 
           {/* Best Window card */}
