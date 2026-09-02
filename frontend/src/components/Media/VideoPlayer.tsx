@@ -184,17 +184,27 @@ export default function VideoPlayer({ mediaId }: VideoPlayerProps) {
 
       if (!isCurrentlyFullscreen) {
         const element = container as any;
-        if (element.requestFullscreen) {
-          await element.requestFullscreen();
-        } else if (element.webkitRequestFullscreen) {
-          await element.webkitRequestFullscreen();
-        } else if (video && (video as any).webkitEnterFullscreen) {
-          // iOS Safari: fullscreen is only supported on the video element itself
-          (video as any).webkitEnterFullscreen();
-        } else if (element.mozRequestFullScreen) {
-          await element.mozRequestFullScreen();
-        } else if (element.msRequestFullscreen) {
-          await element.msRequestFullscreen();
+        try {
+          if (element.requestFullscreen) {
+            await element.requestFullscreen();
+          } else if (element.webkitRequestFullscreen) {
+            await element.webkitRequestFullscreen();
+          } else if (element.mozRequestFullScreen) {
+            await element.mozRequestFullScreen();
+          } else if (element.msRequestFullscreen) {
+            await element.msRequestFullscreen();
+          } else {
+            throw new Error('Standard Fullscreen API unavailable');
+          }
+        } catch (standardApiError) {
+          // iOS Safari (including "Add to Home Screen" standalone apps) exposes
+          // requestFullscreen() on the container but its promise rejects there -
+          // fullscreen is only actually supported on the <video> element itself.
+          if (video && (video as any).webkitEnterFullscreen) {
+            (video as any).webkitEnterFullscreen();
+          } else {
+            throw standardApiError;
+          }
         }
       } else {
         const doc = document as any;
