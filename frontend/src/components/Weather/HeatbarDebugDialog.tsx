@@ -6,7 +6,7 @@ import { formatForecastDate } from '../../utils/dateUtils';
 import { useSettings } from '../../hooks/useSettings';
 import { SettingKey } from '../../services/settings.service';
 import { formatTemperature } from '../../utils/temperatureUtils';
-import { scoreToHeatColor } from '../../utils/colorInterpolation';
+import { scoreToHeatColor, getContrastTextColor } from '../../utils/colorInterpolation';
 import WindArrow from './WindArrow';
 
 interface HeatbarDebugDialogProps {
@@ -345,6 +345,7 @@ export default function HeatbarDebugDialog({
                                      hourData.wind_10m.precipitation !== undefined &&
                                      hourData.wind_10m.precipitation > 0;
                       const heatColor = getHeatBarColor(hourData.timestamp);
+                      const heatTextColor = getContrastTextColor(heatColor);
                       return (
                         <td
                           key={index}
@@ -358,7 +359,7 @@ export default function HeatbarDebugDialog({
                           <div className="flex flex-col items-center gap-1">
                             {/* Line 1: Temperature | Rain Icon */}
                             <div className="flex items-center justify-between w-full text-xs">
-                              <span className="text-black font-bold">
+                              <span className="font-bold" style={{ color: heatTextColor }}>
                                 {formatTemperature(hourData.wind_10m.temperature, temperatureUnit)}
                               </span>
                               {hasRain && (
@@ -372,7 +373,7 @@ export default function HeatbarDebugDialog({
                             </div>
                             {/* Line 2: Wind Speed */}
                             <div className="flex items-center justify-center w-full">
-                              <span className="font-medium text-gray-900">
+                              <span className="font-medium" style={{ color: heatTextColor }}>
                                 {Math.round(hourData.wind_10m.speed)} km/h
                               </span>
                             </div>

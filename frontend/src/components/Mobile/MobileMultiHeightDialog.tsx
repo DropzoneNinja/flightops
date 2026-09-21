@@ -5,7 +5,7 @@ import { formatForecastDate } from '../../utils/dateUtils';
 import { useSettings } from '../../hooks/useSettings';
 import { SettingKey } from '../../services/settings.service';
 import { formatTemperature } from '../../utils/temperatureUtils';
-import { scoreToHeatColor } from '../../utils/colorInterpolation';
+import { scoreToHeatColor, getContrastTextColor } from '../../utils/colorInterpolation';
 import WindArrow from '../Weather/WindArrow';
 import BottomSheet from './BottomSheet';
 
@@ -187,6 +187,7 @@ export default function MobileMultiHeightDialog({
                   hour12: true,
                 });
                 const heatColor = getHeatBarColor(hourData.timestamp);
+                const heatTextColor = getContrastTextColor(heatColor);
                 const hasRain =
                   hourData.wind_10m.precipitation !== null &&
                   hourData.wind_10m.precipitation !== undefined &&
@@ -206,7 +207,7 @@ export default function MobileMultiHeightDialog({
                     >
                       <div className="flex flex-col items-center gap-0.5">
                         <div className="flex items-center justify-between w-full text-xs">
-                          <span className="text-black font-bold">
+                          <span className="font-bold" style={{ color: heatTextColor }}>
                             {formatTemperature(hourData.wind_10m.temperature, temperatureUnit)}
                           </span>
                           {hasRain && (
@@ -218,7 +219,7 @@ export default function MobileMultiHeightDialog({
                             />
                           )}
                         </div>
-                        <span className="font-medium text-gray-900 text-xs">
+                        <span className="font-medium text-xs" style={{ color: heatTextColor }}>
                           {Math.round(hourData.wind_10m.speed)} km/h
                         </span>
                         <div className="flex items-center gap-1">

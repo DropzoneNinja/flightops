@@ -52,3 +52,19 @@ export function scoreToHeatColor(score: number): string {
   const toHex = (value: number) => value.toString(16).padStart(2, '0');
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
+
+/**
+ * Pick black or white text for readable contrast against a hex background color,
+ * using the YIQ perceived-brightness formula.
+ *
+ * @param hexColor Background color, e.g. from scoreToHeatColor()
+ * @returns '#000000' or '#ffffff'
+ */
+export function getContrastTextColor(hexColor: string): '#000000' | '#ffffff' {
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? '#000000' : '#ffffff';
+}

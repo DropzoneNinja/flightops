@@ -85,7 +85,7 @@ export default function MediaCalendar() {
         }
       >
         <div className="px-4 py-4 flex flex-col gap-4">
-          <div className="bg-white rounded-xl shadow-elevation-lg p-4 animate-fade-in">
+          <div className="bg-[#141d2e] rounded-xl border border-[#1e2a3a] p-4 animate-fade-in">
             <CalendarView
               mediaDateCounts={mediaDateCounts || []}
               isLoading={isLoading}

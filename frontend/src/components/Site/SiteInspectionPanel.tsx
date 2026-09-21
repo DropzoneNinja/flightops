@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FlightSite } from '../../services/sites.service';
 import { WeatherForecast } from '../../services/weather.service';
 import { Mission, missionsService } from '../../services/missions.service';
-import { scoreToHeatColor } from '../../utils/colorInterpolation';
+import { scoreToHeatColor, getContrastTextColor } from '../../utils/colorInterpolation';
 import { convertWindSpeed, windSpeedUnitLabel } from '../../utils/windSpeed';
 import { useWeather } from '../../hooks/useWeather';
 import { useSites } from '../../hooks/useSites';
@@ -456,8 +456,11 @@ export default function SiteInspectionPanel({ site, onClose, onForecastSelect, p
                     <span className="text-[#6b9fd4] text-xs font-semibold tracking-widest uppercase">Best Window</span>
                   </div>
                   <div
-                    className="text-white text-xl font-bold w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: scoreToHeatColor(bestScore) }}
+                    className="text-xl font-bold w-12 h-12 rounded-xl flex items-center justify-center"
+                    style={{
+                      backgroundColor: scoreToHeatColor(bestScore),
+                      color: getContrastTextColor(scoreToHeatColor(bestScore)),
+                    }}
                   >
                     {Math.round(bestScore)}
                   </div>
