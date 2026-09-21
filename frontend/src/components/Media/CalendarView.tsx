@@ -235,6 +235,7 @@ export default function CalendarView({
                 month={month}
                 dateCountsMap={dateCountsMap}
                 onDateClick={handleDateClick}
+                showHeader={visibleMonthCount > 1}
               />
             </div>
           ))}

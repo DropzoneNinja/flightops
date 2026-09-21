@@ -14,6 +14,7 @@ interface MonthCalendarProps {
   month: Date;
   dateCountsMap: Map<string, { image_count: number; video_count: number; flight_count: number }>;
   onDateClick: (date: Date) => void;
+  showHeader?: boolean;
 }
 
 /**
@@ -24,6 +25,7 @@ function MonthCalendar({
   month,
   dateCountsMap,
   onDateClick,
+  showHeader = true,
 }: MonthCalendarProps) {
   // Generate calendar days for the month
   const calendarDays = useMemo(() => {
@@ -46,9 +48,11 @@ function MonthCalendar({
   return (
     <div className="calendar-month-grid">
       {/* Month header */}
-      <h3 className="text-lg sm:text-xl font-display font-semibold text-white mb-4 text-center">
-        {format(month, 'MMMM yyyy')}
-      </h3>
+      {showHeader && (
+        <h3 className="text-lg sm:text-xl font-display font-semibold text-white mb-4 text-center">
+          {format(month, 'MMMM yyyy')}
+        </h3>
+      )}
 
       {/* Calendar Grid */}
       <div className="grid grid-cols-7 gap-2 sm:gap-3">
